@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useFriendMarket } from "../context/FriendMarketContext";
+import { money } from "../lib/formatters";
 
 const routes = [
   ["/markets", "Markets"],
@@ -20,6 +21,7 @@ export default function AppShell({ children }) {
   const { state, actions } = useFriendMarket();
   const [sessionPending, setSessionPending] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(true);
+  const openPositions = state.portfolio.openBets.length;
 
   useEffect(() => {
     if (typeof window === "undefined" || window.location.hash.length <= 1) {
@@ -76,6 +78,17 @@ export default function AppShell({ children }) {
     <div className="shell" data-theme={state.theme}>
       <header className="site-header">
         <div className="nav-wrap">
+          <button
+            className="hamburger-button"
+            type="button"
+            aria-label={navCollapsed ? "Open navigation" : "Close navigation"}
+            aria-expanded={!navCollapsed}
+            onClick={() => setNavCollapsed((value) => !value)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
           <Link className="brand" href="/" onClick={actions.closeMobileNav}>
             <div className="brand-mark">FM</div>
             <div className="brand-copy">
@@ -83,15 +96,19 @@ export default function AppShell({ children }) {
               <p>Social markets desk</p>
             </div>
           </Link>
-          <button
-            className="nav-collapse-button"
-            type="button"
-            aria-expanded={!navCollapsed}
-            onClick={() => setNavCollapsed((value) => !value)}
-          >
-            <span>{navCollapsed ? "Open" : "Close"}</span>
-            <span className="nav-chevron">{navCollapsed ? "+" : "-"}</span>
-          </button>
+          <div className="top-account-strip" aria-label="Account summary">
+            <Link className="top-account-metric" href="/portfolio">
+              <span>Balance</span>
+              <strong>{money(state.currentUser.play_credit_balance)}</strong>
+            </Link>
+            <Link className="top-account-metric" href="/portfolio">
+              <span>Positions</span>
+              <strong>{openPositions}</strong>
+            </Link>
+            <Link className="btn btn-primary top-deposit-button" href="/settings">
+              Deposit
+            </Link>
+          </div>
           <div className={`nav-actions ${navCollapsed ? "collapsed" : "expanded"}`}>
             <nav className={`nav-links ${state.mobileNavOpen ? "open" : ""}`} aria-label="Primary">
               <Link

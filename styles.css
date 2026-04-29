@@ -1,7 +1,7 @@
 :root {
-  --bg: #f3f5f1;
+  --bg: #f7f8f6;
   --surface: #ffffff;
-  --surface-alt: #eef2ee;
+  --surface-alt: #f1f4f2;
   --text: #17201c;
   --muted: #64706b;
   --border: #d6ded5;
@@ -14,8 +14,8 @@
   --no-soft: #fae8ee;
   --danger: #b42318;
   --danger-soft: #fff0ed;
-  --shadow: 0 14px 34px rgba(23, 32, 28, 0.08);
-  --shadow-soft: 0 6px 18px rgba(23, 32, 28, 0.06);
+  --shadow: 0 12px 28px rgba(23, 32, 28, 0.06);
+  --shadow-soft: 0 5px 14px rgba(23, 32, 28, 0.05);
   --radius: 8px;
   --radius-sm: 6px;
   --content-width: 1280px;
@@ -49,7 +49,7 @@ body {
   font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   color: var(--text);
   background:
-    linear-gradient(180deg, rgba(13, 118, 110, 0.08), transparent 360px),
+    linear-gradient(180deg, rgba(13, 118, 110, 0.05), transparent 260px),
     var(--bg);
 }
 
@@ -102,8 +102,8 @@ a {
 .nav-wrap {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  justify-content: flex-start;
+  gap: 12px;
   padding: 10px 0;
   position: relative;
 }
@@ -112,6 +112,7 @@ a {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .brand-mark {
@@ -145,28 +146,58 @@ a {
   flex: 1;
 }
 
-.nav-collapse-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  padding: 0 12px;
+.hamburger-button {
+  display: grid;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-content: center;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface);
-  color: var(--text);
-  font-weight: 800;
   box-shadow: var(--shadow-soft);
 }
 
-.nav-chevron {
+.hamburger-button span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--text);
+}
+
+.top-account-strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.top-account-metric {
   display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
+  gap: 2px;
+  min-width: 92px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.top-account-metric span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.top-account-metric strong {
+  font-size: 0.95rem;
+}
+
+.top-deposit-button {
+  min-height: 42px;
 }
 
 .nav-links {
@@ -183,8 +214,8 @@ a {
 .nav-actions.expanded {
   position: absolute;
   top: calc(100% + 10px);
-  right: 0;
-  width: min(680px, calc(100vw - 32px));
+  left: 0;
+  width: min(560px, calc(100vw - 32px));
   padding: 14px;
   align-items: stretch;
   border: 1px solid var(--border);
@@ -478,6 +509,58 @@ a {
   margin: 0 0 18px;
 }
 
+.markets-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.78fr);
+  gap: 18px;
+  align-items: stretch;
+  margin-bottom: 18px;
+}
+
+.markets-overview .section-head {
+  min-height: 170px;
+  margin: 0;
+  padding: 26px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.markets-overview .section-head h3 {
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  line-height: 0.98;
+}
+
+.market-account-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.market-account-panel > div {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.market-account-panel strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.25rem;
+}
+
+.market-account-panel .btn {
+  grid-column: span 1;
+}
+
 .section-head h3,
 .table-card h3,
 .detail-panel h3,
@@ -519,7 +602,7 @@ a {
 
 .ops-strip > div,
 .market-command-row > div {
-  padding: 18px;
+  padding: 14px 16px;
 }
 
 .ops-strip strong,
@@ -671,14 +754,15 @@ a {
 }
 
 .market-grid {
-  grid-template-columns: repeat(3, minmax(280px, 1fr));
+  grid-template-columns: repeat(4, minmax(230px, 1fr));
 }
 
 .market-card {
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  padding: 14px;
   align-content: start;
+  min-height: 100%;
 }
 
 .market-card:hover {
@@ -738,14 +822,14 @@ a {
 
 .market-card h4 {
   margin: 8px 0 0;
-  font-size: 1rem;
+  font-size: 0.98rem;
   line-height: 1.35;
 }
 
 .market-description {
   margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   line-height: 1.45;
 }
 
@@ -1525,6 +1609,7 @@ textarea {
   .ops-strip,
   .market-command-row,
   .signal-rail,
+  .markets-overview,
   .settings-command-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1541,13 +1626,25 @@ textarea {
 
 @media (max-width: 720px) {
   .nav-wrap {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
   }
 
-  .nav-collapse-button {
-    margin-left: auto;
+  .brand-copy p {
+    display: none;
+  }
+
+  .top-account-strip {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .top-account-metric,
+  .top-deposit-button {
+    flex: 1 1 0;
   }
 
   .nav-actions.expanded {
@@ -1640,6 +1737,8 @@ textarea {
   .ops-grid,
   .taxonomy-grid,
   .hero-console,
+  .markets-overview,
+  .market-account-panel,
   .ops-strip,
   .market-command-row,
   .signal-rail,

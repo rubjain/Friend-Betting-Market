@@ -1,6 +1,7 @@
 "use client";
 
 import { useFriendMarket } from "../../context/FriendMarketContext";
+import { money } from "../../lib/formatters";
 import { marketCategories } from "../../lib/marketTaxonomy";
 import { getMarketPipelineSummary, rankMarketsBySignal } from "../../lib/marketAlgorithms";
 import MarketCard from "../MarketCard";
@@ -15,13 +16,32 @@ export default function MarketsPage() {
   });
   const pipeline = getMarketPipelineSummary(state.markets, state.liveGames);
   const topSignals = rankMarketsBySignal(filteredMarkets, state.liveGames).slice(0, 3);
+  const openExposure = state.portfolio.openBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
 
   return (
     <section className="page active">
-      <SectionHead
-        title="Markets"
-        body="Search categories, compare YES/NO prices, and scan live game or model signals before opening a bet."
-      />
+      <div className="markets-overview">
+        <SectionHead
+          title="Markets"
+          body="Trade live sports, macro, crypto, tech, culture, and politics markets with clear settlement rules."
+        />
+        <div className="market-account-panel">
+          <div>
+            <span className="label">Balance</span>
+            <strong>{money(state.currentUser.play_credit_balance)}</strong>
+          </div>
+          <div>
+            <span className="label">Open positions</span>
+            <strong>{state.portfolio.openBets.length}</strong>
+          </div>
+          <div>
+            <span className="label">Exposure</span>
+            <strong>{money(openExposure)}</strong>
+          </div>
+          <a className="btn btn-primary" href="/settings">Deposit</a>
+          <a className="btn btn-secondary" href="/portfolio">Positions</a>
+        </div>
+      </div>
       <div className="market-command-row">
         <div>
           <span className="label">Expansion map</span>
