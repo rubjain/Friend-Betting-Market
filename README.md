@@ -1,6 +1,6 @@
 # FriendMarket MVP
 
-This is a responsive Next.js MVP for a social prediction market product. It keeps the original localStorage-backed demo behavior while moving the app into routes, components, and reusable payout/accounting modules.
+This is a responsive Next.js MVP for a social prediction market product: a sports-betting-style app where friends can place predictions together and use social boosts to increase bonus-side upside. It keeps the original localStorage-backed demo behavior while moving the app into routes, components, and reusable payout/accounting modules.
 
 ## What is included
 
