@@ -156,7 +156,7 @@ export default function AppShell({ children }) {
                 {sessionPending ? "Logging out..." : "Log out"}
               </button>
             ) : (
-              <Link className="btn btn-ghost" href="/profile" onClick={actions.closeMobileNav}>
+              <Link className="btn btn-ghost" href="/login" onClick={actions.closeMobileNav}>
                 Log in
               </Link>
             )}

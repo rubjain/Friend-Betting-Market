@@ -123,6 +123,7 @@ model User {
   name               String
   username           String              @unique
   email              String              @unique
+  passwordHash       String?
   role               UserRole            @default(USER)
   riskStatus         String              @default("clear")
   riskScore          Int                 @default(0)

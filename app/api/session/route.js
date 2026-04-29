@@ -76,7 +76,10 @@ export async function POST(request) {
   const result =
     payload.mode === "signup"
       ? await signupUser(payload)
-      : await loginUser({ identifier: payload.identifier || payload.email || payload.username });
+      : await loginUser({
+          identifier: payload.identifier || payload.email || payload.username,
+          password: payload.password,
+        });
 
   if (!result.ok) {
     return NextResponse.json(result, { status: 400 });

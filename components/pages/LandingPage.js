@@ -18,8 +18,8 @@ export default function LandingPage() {
     <section className="page active">
       <div className="hero-console">
         <div className="hero-copy">
-          <span className="eyebrow">Friend-powered trading desk</span>
-          <h2>Markets, live games, and model signals in one place.</h2>
+          <span className="eyebrow">&#9679; Live · Social · Algorithm-backed</span>
+          <h2>Markets. Live games. Model signals.</h2>
           <p>
             Browse YES/NO prices, track sports feeds, and see which algorithms are moving before opening a position.
           </p>
@@ -92,10 +92,10 @@ export default function LandingPage() {
       <section>
         <div className="section-head">
           <div>
-            <h3>Top markets</h3>
-            <p>Prices and trade actions stay visible before opening details.</p>
+            <h3>Top Markets</h3>
+            <p>Live prices and one-click trade actions — no need to open details.</p>
           </div>
-          <Link className="btn btn-ghost" href="/markets">All markets</Link>
+          <Link className="btn btn-ghost" href="/markets">All Markets →</Link>
         </div>
         <div className="market-grid">
           {featuredMarkets.map((market) => (

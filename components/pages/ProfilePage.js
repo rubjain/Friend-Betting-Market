@@ -12,10 +12,12 @@ export default function ProfilePage() {
     email: state.currentUser.email,
   });
   const [loginIdentifier, setLoginIdentifier] = useState(state.currentUser.email);
+  const [loginPassword, setLoginPassword] = useState("");
   const [signupDraft, setSignupDraft] = useState({
     name: "",
     email: "",
     username: "",
+    password: "",
   });
   const [pendingAction, setPendingAction] = useState("");
 
@@ -42,7 +44,7 @@ export default function ProfilePage() {
     if (pendingAction) return;
     setPendingAction("login");
     try {
-      await actions.login(loginIdentifier);
+      await actions.login(loginIdentifier, loginPassword);
     } finally {
       setPendingAction("");
     }
@@ -96,8 +98,21 @@ export default function ProfilePage() {
                 </label>
                 <input
                   id="login-identifier"
+                  autoComplete="username email"
                   value={loginIdentifier}
                   onChange={(event) => setLoginIdentifier(event.currentTarget.value)}
+                />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="login-password">
+                  Password
+                </label>
+                <input
+                  id="login-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={loginPassword}
+                  onChange={(event) => setLoginPassword(event.currentTarget.value)}
                 />
               </div>
               <div className="field full">
@@ -144,8 +159,24 @@ export default function ProfilePage() {
                 id="signup-username"
                 value={signupDraft.username}
                 placeholder="@username"
+                autoComplete="username"
                 onChange={(event) =>
                   setSignupDraft((draft) => ({ ...draft, username: event.currentTarget.value }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="signup-password">
+                Password
+              </label>
+              <input
+                id="signup-password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Min. 8 characters"
+                value={signupDraft.password}
+                onChange={(event) =>
+                  setSignupDraft((draft) => ({ ...draft, password: event.currentTarget.value }))
                 }
               />
             </div>

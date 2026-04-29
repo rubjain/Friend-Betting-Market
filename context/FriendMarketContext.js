@@ -460,10 +460,10 @@ export function FriendMarketProvider({ children }) {
           next.flashMessage = checked ? "Demo admin mode enabled." : "Demo admin mode disabled.";
         });
       },
-      async login(identifier) {
+      async login(identifier, password) {
         const { response, payload } = await requestJson("/api/session", {
           method: "POST",
-          body: JSON.stringify({ identifier }),
+          body: JSON.stringify({ identifier, password }),
         });
         if (payload.state) {
           setState({
