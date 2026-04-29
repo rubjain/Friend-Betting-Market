@@ -27,6 +27,13 @@ import {
   getResolutionTemplate,
 } from "../lib/marketTaxonomy.js";
 import { getLedgerView } from "../lib/ledgerViews.js";
+import {
+  getLinkedLiveGame,
+  getLiveGameClock,
+  getMarketAlgorithmSnapshot,
+  getMarketPipelineSummary,
+  rankMarketsBySignal,
+} from "../lib/marketAlgorithms.js";
 import { applyRiskSignalsToUser, getBoostRiskSignals } from "../lib/riskEngine.js";
 import { getSourceAdapter, validateSourceAdapterConfig } from "../lib/sourceAdapters.js";
 import { getSessionFromRequest, requireAdmin } from "../lib/server/auth.js";
@@ -489,4 +496,21 @@ test("default market seeds include expansion markets", async () => {
   assert.equal(defaultState.markets.every((market) => market.resolutionTemplate), true);
   assert.equal(defaultState.markets.every((market) => market.closeTime), true);
   assert.equal(defaultState.createMarketDraft.sourceUrl, "");
+});
+
+test("market algorithms expose live tracking and signal summaries", async () => {
+  const { defaultState } = await import("../lib/defaultState.js");
+  const knicks = defaultState.markets.find((market) => market.id === "market_1");
+  const snapshot = getMarketAlgorithmSnapshot(knicks, defaultState.liveGames);
+  const summary = getMarketPipelineSummary(defaultState.markets, defaultState.liveGames);
+  const linkedGame = getLinkedLiveGame(knicks, defaultState.liveGames);
+  const ranked = rankMarketsBySignal(defaultState.markets, defaultState.liveGames);
+
+  assert.equal(linkedGame.id, "game_knicks_celtics");
+  assert.equal(getLiveGameClock(linkedGame), "Q3 · 6:42");
+  assert.equal(snapshot.model, "Live sports tracker");
+  assert.equal(snapshot.movementScore > 0, true);
+  assert.equal(summary.liveLinked >= 3, true);
+  assert.equal(summary.algorithmic >= 4, true);
+  assert.equal(ranked[0].snapshot.movementScore >= ranked.at(-1).snapshot.movementScore, true);
 });

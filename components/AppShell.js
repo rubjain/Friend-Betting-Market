@@ -78,7 +78,7 @@ export default function AppShell({ children }) {
             <div className="brand-mark">FM</div>
             <div className="brand-copy">
               <h1>FriendMarket</h1>
-              <p>Markets, balances, positions.</p>
+              <p>Social markets desk</p>
             </div>
           </Link>
           <button

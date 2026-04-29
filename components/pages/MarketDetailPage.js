@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import BettingPanel from "../BettingPanel";
 import { useFriendMarket } from "../../context/FriendMarketContext";
 import { formatPercent, money } from "../../lib/formatters";
+import { getLinkedLiveGame, getLiveGameClock, getMarketAlgorithmSnapshot } from "../../lib/marketAlgorithms";
 import { getMultiplier } from "../../lib/marketMath";
 import { getResolutionTemplate } from "../../lib/marketTaxonomy";
 import { EmptyState, InfoRow } from "../ui";
@@ -30,6 +31,8 @@ export default function MarketDetailPage({ marketId }) {
   const resolutionTemplate = getResolutionTemplate(market.category);
   const checklist = market.resolutionChecklist ?? resolutionTemplate.checklist;
   const evidenceLinks = market.evidenceLinks ?? [];
+  const linkedGame = getLinkedLiveGame(market, state.liveGames);
+  const algorithm = getMarketAlgorithmSnapshot(market, state.liveGames);
 
   return (
     <section className="page active">
@@ -71,6 +74,51 @@ export default function MarketDetailPage({ marketId }) {
               <InfoRow label="Settlement time" value={market.settlementTime ?? "After resolution"} />
             </div>
           </div>
+          <div className="detail-panel">
+            <h3>Algorithm signal</h3>
+            <p>{market.algorithm?.model ?? algorithm.model}</p>
+            <div className="model-meter-grid">
+              <div>
+                <span className="label">Confidence</span>
+                <strong>{formatPercent(algorithm.confidence)}</strong>
+              </div>
+              <div>
+                <span className="label">Movement</span>
+                <strong>{algorithm.movementScore}/100</strong>
+              </div>
+              <div>
+                <span className="label">Liquidity</span>
+                <strong>{algorithm.liquidityScore}/100</strong>
+              </div>
+            </div>
+            <div className="info-list">
+              {(market.algorithm?.dataFeeds ?? ["Resolution source", "Market price", "Friend boost velocity"]).map((feed) => (
+                <InfoRow key={feed} label={feed} value="Tracked" />
+              ))}
+              <InfoRow label="Refresh" value={market.algorithm?.refreshCadence ?? "Daily baseline"} />
+              <InfoRow label="Signal" value={algorithm.recommendation} />
+            </div>
+          </div>
+          {linkedGame ? (
+            <div className="detail-panel live-detail-panel">
+              <h3>Live game feed</h3>
+              <p>{linkedGame.feedStatus}</p>
+              <div className="game-scoreboard">
+                <div>
+                  <span>{linkedGame.awayTeam}</span>
+                  <strong>{linkedGame.awayScore}</strong>
+                </div>
+                <div>
+                  <span>{linkedGame.homeTeam}</span>
+                  <strong>{linkedGame.homeScore}</strong>
+                </div>
+              </div>
+              <div className="info-list">
+                <InfoRow label="League" value={linkedGame.league} />
+                <InfoRow label="Clock" value={getLiveGameClock(linkedGame)} />
+              </div>
+            </div>
+          ) : null}
           <div className="detail-panel">
             <h3>Resolution criteria</h3>
             <p>{market.resolutionTemplate ?? resolutionTemplate.template}</p>

@@ -112,6 +112,7 @@ function mergeStoredState(parsed) {
       },
     },
     adminConfig: { ...defaultState.adminConfig, ...(parsed.adminConfig || {}) },
+    liveGames: mergeById(defaultState.liveGames, parsed.liveGames || []),
     betDraft: { ...defaultState.betDraft, ...(parsed.betDraft || {}) },
     createMarketDraft: {
       ...defaultState.createMarketDraft,
