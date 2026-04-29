@@ -12,6 +12,7 @@ import {
 import { money, titleCase } from "../lib/formatters";
 import AdminDisputeQueue from "./AdminDisputeQueue";
 import AdminInsights from "./AdminInsights";
+import AdminAuditTable from "./AdminAuditTable";
 import AdminLedgerTable from "./AdminLedgerTable";
 import ConfirmDialog from "./ConfirmDialog";
 import RiskReviewQueue from "./RiskReviewQueue";
@@ -344,6 +345,7 @@ export default function AdminDashboard() {
         </div>
         <RiskReviewQueue users={riskUsers} pendingAction={pendingAction} runAction={runAdminAction} onConfirmAction={confirmAction} />
         <AdminDisputeQueue onMessage={actions.setFlashMessage} />
+        <AdminAuditTable />
         <AdminLedgerTable ledger={state.ledger} />
         <div className="table-card">
           <h3>User and ledger overview</h3>
