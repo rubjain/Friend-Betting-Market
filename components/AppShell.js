@@ -7,9 +7,9 @@ import { useFriendMarket } from "../context/FriendMarketContext";
 
 const routes = [
   ["/markets", "Markets"],
-  ["/friends", "Friends"],
   ["/portfolio", "Portfolio"],
-  ["/create", "Create Market"],
+  ["/friends", "Friends"],
+  ["/create", "Create"],
   ["/profile", "Profile"],
 ];
 
@@ -78,7 +78,7 @@ export default function AppShell({ children }) {
             <div className="brand-mark">FM</div>
             <div className="brand-copy">
               <h1>FriendMarket</h1>
-              <p>Social prediction markets, designed for trust.</p>
+              <p>Markets, balances, positions.</p>
             </div>
           </Link>
           <button
@@ -160,10 +160,7 @@ export default function AppShell({ children }) {
         {children}
       </main>
       <footer className="footer-wrap">
-        <p>
-          FriendMarket MVP prototype for a responsive web app with separate withdrawable and bonus
-          ledger balances.
-        </p>
+        <p>FriendMarket keeps market prices, balances, boosts, and audit state in one workspace.</p>
       </footer>
     </div>
   );

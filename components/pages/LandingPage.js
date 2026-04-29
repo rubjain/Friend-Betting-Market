@@ -2,89 +2,64 @@
 
 import Link from "next/link";
 import { useFriendMarket } from "../../context/FriendMarketContext";
-import { money } from "../../lib/formatters";
+import { formatPercent, money } from "../../lib/formatters";
+import MarketCard from "../MarketCard";
 
 export default function LandingPage() {
   const { state } = useFriendMarket();
+  const featuredMarkets = state.markets.slice(0, 3);
+  const totalVolume = state.markets.reduce((sum, market) => sum + Number(market.volume || 0), 0);
+  const openBetExposure = state.portfolio.openBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
 
   return (
     <section className="page active">
-      <div className="hero">
-        <div className="hero-copy card">
-          <span className="eyebrow">Responsive web MVP</span>
-          <h2>Prediction markets that feel simple, social, and trustworthy.</h2>
-          <p>
-            FriendMarket lets people create and join clear yes-or-no markets with friends, while
-            keeping withdrawable funds and bonus boosts separate in the ledger.
-          </p>
-          <div className="button-row">
-            <Link className="btn btn-primary" href="/markets">
-              Browse Markets
-            </Link>
-            <Link className="btn btn-secondary" href="/profile">
-              Sign Up
-            </Link>
-          </div>
+      <div className="dashboard-head">
+        <div>
+          <span className="eyebrow">Live workspace</span>
+          <h2>Prediction markets</h2>
+          <p>Browse prices, place YES/NO positions, and track friend-boosted exposure without leaving the market flow.</p>
         </div>
-        <div className="hero-panel">
-          <div>
-            <div className="label">Example payout flow</div>
-            <div className="metric-grid">
-              <div className="metric-card">
-                <div className="metric-label">Normal payout</div>
-                <div className="metric-value">$20</div>
-              </div>
-              <div className="metric-card">
-                <div className="metric-label">Social boost</div>
-                <div className="metric-value">$4</div>
-              </div>
-            </div>
-          </div>
-          <div className="note-banner">
-            A $10 winning bet with a 1.20x multiplier returns $20 to withdrawable balance and $4 to
-            bonus balance.
-          </div>
+        <div className="button-row compact-row">
+          <Link className="btn btn-primary" href="/markets">
+            Trade Markets
+          </Link>
+          <Link className="btn btn-secondary" href="/portfolio">
+            View Portfolio
+          </Link>
         </div>
       </div>
 
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="label">Current markets</div>
+          <div className="label">Markets</div>
           <div className="stat-value">{state.markets.length}</div>
         </div>
         <div className="stat-card">
-          <div className="label">Tracked bonus liability</div>
-          <div className="stat-value">{money(state.adminConfig.bonusLiability)}</div>
+          <div className="label">Total volume</div>
+          <div className="stat-value">{money(totalVolume)}</div>
         </div>
         <div className="stat-card">
-          <div className="label">Mobile-ready layout</div>
-          <div className="stat-value">Desktop first</div>
+          <div className="label">Open exposure</div>
+          <div className="stat-value">{money(openBetExposure)}</div>
+        </div>
+        <div className="stat-card">
+          <div className="label">Bonus cap</div>
+          <div className="stat-value">{formatPercent(state.adminConfig.maxBonusStakePercent / 100)}</div>
         </div>
       </div>
 
       <section>
         <div className="section-head">
           <div>
-            <h3>How it works</h3>
-            <p>Clear actions, minimal friction, and transparent money movement.</p>
+            <h3>Top markets</h3>
+            <p>Prices and trade actions stay visible before opening details.</p>
           </div>
+          <Link className="btn btn-ghost" href="/markets">All markets</Link>
         </div>
-        <div className="step-grid">
-          <article className="step-card">
-            <div className="step-number">1</div>
-            <h4>Browse or create a market</h4>
-            <p>Pick a simple yes-or-no market or submit your own idea for admin approval.</p>
-          </article>
-          <article className="step-card">
-            <div className="step-number">2</div>
-            <h4>Bet with clear balances</h4>
-            <p>Each bet shows how much comes from withdrawable funds versus bonus funds before you confirm.</p>
-          </article>
-          <article className="step-card">
-            <div className="step-number">3</div>
-            <h4>Settle transparently</h4>
-            <p>Normal winnings route by funding source, while social boosts always credit to bonus balance.</p>
-          </article>
+        <div className="market-grid">
+          {featuredMarkets.map((market) => (
+            <MarketCard market={market} key={market.id} />
+          ))}
         </div>
       </section>
     </section>

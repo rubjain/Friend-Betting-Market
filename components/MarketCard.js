@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFriendMarket } from "../context/FriendMarketContext";
-import { money } from "../lib/formatters";
-import { InfoRow } from "./ui";
+import { formatPercent, money } from "../lib/formatters";
 
 export default function MarketCard({ market }) {
   const router = useRouter();
@@ -19,28 +18,35 @@ export default function MarketCard({ market }) {
     <article className="market-card">
       <div className="market-top">
         <div>
-          <div className="pill">{market.category}</div>
+          <div className="market-kicker">
+            <span>{market.category}</span>
+            <span>{market.status ?? "active"}</span>
+          </div>
           <h4>{market.title}</h4>
         </div>
-        <Link className="btn btn-ghost" href={`/markets/${market.id}`}>
-          View
-        </Link>
       </div>
-      <p>{market.description}</p>
-      <div className="info-list">
-        <InfoRow label="Volume" value={money(market.volume)} mutedClass="market-meta" />
-        <InfoRow label="End date" value={market.endDate} mutedClass="market-meta" />
-        <InfoRow label="Bonus eligible" value={market.eligibleForBonus ? "Yes" : "No"} mutedClass="market-meta" />
+      <p className="market-description">{market.description}</p>
+      <div className="market-price-grid" aria-label={`${market.title} prices`}>
+        <button className="price-button yes-price" type="button" onClick={() => prepare("YES")}>
+          <span>YES</span>
+          <strong>{formatPercent(market.yesPrice)}</strong>
+        </button>
+        <button className="price-button no-price" type="button" onClick={() => prepare("NO")}>
+          <span>NO</span>
+          <strong>{formatPercent(market.noPrice)}</strong>
+        </button>
+      </div>
+      <div className="market-meta-row">
+        <span>Vol {money(market.volume)}</span>
+        <span>Closes {market.endDate}</span>
+        <span>{market.friendsBoosting} boosts</span>
       </div>
       <div className="market-actions">
-        <button className="btn btn-success" type="button" onClick={() => prepare("YES")}>
-          Bet Yes
-        </button>
-        <button className="btn btn-danger" type="button" onClick={() => prepare("NO")}>
-          Bet No
-        </button>
-        <Link className="btn btn-secondary" href="/friends" onClick={() => actions.setSelectedMarket(market.id)}>
-          Invite Friends
+        <Link className="btn btn-secondary" href={`/markets/${market.id}`}>
+          Details
+        </Link>
+        <Link className="btn btn-ghost" href="/friends" onClick={() => actions.setSelectedMarket(market.id)}>
+          Boost
         </Link>
       </div>
     </article>

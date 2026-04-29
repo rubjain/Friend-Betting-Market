@@ -36,7 +36,7 @@ export default function MarketDetailPage({ marketId }) {
       <div className="section-head">
         <div>
           <h3>{market.title}</h3>
-          <p>{market.category} market with transparent funding and payout routing.</p>
+          <p>{market.category} · YES {formatPercent(market.yesPrice)} · NO {formatPercent(market.noPrice)}</p>
         </div>
         <Link className="btn btn-secondary" href="/markets">
           Back to Markets
@@ -47,14 +47,28 @@ export default function MarketDetailPage({ marketId }) {
           <div className="detail-panel">
             <h3>Market information</h3>
             <p>{market.description}</p>
+            <div className="quote-strip">
+              <div>
+                <span className="label">YES</span>
+                <strong>{formatPercent(market.yesPrice)}</strong>
+              </div>
+              <div>
+                <span className="label">NO</span>
+                <strong>{formatPercent(market.noPrice)}</strong>
+              </div>
+              <div>
+                <span className="label">Volume</span>
+                <strong>{money(market.volume)}</strong>
+              </div>
+              <div>
+                <span className="label">Closes</span>
+                <strong>{market.endDate}</strong>
+              </div>
+            </div>
             <div className="info-list">
-              <InfoRow label="Volume" value={money(market.volume)} />
               <InfoRow label="Status" value={market.status ?? "active"} />
-              <InfoRow label="End date" value={market.endDate} />
               <InfoRow label="Close time" value={market.closeTime ?? "Not configured"} />
               <InfoRow label="Settlement time" value={market.settlementTime ?? "After resolution"} />
-              <InfoRow label="Current YES" value={formatPercent(market.yesPrice)} />
-              <InfoRow label="Current NO" value={formatPercent(market.noPrice)} />
             </div>
           </div>
           <div className="detail-panel">

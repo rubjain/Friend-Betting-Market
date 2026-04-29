@@ -17,7 +17,7 @@ export default function MarketsPage() {
     <section className="page active">
       <SectionHead
         title="Markets"
-        body="Simple, searchable market cards with clear outcomes and lightweight decisions."
+        body="Search markets, compare YES/NO prices, and open the betting panel in one click."
       />
       <div className="toolbar">
         <div className="field">
@@ -50,13 +50,9 @@ export default function MarketsPage() {
           </select>
         </div>
       </div>
-      <div className="coverage-strip" aria-label="Market coverage roadmap">
-        {marketCategories.map((category) => (
-          <article className="coverage-pill" key={category.id}>
-            <strong>{category.label}</strong>
-            <span>{category.examples.slice(0, 3).join(", ")}</span>
-          </article>
-        ))}
+      <div className="market-count-strip">
+        <strong>{filteredMarkets.length}</strong>
+        <span>{filteredMarkets.length === 1 ? "market" : "markets"} visible</span>
       </div>
       <div className="market-grid">
         {filteredMarkets.length ? (
