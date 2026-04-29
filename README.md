@@ -100,6 +100,14 @@ To run both tests and the production build:
 npm run check
 ```
 
+To sync all local project changes to GitHub:
+
+```bash
+npm run sync
+```
+
+That command stages non-ignored files, commits with an auto timestamp if needed, rebases on top of `origin/main`, and pushes. This repo also uses `.githooks/post-commit`, so ordinary `git commit` calls push automatically after the commit succeeds.
+
 The old `index.html` and `app.js` prototype files are still present as migration reference. The active app entry point is the Next.js `app/` directory, and the migrated app still reuses `styles.css` as its global stylesheet. The dev server uses webpack mode to match the verified production build path.
 
 ## Current structure

@@ -8,6 +8,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "test": "node --test",
+    "sync": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-github.ps1",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "check": "npm run test && next build --webpack"
