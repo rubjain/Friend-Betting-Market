@@ -17,6 +17,7 @@ export default function ProfilePage() {
     email: "",
     username: "",
   });
+  const [pendingAction, setPendingAction] = useState("");
 
   useEffect(() => {
     setProfileDraft({
@@ -27,17 +28,45 @@ export default function ProfilePage() {
 
   async function saveProfile(event) {
     event.preventDefault();
-    await actions.updateProfile(profileDraft);
+    if (pendingAction) return;
+    setPendingAction("profile");
+    try {
+      await actions.updateProfile(profileDraft);
+    } finally {
+      setPendingAction("");
+    }
   }
 
   async function login(event) {
     event.preventDefault();
-    await actions.login(loginIdentifier);
+    if (pendingAction) return;
+    setPendingAction("login");
+    try {
+      await actions.login(loginIdentifier);
+    } finally {
+      setPendingAction("");
+    }
   }
 
   async function signup(event) {
     event.preventDefault();
-    await actions.signup(signupDraft);
+    if (pendingAction) return;
+    setPendingAction("signup");
+    try {
+      await actions.signup(signupDraft);
+    } finally {
+      setPendingAction("");
+    }
+  }
+
+  async function runProfileAction(actionKey, callback) {
+    if (pendingAction) return;
+    setPendingAction(actionKey);
+    try {
+      await callback();
+    } finally {
+      setPendingAction("");
+    }
   }
 
   return (
@@ -55,8 +84,8 @@ export default function ProfilePage() {
           </div>
           {state.auth.authenticated ? (
             <div className="inline-actions profile-actions">
-              <button className="btn btn-secondary" type="button" onClick={actions.logout}>
-                Log Out
+              <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("logout", actions.logout)}>
+                {pendingAction === "logout" ? "Logging out..." : "Log Out"}
               </button>
             </div>
           ) : (
@@ -72,8 +101,8 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="field full">
-                <button className="btn btn-primary" type="submit">
-                  Log In
+                <button className="btn btn-primary" type="submit" disabled={!!pendingAction}>
+                  {pendingAction === "login" ? "Logging in..." : "Log In"}
                 </button>
               </div>
             </form>
@@ -121,8 +150,8 @@ export default function ProfilePage() {
               />
             </div>
             <div className="field full">
-              <button className="btn btn-secondary" type="submit">
-                Sign Up
+              <button className="btn btn-secondary" type="submit" disabled={!!pendingAction}>
+                {pendingAction === "signup" ? "Creating..." : "Sign Up"}
               </button>
             </div>
           </form>
@@ -156,8 +185,8 @@ export default function ProfilePage() {
               />
             </div>
             <div className="field full">
-              <button className="btn btn-primary" type="submit">
-                Save Profile
+              <button className="btn btn-primary" type="submit" disabled={!!pendingAction}>
+                {pendingAction === "profile" ? "Saving..." : "Save Profile"}
               </button>
             </div>
           </form>
@@ -201,17 +230,17 @@ export default function ProfilePage() {
             <InfoRow label="Risk status" value={titleCase(state.currentUser.settings.riskStatus)} />
           </div>
           <div className="inline-actions profile-actions">
-            <button className="btn btn-secondary" type="button" onClick={() => actions.updateVerification("email")}>
-              Verify Email
+            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("verify-email", () => actions.updateVerification("email"))}>
+              {pendingAction === "verify-email" ? "Verifying..." : "Verify Email"}
             </button>
-            <button className="btn btn-secondary" type="button" onClick={() => actions.updateVerification("phone")}>
-              Verify Phone
+            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("verify-phone", () => actions.updateVerification("phone"))}>
+              {pendingAction === "verify-phone" ? "Verifying..." : "Verify Phone"}
             </button>
-            <button className="btn btn-ghost" type="button" onClick={() => actions.updateVerification("identity")}>
-              Identity Placeholder
+            <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("verify-identity", () => actions.updateVerification("identity"))}>
+              {pendingAction === "verify-identity" ? "Updating..." : "Identity Placeholder"}
             </button>
-            <button className="btn btn-ghost" type="button" onClick={() => actions.updateVerification("payment")}>
-              Payment Placeholder
+            <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("verify-payment", () => actions.updateVerification("payment"))}>
+              {pendingAction === "verify-payment" ? "Updating..." : "Payment Placeholder"}
             </button>
           </div>
         </div>

@@ -11,6 +11,7 @@ import { InfoRow } from "./ui";
 export default function BettingPanel({ market }) {
   const { state, actions } = useFriendMarket();
   const [submitted, setSubmitted] = useState(false);
+  const [pendingSide, setPendingSide] = useState("");
   const payout = calculatePayout({
     stake: state.betDraft.stake,
     withdrawableShare: state.betDraft.withdrawableShare,
@@ -24,8 +25,11 @@ export default function BettingPanel({ market }) {
   );
   const marketAcceptsBets = !market.status || market.status === "active";
 
-  function submitBet(side) {
+  async function submitBet(side) {
     setSubmitted(true);
+    if (pendingSide) {
+      return;
+    }
     if (!marketAcceptsBets) {
       actions.setFlashMessage(`This market is ${market.status} and is not accepting bets.`);
       return;
@@ -34,7 +38,12 @@ export default function BettingPanel({ market }) {
       actions.setFlashMessage("Fix the highlighted bet fields before placing this bet.");
       return;
     }
-    actions.placeBet(market.id, side);
+    setPendingSide(side);
+    try {
+      await actions.placeBet(market.id, side);
+    } finally {
+      setPendingSide("");
+    }
   }
 
   return (
@@ -122,11 +131,11 @@ export default function BettingPanel({ market }) {
         </div>
       </div>
       <div className="market-actions">
-        <button className="btn btn-success" type="button" disabled={!marketAcceptsBets} onClick={() => submitBet("YES")}>
-          Bet Yes
+        <button className="btn btn-success" type="button" disabled={!marketAcceptsBets || !!pendingSide} onClick={() => submitBet("YES")}>
+          {pendingSide === "YES" ? "Placing..." : "Bet Yes"}
         </button>
-        <button className="btn btn-danger" type="button" disabled={!marketAcceptsBets} onClick={() => submitBet("NO")}>
-          Bet No
+        <button className="btn btn-danger" type="button" disabled={!marketAcceptsBets || !!pendingSide} onClick={() => submitBet("NO")}>
+          {pendingSide === "NO" ? "Placing..." : "Bet No"}
         </button>
         <Link className="btn btn-secondary" href="/friends">
           Invite Friends

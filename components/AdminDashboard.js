@@ -20,6 +20,7 @@ import { InfoRow } from "./ui";
 export default function AdminDashboard() {
   const { state, actions } = useFriendMarket();
   const [confirmation, setConfirmation] = useState(null);
+  const [pendingAction, setPendingAction] = useState("");
   const riskUsers = state.users.filter((user) => user.risk_status !== "clear" || user.risk_score >= 40);
   const totalBonusBalances = state.users.reduce((sum, user) => sum + user.bonus_balance, 0);
   const frozenUsers = state.users.filter((user) => user.frozen).length;
@@ -35,10 +36,22 @@ export default function AdminDashboard() {
     );
   }
 
+  async function runAdminAction(actionKey, callback) {
+    if (pendingAction) return;
+    setPendingAction(actionKey);
+    try {
+      return await callback();
+    } finally {
+      setPendingAction("");
+    }
+  }
+
   function updateAdminField(event) {
     const rawValue = event.currentTarget.value;
     const normalizedValue = rawValue === "true" ? true : rawValue === "false" ? false : rawValue;
-    actions.updateAdminConfig(event.currentTarget.name, normalizedValue);
+    runAdminAction(`config-${event.currentTarget.name}`, () =>
+      actions.updateAdminConfig(event.currentTarget.name, normalizedValue),
+    );
   }
 
   function confirmAction(config) {
@@ -49,8 +62,8 @@ export default function AdminDashboard() {
     setConfirmation(null);
   }
 
-  function runConfirmation() {
-    confirmation?.onConfirm();
+  async function runConfirmation() {
+    await confirmation?.onConfirm();
     setConfirmation(null);
   }
 
@@ -105,11 +118,11 @@ export default function AdminDashboard() {
           <p>Separate operational view for market approvals, resolution, and bonus liability controls.</p>
         </div>
         <div className="inline-actions admin-head-actions">
-          <button className="btn btn-secondary" type="button" onClick={exportLedger}>
-            Export ledger
+          <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runAdminAction("export-ledger", exportLedger)}>
+            {pendingAction === "export-ledger" ? "Exporting..." : "Export ledger"}
           </button>
-          <button className="btn btn-ghost" type="button" onClick={exportRiskReview}>
-            Export risk review
+          <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runAdminAction("export-risk", exportRiskReview)}>
+            {pendingAction === "export-risk" ? "Exporting..." : "Export risk review"}
           </button>
         </div>
       </div>
@@ -167,11 +180,11 @@ export default function AdminDashboard() {
                     </td>
                     <td data-label="Actions">
                       <div className="inline-actions">
-                        <button className="btn btn-secondary" type="button" onClick={() => actions.approveMarket(market.id)}>
-                          Approve
+                        <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runAdminAction(`approve-${market.id}`, () => actions.approveMarket(market.id))}>
+                          {pendingAction === `approve-${market.id}` ? "Approving..." : "Approve"}
                         </button>
-                        <button className="btn btn-ghost" type="button" onClick={() => actions.rejectMarket(market.id)}>
-                          Reject
+                        <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runAdminAction(`reject-${market.id}`, () => actions.rejectMarket(market.id))}>
+                          {pendingAction === `reject-${market.id}` ? "Rejecting..." : "Reject"}
                         </button>
                       </div>
                     </td>
@@ -209,12 +222,13 @@ export default function AdminDashboard() {
                       <button
                         className="btn btn-secondary"
                         type="button"
+                        disabled={!!pendingAction}
                         onClick={() =>
                           confirmAction({
                             title: "Resolve market as YES?",
                             body: `This will settle open bets for "${market.title}" and write payout ledger entries.`,
                             confirmLabel: "Resolve YES",
-                            onConfirm: () => actions.resolveActiveMarket(market.id, "YES"),
+                            onConfirm: () => runAdminAction(`resolve-yes-${market.id}`, () => actions.resolveActiveMarket(market.id, "YES")),
                           })
                         }
                       >
@@ -223,24 +237,28 @@ export default function AdminDashboard() {
                       <button
                         className="btn btn-secondary"
                         type="button"
+                        disabled={!!pendingAction}
                         onClick={() =>
-                          actions.updateMarketLifecycle(
-                            market.id,
-                            market.status === "Paused" ? "active" : "paused",
+                          runAdminAction(`lifecycle-${market.id}`, () =>
+                            actions.updateMarketLifecycle(
+                              market.id,
+                              market.status === "Paused" ? "active" : "paused",
+                            ),
                           )
                         }
                       >
-                        {market.status === "Paused" ? "Resume" : "Pause"}
+                        {pendingAction === `lifecycle-${market.id}` ? "Updating..." : market.status === "Paused" ? "Resume" : "Pause"}
                       </button>
                       <button
                         className="btn btn-ghost"
                         type="button"
+                        disabled={!!pendingAction}
                         onClick={() =>
                           confirmAction({
                             title: "Resolve market as NO?",
                             body: `This will settle open bets for "${market.title}" and write payout ledger entries.`,
                             confirmLabel: "Resolve NO",
-                            onConfirm: () => actions.resolveActiveMarket(market.id, "NO"),
+                            onConfirm: () => runAdminAction(`resolve-no-${market.id}`, () => actions.resolveActiveMarket(market.id, "NO")),
                           })
                         }
                       >
@@ -249,12 +267,13 @@ export default function AdminDashboard() {
                       <button
                         className="btn btn-ghost"
                         type="button"
+                        disabled={!!pendingAction}
                         onClick={() =>
                           confirmAction({
                             title: "Void and refund market?",
                             body: `This will void "${market.title}", refund original open stakes by funding source, and write refund ledger entries.`,
                             confirmLabel: "Void market",
-                            onConfirm: () => actions.resolveActiveMarket(market.id, "VOID"),
+                            onConfirm: () => runAdminAction(`void-${market.id}`, () => actions.resolveActiveMarket(market.id, "VOID")),
                           })
                         }
                       >
@@ -323,7 +342,7 @@ export default function AdminDashboard() {
             <InfoRow label="Void path" value="Refund original stake by funding source" />
           </div>
         </div>
-        <RiskReviewQueue users={riskUsers} onConfirmAction={confirmAction} />
+        <RiskReviewQueue users={riskUsers} pendingAction={pendingAction} runAction={runAdminAction} onConfirmAction={confirmAction} />
         <AdminDisputeQueue onMessage={actions.setFlashMessage} />
         <AdminLedgerTable ledger={state.ledger} />
         <div className="table-card">
@@ -395,21 +414,22 @@ export default function AdminDashboard() {
           <h3>Demo controls</h3>
           <p>Useful while iterating on the client-side MVP.</p>
           <div className="inline-actions">
-            <button className="btn btn-secondary" type="button" onClick={actions.grantDemoBonus}>
-              Grant $10 bonus
+            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runAdminAction("grant-bonus", actions.grantDemoBonus)}>
+              {pendingAction === "grant-bonus" ? "Granting..." : "Grant $10 bonus"}
             </button>
-            <button className="btn btn-secondary" type="button" onClick={actions.addDemoDeposit}>
-              Add $25 deposit
+            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runAdminAction("deposit", actions.addDemoDeposit)}>
+              {pendingAction === "deposit" ? "Adding..." : "Add $25 deposit"}
             </button>
             <button
               className="btn btn-secondary"
               type="button"
+              disabled={!!pendingAction}
               onClick={() =>
                 confirmAction({
                   title: "Reset demo state?",
                   body: "This clears local demo state and restores the default sample markets, balances, friends, and ledger.",
                   confirmLabel: "Reset demo",
-                  onConfirm: actions.resetDemoState,
+                  onConfirm: () => runAdminAction("reset", actions.resetDemoState),
                 })
               }
             >

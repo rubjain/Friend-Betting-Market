@@ -7,6 +7,7 @@ export default function AdminDisputeQueue({ onMessage }) {
   const [view, setView] = useState({ entries: [], currentPage: 1, totalPages: 1, totalEntries: 0 });
   const [status, setStatus] = useState("open");
   const [noteDrafts, setNoteDrafts] = useState({});
+  const [pendingAction, setPendingAction] = useState("");
 
   useEffect(() => {
     let canceled = false;
@@ -31,19 +32,25 @@ export default function AdminDisputeQueue({ onMessage }) {
   }, [status]);
 
   async function updateDispute(disputeId, nextStatus) {
-    const response = await fetch(`/api/admin/disputes/${disputeId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextStatus, note: noteDrafts[disputeId] || "" }),
-    });
-    const payload = await response.json();
-    onMessage?.(payload.message || "Dispute updated.");
-    if (response.ok) {
-      setView((current) => ({
-        ...current,
-        entries: current.entries.filter((entry) => entry.id !== disputeId),
-        totalEntries: Math.max(0, current.totalEntries - 1),
-      }));
+    if (pendingAction) return;
+    setPendingAction(`${nextStatus}-${disputeId}`);
+    try {
+      const response = await fetch(`/api/admin/disputes/${disputeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus, note: noteDrafts[disputeId] || "" }),
+      });
+      const payload = await response.json();
+      onMessage?.(payload.message || "Dispute updated.");
+      if (response.ok) {
+        setView((current) => ({
+          ...current,
+          entries: current.entries.filter((entry) => entry.id !== disputeId),
+          totalEntries: Math.max(0, current.totalEntries - 1),
+        }));
+      }
+    } finally {
+      setPendingAction("");
     }
   }
 
@@ -95,14 +102,14 @@ export default function AdminDisputeQueue({ onMessage }) {
                 </td>
                 <td data-label="Actions">
                   <div className="inline-actions compact-actions">
-                    <button className="btn btn-secondary" type="button" onClick={() => updateDispute(dispute.id, "UNDER_REVIEW")}>
-                      Review
+                    <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => updateDispute(dispute.id, "UNDER_REVIEW")}>
+                      {pendingAction === `UNDER_REVIEW-${dispute.id}` ? "Reviewing..." : "Review"}
                     </button>
-                    <button className="btn btn-secondary" type="button" onClick={() => updateDispute(dispute.id, "RESOLVED")}>
-                      Resolve
+                    <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => updateDispute(dispute.id, "RESOLVED")}>
+                      {pendingAction === `RESOLVED-${dispute.id}` ? "Resolving..." : "Resolve"}
                     </button>
-                    <button className="btn btn-ghost" type="button" onClick={() => updateDispute(dispute.id, "REJECTED")}>
-                      Reject
+                    <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => updateDispute(dispute.id, "REJECTED")}>
+                      {pendingAction === `REJECTED-${dispute.id}` ? "Rejecting..." : "Reject"}
                     </button>
                   </div>
                 </td>

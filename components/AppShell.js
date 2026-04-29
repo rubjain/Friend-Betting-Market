@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFriendMarket } from "../context/FriendMarketContext";
 
 const routes = [
@@ -17,6 +17,7 @@ export default function AppShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { state, actions } = useFriendMarket();
+  const [sessionPending, setSessionPending] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || window.location.hash.length <= 1) {
@@ -56,6 +57,16 @@ export default function AppShell({ children }) {
     actions.toggleAdminMode(checked);
     if (!checked && pathname === "/admin") {
       router.push("/profile");
+    }
+  }
+
+  async function logout() {
+    if (sessionPending) return;
+    setSessionPending(true);
+    try {
+      await actions.logout();
+    } finally {
+      setSessionPending(false);
     }
   }
 
@@ -121,8 +132,8 @@ export default function AppShell({ children }) {
               </label>
             ) : null}
             {state.auth.authenticated ? (
-              <button className="btn btn-ghost" type="button" onClick={actions.logout}>
-                Log out
+              <button className="btn btn-ghost" type="button" disabled={sessionPending} onClick={logout}>
+                {sessionPending ? "Logging out..." : "Log out"}
               </button>
             ) : (
               <Link className="btn btn-ghost" href="/profile" onClick={actions.closeMobileNav}>

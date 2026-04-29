@@ -1,16 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import { useFriendMarket } from "../../context/FriendMarketContext";
 import { getMultiplier } from "../../lib/marketMath";
 import { InfoRow, SectionHead } from "../ui";
 
 export default function FriendsPage() {
   const { state, actions, selectors } = useFriendMarket();
+  const [pendingAction, setPendingAction] = useState("");
   const selectedMarket = selectors.getSelectedMarket();
   const boostSlotsRemaining = Math.max(
     0,
     state.adminConfig.maxGroupSize - selectedMarket.friendGroup.length,
   );
+
+  async function runFriendAction(actionKey, callback) {
+    if (pendingAction) return;
+    setPendingAction(actionKey);
+    try {
+      await callback();
+    } finally {
+      setPendingAction("");
+    }
+  }
 
   return (
     <section className="page active">
@@ -35,8 +47,8 @@ export default function FriendsPage() {
                 onChange={(event) => actions.updateFriendInviteDraft(event.currentTarget.value)}
               />
             </div>
-            <button className="btn btn-primary" type="button" onClick={actions.sendFriendInvite}>
-              Send Invite
+            <button className="btn btn-primary" type="button" disabled={!!pendingAction} onClick={() => runFriendAction("invite", actions.sendFriendInvite)}>
+              {pendingAction === "invite" ? "Sending..." : "Send Invite"}
             </button>
           </div>
           <div className="note-banner">
@@ -71,10 +83,10 @@ export default function FriendsPage() {
                     <button
                       className={`btn ${isBoosting ? "btn-ghost" : "btn-secondary"}`}
                       type="button"
-                      disabled={disabled}
-                      onClick={() => actions.toggleFriendBoost(friend.username)}
+                      disabled={disabled || !!pendingAction}
+                      onClick={() => runFriendAction(`boost-${friend.username}`, () => actions.toggleFriendBoost(friend.username))}
                     >
-                      {isBoosting ? "Remove Boost" : "Add Boost"}
+                      {pendingAction === `boost-${friend.username}` ? "Updating..." : isBoosting ? "Remove Boost" : "Add Boost"}
                     </button>
                   </div>
                 );
@@ -99,16 +111,16 @@ export default function FriendsPage() {
                   <div className="inline-actions">
                     {request.direction === "incoming" ? (
                       <>
-                        <button className="btn btn-secondary" type="button" onClick={() => actions.handleFriendRequest(request.username, "accept")}>
-                          Accept
+                        <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runFriendAction(`accept-${request.username}`, () => actions.handleFriendRequest(request.username, "accept"))}>
+                          {pendingAction === `accept-${request.username}` ? "Accepting..." : "Accept"}
                         </button>
-                        <button className="btn btn-ghost" type="button" onClick={() => actions.handleFriendRequest(request.username, "decline")}>
-                          Decline
+                        <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runFriendAction(`decline-${request.username}`, () => actions.handleFriendRequest(request.username, "decline"))}>
+                          {pendingAction === `decline-${request.username}` ? "Declining..." : "Decline"}
                         </button>
                       </>
                     ) : (
-                      <button className="btn btn-ghost" type="button" onClick={() => actions.handleFriendRequest(request.username, "cancel")}>
-                        Cancel
+                      <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runFriendAction(`cancel-${request.username}`, () => actions.handleFriendRequest(request.username, "cancel"))}>
+                        {pendingAction === `cancel-${request.username}` ? "Canceling..." : "Cancel"}
                       </button>
                     )}
                   </div>

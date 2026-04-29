@@ -9,19 +9,28 @@ import { SectionHead } from "../ui";
 export default function CreateMarketPage() {
   const { state, actions } = useFriendMarket();
   const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
   const draft = state.createMarketDraft;
   const errors = useMemo(() => validateCreateMarketDraft(draft), [draft]);
   const selectedCategory = getMarketCategory(draft.category);
 
-  function submitMarket(event) {
+  async function submitMarket(event) {
     event.preventDefault();
+    if (pending) {
+      return;
+    }
     setSubmitted(true);
     if (hasValidationErrors(errors)) {
       actions.setFlashMessage("Fix the highlighted market fields before submitting for review.");
       return;
     }
-    actions.createMarket();
-    setSubmitted(false);
+    setPending(true);
+    try {
+      await actions.createMarket();
+      setSubmitted(false);
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -138,8 +147,8 @@ export default function CreateMarketPage() {
             <input id="market-admin-note" value="Required before launch" disabled readOnly />
           </div>
           <div className="field full">
-            <button className="btn btn-primary" type="submit">
-              Submit for Review
+            <button className="btn btn-primary" type="submit" disabled={pending}>
+              {pending ? "Submitting..." : "Submit for Review"}
             </button>
           </div>
         </form>

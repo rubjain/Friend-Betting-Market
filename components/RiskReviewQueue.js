@@ -3,7 +3,7 @@
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { titleCase } from "../lib/formatters";
 
-export default function RiskReviewQueue({ users, onConfirmAction }) {
+export default function RiskReviewQueue({ users, pendingAction, runAction, onConfirmAction }) {
   const { actions, selectors } = useFriendMarket();
 
   return (
@@ -34,6 +34,7 @@ export default function RiskReviewQueue({ users, onConfirmAction }) {
                 <button
                   className="btn btn-secondary"
                   type="button"
+                  disabled={!!pendingAction}
                   onClick={() =>
                     onConfirmAction({
                       title: user.frozen ? "Unfreeze account?" : "Freeze account?",
@@ -42,24 +43,25 @@ export default function RiskReviewQueue({ users, onConfirmAction }) {
                       } and the admin action will be recorded in the ledger.`,
                       confirmLabel: user.frozen ? "Unfreeze" : "Freeze",
                       tone: user.frozen ? "neutral" : "danger",
-                      onConfirm: () => actions.freezeUser(user.id),
+                      onConfirm: () => runAction(`freeze-${user.id}`, () => actions.freezeUser(user.id)),
                     })
                   }
                 >
                   {user.frozen ? "Unfreeze" : "Freeze"}
                 </button>
-                <button className="btn btn-ghost" type="button" onClick={() => actions.clearRiskReview(user.id)}>
-                  Clear Review
+                <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runAction(`clear-${user.id}`, () => actions.clearRiskReview(user.id))}>
+                  {pendingAction === `clear-${user.id}` ? "Clearing..." : "Clear Review"}
                 </button>
                 <button
                   className="btn btn-ghost"
                   type="button"
+                  disabled={!!pendingAction}
                   onClick={() =>
                     onConfirmAction({
                       title: "Remove bonus credit?",
                       body: `This will remove up to $10 of bonus balance from ${user.name} and lower company bonus liability.`,
                       confirmLabel: "Remove bonus",
-                      onConfirm: () => actions.removeUserBonus(user.id),
+                      onConfirm: () => runAction(`remove-bonus-${user.id}`, () => actions.removeUserBonus(user.id)),
                     })
                   }
                 >

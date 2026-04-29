@@ -9,13 +9,26 @@ import { SectionHead } from "../ui";
 export default function PortfolioPage() {
   const { state, actions } = useFriendMarket();
   const [disputeDraft, setDisputeDraft] = useState({ betId: "", reason: "" });
+  const [pendingAction, setPendingAction] = useState("");
+
+  async function runPortfolioAction(actionKey, callback) {
+    if (pendingAction) return;
+    setPendingAction(actionKey);
+    try {
+      return await callback();
+    } finally {
+      setPendingAction("");
+    }
+  }
 
   async function submitDispute(bet) {
-    const ok = await actions.submitDispute({
-      marketId: bet.marketId,
-      betId: bet.id,
-      reason: disputeDraft.reason,
-    });
+    const ok = await runPortfolioAction(`dispute-${bet.id}`, () =>
+      actions.submitDispute({
+        marketId: bet.marketId,
+        betId: bet.id,
+        reason: disputeDraft.reason,
+      }),
+    );
     if (ok) {
       setDisputeDraft({ betId: "", reason: "" });
     }
@@ -48,11 +61,11 @@ export default function PortfolioPage() {
             />
           </div>
           <div className="inline-actions">
-            <button className="btn btn-secondary" type="button" onClick={actions.addDemoDeposit}>
-              Add $25 Deposit
+            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("deposit", actions.addDemoDeposit)}>
+              {pendingAction === "deposit" ? "Adding..." : "Add $25 Deposit"}
             </button>
-            <button className="btn btn-ghost" type="button" onClick={actions.grantDemoBonus}>
-              Grant $10 Bonus
+            <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("bonus", actions.grantDemoBonus)}>
+              {pendingAction === "bonus" ? "Granting..." : "Grant $10 Bonus"}
             </button>
           </div>
         </div>
@@ -103,10 +116,10 @@ export default function PortfolioPage() {
                           placeholder="Explain what evidence or settlement detail should be reviewed."
                         />
                         <div className="inline-actions">
-                          <button className="btn btn-secondary" type="button" onClick={() => submitDispute(bet)}>
-                            Submit dispute
+                          <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => submitDispute(bet)}>
+                            {pendingAction === `dispute-${bet.id}` ? "Submitting..." : "Submit dispute"}
                           </button>
-                          <button className="btn btn-ghost" type="button" onClick={() => setDisputeDraft({ betId: "", reason: "" })}>
+                          <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => setDisputeDraft({ betId: "", reason: "" })}>
                             Cancel
                           </button>
                         </div>
