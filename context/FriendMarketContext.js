@@ -113,6 +113,12 @@ function mergeStoredState(parsed) {
     },
     adminConfig: { ...defaultState.adminConfig, ...(parsed.adminConfig || {}) },
     liveGames: mergeById(defaultState.liveGames, parsed.liveGames || []),
+    fundingDrafts: { ...defaultState.fundingDrafts, ...(parsed.fundingDrafts || {}) },
+    referrals: {
+      ...defaultState.referrals,
+      ...(parsed.referrals || {}),
+      history: mergeById(defaultState.referrals.history, parsed.referrals?.history || []),
+    },
     betDraft: { ...defaultState.betDraft, ...(parsed.betDraft || {}) },
     createMarketDraft: {
       ...defaultState.createMarketDraft,
@@ -137,6 +143,10 @@ function mergeStoredState(parsed) {
     users: normalizeUsers(mergeById(defaultState.users, parsed.users || [])),
     ledger: normalizeLedger(parsed.ledger || defaultState.ledger),
   };
+}
+
+function mergeIncomingState(nextState) {
+  return mergeStoredState(nextState || {});
 }
 
 async function requestJson(url, options) {
@@ -332,7 +342,7 @@ export function FriendMarketProvider({ children }) {
 
         if (!canceled) {
           setState({
-            ...payload.state,
+            ...mergeIncomingState(payload.state),
             auth: {
               authenticated: Boolean(payload.session?.authenticated),
               devAdminShortcut: Boolean(payload.devAdminShortcut),
@@ -406,6 +416,11 @@ export function FriendMarketProvider({ children }) {
       setTheme(theme) {
         updateState((next) => {
           next.theme = theme;
+        });
+      },
+      updateFundingDraft(field, value) {
+        updateState((next) => {
+          next.fundingDrafts[field] = value;
         });
       },
       toggleTheme() {
@@ -994,6 +1009,79 @@ export function FriendMarketProvider({ children }) {
             metadata: "Demo play-money deposit",
           });
           next.flashMessage = "Added a $25 play-money deposit to withdrawable balance.";
+        });
+      },
+      async addDeposit(amount = state.fundingDrafts.depositAmount) {
+        updateState((next) => {
+          const depositAmount = Math.max(0, Number(amount) || 0);
+          if (!depositAmount) {
+            next.flashMessage = "Enter a deposit amount above zero.";
+            return;
+          }
+          addFunds(next, {
+            amount: depositAmount,
+            currencyType: "withdrawable",
+            source: "deposit",
+            metadata: "Demo deposit recorded from settings.",
+          });
+          next.flashMessage = `Added ${money(depositAmount)} to withdrawable balance.`;
+        });
+      },
+      async requestWithdrawal(amount = state.fundingDrafts.withdrawAmount) {
+        updateState((next) => {
+          const withdrawalAmount = Math.max(0, Number(amount) || 0);
+          if (!withdrawalAmount) {
+            next.flashMessage = "Enter a withdrawal amount above zero.";
+            return;
+          }
+          if (withdrawalAmount > next.currentUser.withdrawable_balance) {
+            next.flashMessage = "Withdrawal exceeds withdrawable balance.";
+            return;
+          }
+          next.currentUser.withdrawable_balance -= withdrawalAmount;
+          addLedgerEntry(next, {
+            user_id: next.currentUser.id,
+            market_id: null,
+            bet_id: null,
+            transaction_type: "debit",
+            amount: withdrawalAmount,
+            currency_type: "withdrawable",
+            source: "withdrawal",
+            metadata: "Demo withdrawal request created from settings.",
+          });
+          refreshDerivedBalances(next);
+          next.flashMessage = `Created a demo withdrawal for ${money(withdrawalAmount)}.`;
+        });
+      },
+      async applyReferral(code = state.fundingDrafts.referralCode) {
+        updateState((next) => {
+          const normalizedCode = String(code || "").trim().toUpperCase();
+          if (!normalizedCode) {
+            next.flashMessage = "Enter a referral code.";
+            return;
+          }
+          const reward = Number(next.referrals.reward || 10);
+          next.currentUser.bonus_balance += reward;
+          next.referrals.completedReferrals += 1;
+          next.referrals.history.unshift({
+            id: `ref_${Date.now()}`,
+            friend: normalizedCode,
+            status: "Reward paid",
+            amount: reward,
+            date: new Date().toISOString().slice(0, 10),
+          });
+          addLedgerEntry(next, {
+            user_id: next.currentUser.id,
+            market_id: null,
+            bet_id: null,
+            transaction_type: "credit",
+            amount: reward,
+            currency_type: "bonus",
+            source: "referral_bonus",
+            metadata: `Referral reward applied for code ${normalizedCode}.`,
+          });
+          refreshDerivedBalances(next);
+          next.flashMessage = `Applied referral code ${normalizedCode} for ${money(reward)} bonus credit.`;
         });
       },
       async grantDemoBonus() {

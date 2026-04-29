@@ -15,10 +15,10 @@ export default function MarketDetailPage({ marketId }) {
   const market = selectors.getSelectedMarket(marketId);
 
   useEffect(() => {
-    if (market?.id) {
+    if (market?.id && state.selectedMarketId !== market.id) {
       actions.setSelectedMarket(market.id);
     }
-  }, [actions, market?.id]);
+  }, [actions, market?.id, state.selectedMarketId]);
 
   if (!market) {
     return (
@@ -33,13 +33,17 @@ export default function MarketDetailPage({ marketId }) {
   const evidenceLinks = market.evidenceLinks ?? [];
   const linkedGame = getLinkedLiveGame(market, state.liveGames);
   const algorithm = getMarketAlgorithmSnapshot(market, state.liveGames);
+  const updateLog = linkedGame?.updates ?? market.liveUpdates ?? [
+    `${market.algorithm?.refreshCadence ?? "Daily"}: source monitor checked with no settlement event.`,
+    "Price engine recalculated YES/NO display from current signal inputs.",
+  ];
 
   return (
     <section className="page active">
       <div className="section-head">
         <div>
           <h3>{market.title}</h3>
-          <p>{market.category} · YES {formatPercent(market.yesPrice)} · NO {formatPercent(market.noPrice)}</p>
+          <p>{market.category} / YES {formatPercent(market.yesPrice)} / NO {formatPercent(market.noPrice)}</p>
         </div>
         <Link className="btn btn-secondary" href="/markets">
           Back to Markets
@@ -74,6 +78,41 @@ export default function MarketDetailPage({ marketId }) {
               <InfoRow label="Settlement time" value={market.settlementTime ?? "After resolution"} />
             </div>
           </div>
+
+          <div className="detail-panel">
+            <h3>How this market resolves</h3>
+            <p>{market.resolutionRule ?? market.resolutionTemplate ?? resolutionTemplate.template}</p>
+            <div className="info-list">
+              {checklist.map((item) => (
+                <InfoRow key={item} label={item} value="Required" />
+              ))}
+            </div>
+            <h3 className="subsection-title">Outcome sources</h3>
+            <div className="source-list source-card-list">
+              {evidenceLinks.length ? (
+                evidenceLinks.map((source) => (
+                  source.url ? (
+                    <div className="source-card" key={`${source.label}-${source.url}`}>
+                      <div>
+                        <strong>{source.label}</strong>
+                        <span>{source.sourceType ?? "source"}</span>
+                      </div>
+                      <a href={source.url} target="_blank" rel="noreferrer">
+                        Open source
+                      </a>
+                    </div>
+                  ) : (
+                    <span key={source.label} className="empty-note">
+                      Planned source: {source.label}
+                    </span>
+                  )
+                ))
+              ) : (
+                <div className="empty-note">No evidence sources configured yet.</div>
+              )}
+            </div>
+          </div>
+
           <div className="detail-panel">
             <h3>Algorithm signal</h3>
             <p>{market.algorithm?.model ?? algorithm.model}</p>
@@ -99,6 +138,7 @@ export default function MarketDetailPage({ marketId }) {
               <InfoRow label="Signal" value={algorithm.recommendation} />
             </div>
           </div>
+
           {linkedGame ? (
             <div className="detail-panel live-detail-panel">
               <h3>Live game feed</h3>
@@ -119,32 +159,23 @@ export default function MarketDetailPage({ marketId }) {
               </div>
             </div>
           ) : null}
+
           <div className="detail-panel">
-            <h3>Resolution criteria</h3>
-            <p>{market.resolutionTemplate ?? resolutionTemplate.template}</p>
-            <div className="info-list">
-              {checklist.map((item) => (
-                <InfoRow key={item} label={item} value="Required" />
+            <h3>Real-time update log</h3>
+            <p>Live markets update from connected feed adapters; non-live markets update on their source cadence.</p>
+            <div className="activity-list">
+              {updateLog.map((update, index) => (
+                <div className="activity-item" key={`${market.id}-update-${index}`}>
+                  <div>
+                    <strong>Feed update</strong>
+                    <div className="caption">{update}</div>
+                  </div>
+                  <div className="caption">{index === 0 ? "Latest" : "Previous"}</div>
+                </div>
               ))}
             </div>
-            <div className="source-list">
-              {evidenceLinks.length ? (
-                evidenceLinks.map((source) => (
-                  source.url ? (
-                    <a key={`${source.label}-${source.url}`} href={source.url} target="_blank" rel="noreferrer">
-                      {source.label}
-                    </a>
-                  ) : (
-                    <span key={source.label} className="empty-note">
-                      Planned source: {source.label}
-                    </span>
-                  )
-                ))
-              ) : (
-                <div className="empty-note">No evidence sources configured yet.</div>
-              )}
-            </div>
           </div>
+
           <div className="detail-panel">
             <h3>Recent activity</h3>
             <div className="activity-list">
@@ -155,7 +186,7 @@ export default function MarketDetailPage({ marketId }) {
                       <strong>{item.user}</strong>
                       <div className="caption">
                         {item.action}
-                        {item.amount ? <> &middot; {money(item.amount)}</> : null}
+                        {item.amount ? <> / {money(item.amount)}</> : null}
                       </div>
                     </div>
                     <div className="caption">{item.time}</div>
@@ -176,8 +207,7 @@ export default function MarketDetailPage({ marketId }) {
               <div className="label">Current multiplier</div>
               <div className="multiplier-value">{getMultiplier(market, state.adminConfig).toFixed(2)}x</div>
               <div className="caption">
-                {market.friendsBoosting} friends boosting this market &middot; Max{" "}
-                {state.adminConfig.maxMultiplier.toFixed(2)}x
+                {market.friendsBoosting} friends boosting this market / Max {state.adminConfig.maxMultiplier.toFixed(2)}x
               </div>
             </div>
             <div className="info-list">

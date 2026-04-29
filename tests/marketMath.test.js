@@ -495,6 +495,10 @@ test("default market seeds include expansion markets", async () => {
   assert.equal(categories.has("Weather"), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionTemplate), true);
   assert.equal(defaultState.markets.every((market) => market.closeTime), true);
+  assert.equal(defaultState.markets.every((market) => market.resolutionRule), true);
+  assert.equal(defaultState.markets.every((market) => market.evidenceLinks.some((source) => source.url)), true);
+  assert.equal(defaultState.referrals.code, "ARUSH25");
+  assert.equal(defaultState.fundingDrafts.depositAmount, 25);
   assert.equal(defaultState.createMarketDraft.sourceUrl, "");
 });
 

@@ -11,6 +11,7 @@ const routes = [
   ["/friends", "Friends"],
   ["/create", "Create"],
   ["/profile", "Profile"],
+  ["/settings", "Settings"],
 ];
 
 export default function AppShell({ children }) {
@@ -18,6 +19,7 @@ export default function AppShell({ children }) {
   const router = useRouter();
   const { state, actions } = useFriendMarket();
   const [sessionPending, setSessionPending] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined" || window.location.hash.length <= 1) {
@@ -82,14 +84,15 @@ export default function AppShell({ children }) {
             </div>
           </Link>
           <button
-            className="btn btn-ghost mobile-menu-button"
+            className="nav-collapse-button"
             type="button"
-            aria-expanded={state.mobileNavOpen}
-            onClick={actions.toggleMobileNav}
+            aria-expanded={!navCollapsed}
+            onClick={() => setNavCollapsed((value) => !value)}
           >
-            {state.mobileNavOpen ? "Close" : "Menu"}
+            <span>{navCollapsed ? "Open" : "Close"}</span>
+            <span className="nav-chevron">{navCollapsed ? "+" : "-"}</span>
           </button>
-          <div className="nav-actions">
+          <div className={`nav-actions ${navCollapsed ? "collapsed" : "expanded"}`}>
             <nav className={`nav-links ${state.mobileNavOpen ? "open" : ""}`} aria-label="Primary">
               <Link
                 className={`nav-link ${pathname === "/" ? "active" : ""}`}
