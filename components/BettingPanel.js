@@ -6,12 +6,13 @@ import { useFriendMarket } from "../context/FriendMarketContext";
 import { money } from "../lib/formatters";
 import { calculatePayout } from "../lib/marketMath";
 import { hasValidationErrors, validateBetDraft } from "../lib/validation";
-import { InfoRow } from "./ui";
 
 export default function BettingPanel({ market }) {
   const { state, actions } = useFriendMarket();
   const [submitted, setSubmitted] = useState(false);
   const [pendingSide, setPendingSide] = useState("");
+  const side = state.betDraft.side || "YES";
+
   const payout = calculatePayout({
     stake: state.betDraft.stake,
     withdrawableShare: state.betDraft.withdrawableShare,
@@ -25,11 +26,9 @@ export default function BettingPanel({ market }) {
   );
   const marketAcceptsBets = !market.status || market.status === "active";
 
-  async function submitBet(side) {
+  async function submitBet() {
     setSubmitted(true);
-    if (pendingSide) {
-      return;
-    }
+    if (pendingSide) return;
     if (!marketAcceptsBets) {
       actions.setFlashMessage(`This market is ${market.status} and is not accepting bets.`);
       return;
@@ -47,17 +46,27 @@ export default function BettingPanel({ market }) {
   }
 
   return (
-    <div className="detail-panel">
-      <h3>Betting panel</h3>
-      <p>
-        Normal winnings stay tied to their original funding source. Social boosts always credit to
-        bonus balance.
-      </p>
-      <div className="form-grid">
-        <div className="field">
-          <label className="label" htmlFor="stake-input">
-            Stake
-          </label>
+    <div className="bet-panel">
+      <div className="bet-side-toggle" role="group" aria-label="Choose side">
+        <button
+          type="button"
+          className={`bet-side-btn ${side === "YES" ? "active-yes" : ""}`}
+          onClick={() => actions.updateBetDraft("side", "YES")}
+        >
+          Yes {market.yesPrice ? `${Math.round(market.yesPrice * 100)}¢` : ""}
+        </button>
+        <button
+          type="button"
+          className={`bet-side-btn ${side === "NO" ? "active-no" : ""}`}
+          onClick={() => actions.updateBetDraft("side", "NO")}
+        >
+          No {market.noPrice ? `${Math.round(market.noPrice * 100)}¢` : ""}
+        </button>
+      </div>
+
+      <div className="stake-field">
+        <label className="stake-label" htmlFor="stake-input">Amount</label>
+        <div className="stake-input-wrap">
           <input
             id="stake-input"
             type="number"
@@ -65,103 +74,41 @@ export default function BettingPanel({ market }) {
             step="1"
             value={state.betDraft.stake}
             aria-invalid={submitted && !!errors.stake}
-            aria-describedby={submitted && errors.stake ? "stake-input-error" : undefined}
-            onChange={(event) => actions.updateBetDraft("stake", event.currentTarget.value)}
+            onChange={(e) => actions.updateBetDraft("stake", e.currentTarget.value)}
           />
-          {submitted && errors.stake ? (
-            <div className="field-error" id="stake-input-error">
-              {errors.stake}
-            </div>
-          ) : null}
         </div>
-        <div className="field">
-          <label className="label" htmlFor="side-select">
-            Side
-          </label>
-          <select
-            id="side-select"
-            value={state.betDraft.side}
-            onChange={(event) => actions.updateBetDraft("side", event.currentTarget.value)}
-          >
-            <option value="YES">Yes</option>
-            <option value="NO">No</option>
-          </select>
-        </div>
-        <div className="field">
-          <label className="label" htmlFor="withdrawable-input">
-            Withdrawable used
-          </label>
-          <input
-            id="withdrawable-input"
-            type="number"
-            min="0"
-            step="1"
-            value={state.betDraft.withdrawableShare}
-            aria-invalid={submitted && !!errors.withdrawableShare}
-            aria-describedby={
-              submitted && errors.withdrawableShare ? "withdrawable-input-error" : undefined
-            }
-            onChange={(event) => actions.updateBetDraft("withdrawableShare", event.currentTarget.value)}
-          />
-          {submitted && errors.withdrawableShare ? (
-            <div className="field-error" id="withdrawable-input-error">
-              {errors.withdrawableShare}
-            </div>
-          ) : null}
-        </div>
-        <div className="field">
-          <label className="label" htmlFor="bonus-input">
-            Bonus used
-          </label>
-          <input
-            id="bonus-input"
-            type="number"
-            min="0"
-            step="1"
-            value={state.betDraft.bonusShare}
-            aria-invalid={submitted && !!errors.bonusShare}
-            aria-describedby={submitted && errors.bonusShare ? "bonus-input-error" : undefined}
-            onChange={(event) => actions.updateBetDraft("bonusShare", event.currentTarget.value)}
-          />
-          {submitted && errors.bonusShare ? (
-            <div className="field-error" id="bonus-input-error">
-              {errors.bonusShare}
-            </div>
-          ) : null}
-        </div>
+        {submitted && errors.stake ? (
+          <div className="field-error">{errors.stake}</div>
+        ) : null}
       </div>
-      <div className="market-actions">
-        <button className="btn btn-success" type="button" disabled={!marketAcceptsBets || !!pendingSide} onClick={() => submitBet("YES")}>
-          {pendingSide === "YES" ? "Placing..." : "Bet Yes"}
-        </button>
-        <button className="btn btn-danger" type="button" disabled={!marketAcceptsBets || !!pendingSide} onClick={() => submitBet("NO")}>
-          {pendingSide === "NO" ? "Placing..." : "Bet No"}
-        </button>
-        <Link className="btn btn-secondary" href="/friends">
-          Invite Friends
-        </Link>
+
+      <div className="payout-row">
+        <span>Potential payout</span>
+        <strong>{money(payout.boostedPayout)}</strong>
       </div>
+      {payout.socialBonus > 0 ? (
+        <div className="payout-row payout-boost">
+          <span>Includes social boost</span>
+          <strong>+{money(payout.socialBonus)}</strong>
+        </div>
+      ) : null}
+
       {!marketAcceptsBets ? (
-        <div className="note-banner panel-note">This market is {market.status} and is not accepting bets.</div>
+        <div className="note-banner panel-note">Market is {market.status} — not accepting bets.</div>
       ) : null}
       {payout.note ? <div className="note-banner panel-note">{payout.note}</div> : null}
-      <div className="multiplier-box">
-        <div className="label">Projected payout</div>
-        <div className="multiplier-value">{money(payout.boostedPayout)}</div>
-        <div className="caption">
-          Normal payout {money(payout.normalPayout)} &middot; Bonus social boost{" "}
-          {money(payout.socialBonus)}
-          {payout.uncappedSocialBonus > payout.socialBonus ? (
-            <> &middot; capped from {money(payout.uncappedSocialBonus)}</>
-          ) : null}
-        </div>
-      </div>
-      <div className="info-list">
-        <InfoRow label="Normalized stake" value={money(payout.totalStake)} />
-        <InfoRow label="Withdrawable used" value={money(payout.withdrawableStake)} />
-        <InfoRow label="Bonus used" value={money(payout.bonusStake)} />
-        <InfoRow label="Withdrawable settlement" value={money(payout.totalWithdrawableReturn)} />
-        <InfoRow label="Bonus settlement" value={money(payout.totalBonusReturn)} />
+
+      <button
+        className="bet-submit-btn"
+        type="button"
+        disabled={!marketAcceptsBets || !!pendingSide}
+        onClick={submitBet}
+      >
+        {pendingSide ? "Placing…" : `Buy ${side}`}
+      </button>
+
+      <div className="bet-panel-footer">
+        <Link className="btn btn-ghost btn-sm" href="/friends">Invite friends to boost</Link>
       </div>
     </div>
   );

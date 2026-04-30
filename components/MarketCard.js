@@ -19,17 +19,13 @@ export default function MarketCard({ market }) {
 
   return (
     <article className="market-card">
-      <div className="market-top">
-        <div>
-          <div className="market-kicker">
-            <span>{market.category}</span>
-            <span>{market.status ?? "active"}</span>
-            <span>{snapshot.signal}</span>
-          </div>
-          <h4>{market.title}</h4>
-        </div>
+      <div className="market-card-header">
+        <span className="market-category-kicker">{market.category}</span>
+        {market.status && market.status !== "active" ? (
+          <span className="market-status-badge">{market.status}</span>
+        ) : null}
       </div>
-      <p className="market-description">{market.description}</p>
+      <h4 className="market-card-title">{market.title}</h4>
       {linkedGame ? (
         <div className="mini-live-card">
           <span>{linkedGame.league} · {getLiveGameClock(linkedGame)}</span>
@@ -38,27 +34,26 @@ export default function MarketCard({ market }) {
       ) : null}
       <div className="market-price-grid" aria-label={`${market.title} prices`}>
         <button className="price-button yes-price" type="button" onClick={() => prepare("YES")}>
-          <span>YES</span>
+          <span>Yes</span>
           <strong>{formatPercent(market.yesPrice)}</strong>
         </button>
         <button className="price-button no-price" type="button" onClick={() => prepare("NO")}>
-          <span>NO</span>
+          <span>No</span>
           <strong>{formatPercent(market.noPrice)}</strong>
         </button>
       </div>
-      <div className="market-meta-row">
-        <span>Vol {money(market.volume)}</span>
-        <span>Closes {market.endDate}</span>
-        <span>{market.friendsBoosting} boosts</span>
-        <span>{snapshot.liquidityScore} liquidity</span>
-      </div>
-      <div className="market-actions">
-        <Link className="btn btn-secondary" href={`/markets/${market.id}`}>
-          Details
-        </Link>
-        <Link className="btn btn-ghost" href="/friends" onClick={() => actions.setSelectedMarket(market.id)}>
-          Boost
-        </Link>
+      <div className="market-card-footer">
+        <span className="market-meta-item">Vol {money(market.volume)}</span>
+        <span className="market-meta-item">Closes {market.endDate}</span>
+        <span className="market-meta-item">{market.friendsBoosting} boosts</span>
+        <div className="market-card-actions">
+          <Link className="btn btn-secondary btn-sm" href={`/markets/${market.id}`}>
+            Details
+          </Link>
+          <Link className="btn btn-ghost btn-sm" href="/friends" onClick={() => actions.setSelectedMarket(market.id)}>
+            Boost
+          </Link>
+        </div>
       </div>
     </article>
   );
