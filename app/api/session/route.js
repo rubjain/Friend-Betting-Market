@@ -18,7 +18,7 @@ import { hasDatabaseUrl } from "../../../lib/server/prisma.js";
 async function stateForSession(session) {
   const state = hasDatabaseUrl()
     ? await getDatabaseState(undefined, session.userId)
-    : getDemoState();
+    : getDemoState(session.userId);
   return {
     ...state,
     currentUser: {

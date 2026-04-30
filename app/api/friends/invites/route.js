@@ -8,7 +8,7 @@ export async function POST(request) {
   const session = await getSessionFromRequest(request);
   const userId = session.userId;
   const databaseResult = await sendDatabaseFriendInvite({ username: payload.username, userId });
-  const result = databaseResult ?? sendDemoFriendInvite({ username: payload.username });
+  const result = databaseResult ?? sendDemoFriendInvite({ username: payload.username, userId });
 
   return NextResponse.json(result, { status: result.ok ? 201 : 400 });
 }

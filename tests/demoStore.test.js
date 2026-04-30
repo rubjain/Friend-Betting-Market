@@ -30,20 +30,19 @@ test("server bet placement debits balances and creates ledger entries", () => {
     side: "YES",
     betDraft: {
       stake: 10,
-      withdrawableShare: 6,
-      bonusShare: 4,
+      withdrawableShare: 10,
+      bonusShare: 0,
     },
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.state.currentUser.withdrawable_balance, before.currentUser.withdrawable_balance - 6);
-  assert.equal(result.state.currentUser.bonus_balance, before.currentUser.bonus_balance - 4);
+  assert.equal(result.state.currentUser.withdrawable_balance, before.currentUser.withdrawable_balance - 10);
+  assert.equal(result.state.currentUser.bonus_balance, before.currentUser.bonus_balance);
   assert.equal(result.state.portfolio.openBets[0].side, "YES");
   assert.deepEqual(
-    result.state.ledger.slice(0, 2).map((entry) => [entry.transaction_type, entry.amount, entry.currency_type]),
+    result.state.ledger.slice(0, 1).map((entry) => [entry.transaction_type, entry.amount, entry.currency_type]),
     [
-      ["debit", 6, "withdrawable"],
-      ["debit", 4, "bonus"],
+      ["debit", 10, "withdrawable"],
     ],
   );
 });
@@ -55,8 +54,8 @@ test("server market resolution credits winning mixed-funded bets", () => {
     side: "YES",
     betDraft: {
       stake: 10,
-      withdrawableShare: 6,
-      bonusShare: 4,
+      withdrawableShare: 10,
+      bonusShare: 0,
     },
   });
 
@@ -69,11 +68,10 @@ test("server market resolution credits winning mixed-funded bets", () => {
   assert.equal(result.state.markets.find((market) => market.id === "market_1").status, "resolved");
   assert.equal(result.state.portfolio.pastBets[0].settlement.includes("Won."), true);
   assert.deepEqual(
-    result.state.ledger.slice(0, 3).map((entry) => [entry.transaction_type, entry.currency_type, entry.source]),
+    result.state.ledger.slice(0, 2).map((entry) => [entry.transaction_type, entry.currency_type, entry.source]),
     [
       ["credit", "withdrawable", "market_payout"],
       ["credit", "bonus", "market_payout"],
-      ["credit", "bonus", "social_boost"],
     ],
   );
 });
@@ -85,16 +83,16 @@ test("server market void refunds original open bet stakes", () => {
     side: "YES",
     betDraft: {
       stake: 10,
-      withdrawableShare: 6,
-      bonusShare: 4,
+      withdrawableShare: 10,
+      bonusShare: 0,
     },
   });
   const beforeVoid = getDemoState();
   const result = resolveDemoMarket({ activeId: "active_1", result: "VOID" });
 
   assert.equal(result.ok, true);
-  assert.equal(result.state.currentUser.withdrawable_balance, beforeVoid.currentUser.withdrawable_balance + 12);
-  assert.equal(result.state.currentUser.bonus_balance, beforeVoid.currentUser.bonus_balance + 8);
+  assert.equal(result.state.currentUser.withdrawable_balance, beforeVoid.currentUser.withdrawable_balance + 16);
+  assert.equal(result.state.currentUser.bonus_balance, beforeVoid.currentUser.bonus_balance + 4);
   assert.equal(result.state.markets.find((market) => market.id === "market_1").status, "voided");
   assert.equal(result.state.resolvedMarkets[0].result, "VOID");
   assert.equal(result.state.portfolio.pastBets[0].settlement.includes("Voided"), true);
@@ -120,8 +118,8 @@ test("server market lifecycle can pause betting and resume", () => {
     side: "YES",
     betDraft: {
       stake: 10,
-      withdrawableShare: 6,
-      bonusShare: 4,
+      withdrawableShare: 10,
+      bonusShare: 0,
     },
   });
 
@@ -134,8 +132,8 @@ test("server market lifecycle can pause betting and resume", () => {
     side: "YES",
     betDraft: {
       stake: 10,
-      withdrawableShare: 6,
-      bonusShare: 4,
+      withdrawableShare: 10,
+      bonusShare: 0,
     },
   });
 
@@ -207,13 +205,13 @@ test("server admin approval and rejection mutate market queues", () => {
 
 test("server friend invites normalize usernames and reject duplicates", () => {
   resetDemoStore();
-  const sent = sendDemoFriendInvite({ username: "  New.Friend  " });
+  const sent = sendDemoFriendInvite({ username: "  Taylor  ", userId: "user_1" });
 
   assert.equal(sent.ok, true);
-  assert.equal(sent.state.friends.pending[0].username, "@new.friend");
+  assert.equal(sent.state.friends.pending[0].username, "@taylor");
   assert.equal(sent.state.friendInviteDraft, "");
 
-  const duplicate = sendDemoFriendInvite({ username: "@new.friend" });
+  const duplicate = sendDemoFriendInvite({ username: "@taylor", userId: "user_1" });
 
   assert.equal(duplicate.ok, false);
   assert.match(duplicate.message, /already/);
@@ -221,34 +219,25 @@ test("server friend invites normalize usernames and reject duplicates", () => {
 
 test("server friend request actions accept incoming requests", () => {
   resetDemoStore();
-  const accepted = handleDemoFriendRequest({ username: "@ava", action: "accept" });
+  sendDemoFriendInvite({ username: "@taylor", userId: "user_1" });
+  const accepted = handleDemoFriendRequest({ username: "@test", action: "accept", userId: "user_2" });
 
   assert.equal(accepted.ok, true);
-  assert.equal(accepted.state.friends.pending.some((request) => request.username === "@ava"), false);
-  assert.equal(accepted.state.friends.list[0].username, "@ava");
+  assert.equal(accepted.state.friends.pending.some((request) => request.username === "@test"), false);
+  assert.equal(accepted.state.friends.list[0].username, "@test");
 });
 
 test("server friend boosts update selected market and enforce max group size", () => {
   resetDemoStore();
-  const removed = toggleDemoFriendBoost({ username: "@maya", marketId: "market_1" });
-
-  assert.equal(removed.ok, true);
-  assert.equal(removed.state.markets.find((market) => market.id === "market_1").friendGroup.includes("Maya"), false);
-
-  const added = toggleDemoFriendBoost({ username: "@maya", marketId: "market_1" });
+  sendDemoFriendInvite({ username: "@taylor", userId: "user_1" });
+  handleDemoFriendRequest({ username: "@test", action: "accept", userId: "user_2" });
+  const added = toggleDemoFriendBoost({ username: "@taylor", marketId: "market_1", userId: "user_1" });
 
   assert.equal(added.ok, true);
-  assert.equal(added.state.markets.find((market) => market.id === "market_1").friendGroup.includes("Maya"), true);
-  assert.equal(
-    added.state.users.find((user) => user.name === "Maya Patel").risk_signals.includes("High repeat boost activity"),
-    true,
-  );
+  assert.equal(added.state.markets.find((market) => market.id === "market_1").friendGroup.includes("Taylor"), true);
 
-  handleDemoFriendRequest({ username: "@ava", action: "accept" });
-  toggleDemoFriendBoost({ username: "@maya", marketId: "market_2" });
-  toggleDemoFriendBoost({ username: "@jordy", marketId: "market_2" });
-  toggleDemoFriendBoost({ username: "@theo", marketId: "market_2" });
-  const blocked = toggleDemoFriendBoost({ username: "@ava", marketId: "market_2" });
+  updateDemoAdminConfig({ field: "maxGroupSize", value: "0" });
+  const blocked = toggleDemoFriendBoost({ username: "@taylor", marketId: "market_2", userId: "user_1" });
 
   assert.equal(blocked.ok, false);
   assert.match(blocked.message, /max boost group size/);
@@ -259,13 +248,13 @@ test("server admin funds actions update balances, liability, and ledger", () => 
   const deposited = addDemoDeposit();
 
   assert.equal(deposited.ok, true);
-  assert.equal(deposited.state.currentUser.withdrawable_balance, 173);
+  assert.equal(deposited.state.currentUser.withdrawable_balance, 125);
   assert.equal(deposited.state.ledger[0].source, "deposit");
 
   const bonused = grantDemoBonus();
 
   assert.equal(bonused.ok, true);
-  assert.equal(bonused.state.currentUser.bonus_balance, 49);
+  assert.equal(bonused.state.currentUser.bonus_balance, 10);
   assert.equal(bonused.state.adminConfig.bonusLiability, 4830);
   assert.equal(bonused.state.ledger[0].source, "admin_adjustment");
 });

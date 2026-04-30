@@ -197,6 +197,10 @@ function refreshDerivedBalances(state) {
 }
 
 function seedLedger(state) {
+  if (state.currentUser.id === "user_1" && state.currentUser.withdrawable_balance === 100) {
+    return;
+  }
+
   if (state.ledger.length) {
     return;
   }

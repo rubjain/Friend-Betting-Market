@@ -17,6 +17,7 @@ export async function POST(request) {
     handleDemoFriendRequest({
       username: payload.username,
       action: payload.action,
+      userId,
     });
 
   return NextResponse.json(result, { status: result.ok ? 200 : 404 });

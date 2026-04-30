@@ -17,6 +17,7 @@ export async function POST(request) {
     toggleDemoFriendBoost({
       username: payload.username,
       marketId: payload.marketId,
+      userId,
     });
 
   return NextResponse.json(result, { status: result.ok ? 200 : 400 });

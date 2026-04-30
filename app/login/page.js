@@ -13,6 +13,12 @@ export default function LoginPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
+  function useDemoAccount(email) {
+    setIdentifier(email);
+    setPassword("password123");
+    setError("");
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     if (pending) return;
@@ -40,7 +46,17 @@ export default function LoginPage() {
             <div className="brand-mark">FM</div>
           </Link>
           <h2>Sign in</h2>
-          <p>Enter your email and password to continue.</p>
+          <p>Use a demo account to test the full user side with $100 and no starting friends.</p>
+        </div>
+        <div className="demo-login-grid" aria-label="Demo login shortcuts">
+          <button type="button" onClick={() => useDemoAccount("test@example.com")}>
+            <strong>Test User</strong>
+            <span>test@example.com</span>
+          </button>
+          <button type="button" onClick={() => useDemoAccount("taylor@example.com")}>
+            <strong>Taylor Demo</strong>
+            <span>taylor@example.com</span>
+          </button>
         </div>
         <form className="form-grid" onSubmit={handleSubmit}>
           <div className="field full">
@@ -76,7 +92,7 @@ export default function LoginPage() {
           </div>
         </form>
         <div className="auth-foot">
-          <span>No account?</span>
+          <span>Password for both demo accounts: password123.</span>
           <Link href="/signup">Create one</Link>
         </div>
       </div>

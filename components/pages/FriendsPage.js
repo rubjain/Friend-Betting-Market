@@ -17,9 +17,10 @@ export default function FriendsPage() {
     state.adminConfig.maxGroupSize - selectedMarket.friendGroup.length,
   );
   const pendingCount = state.friends.pending.length;
-  const totalBoosts = state.friends.list.reduce((sum, f) => sum + (f.boostCount || 0), 0);
+  const incomingCount = state.friends.pending.filter((request) => request.direction === "incoming").length;
+  const totalBoosts = state.friends.list.reduce((sum, friend) => sum + (friend.boostCount || 0), 0);
   const bestMultiplier = state.markets.length
-    ? Math.max(...state.markets.map((m) => getMultiplier(m, state.adminConfig)))
+    ? Math.max(...state.markets.map((market) => getMultiplier(market, state.adminConfig)))
     : 1;
 
   async function runFriendAction(actionKey, callback) {
@@ -36,11 +37,9 @@ export default function FriendsPage() {
     <section className="page active">
       <SectionHead
         title="Friends"
-        body="Invite friends and boost each other's markets for better odds."
+        body="Invite @taylor from the clean demo account, accept requests, and test social boosts."
       />
       <div className="friends-page-stack">
-
-        {/* ── Pending requests banner ── */}
         {pendingCount > 0 && (
           <div className="pending-banner">
             <div className="pending-banner-summary">
@@ -49,7 +48,7 @@ export default function FriendsPage() {
               <button
                 className="pending-banner-toggle"
                 type="button"
-                onClick={() => setPendingExpanded((v) => !v)}
+                onClick={() => setPendingExpanded((value) => !value)}
               >
                 {pendingExpanded ? "Hide" : "Review"}
               </button>
@@ -60,7 +59,9 @@ export default function FriendsPage() {
                   <div className="pending-request-row" key={request.username}>
                     <div>
                       <strong>{request.name}</strong>
-                      <span className="caption"> · @{request.username} · {request.direction}</span>
+                      <span className="caption">
+                        {" "}{request.username} · {request.direction}
+                      </span>
                     </div>
                     <div className="inline-actions">
                       {request.direction === "incoming" ? (
@@ -100,7 +101,6 @@ export default function FriendsPage() {
           </div>
         )}
 
-        {/* ── Add friends search bar ── */}
         <div className="friends-search-row">
           <label className="visually-hidden" htmlFor="friend-invite-input">
             Friend username
@@ -108,7 +108,7 @@ export default function FriendsPage() {
           <input
             id="friend-invite-input"
             type="text"
-            placeholder="Search @username or enter an invite link"
+            placeholder="Invite @taylor"
             value={state.friendInviteDraft}
             onChange={(event) => actions.updateFriendInviteDraft(event.currentTarget.value)}
           />
@@ -122,11 +122,24 @@ export default function FriendsPage() {
           </button>
         </div>
 
-        {/* ── Stat bar ── */}
+        <div className="friends-demo-note">
+          Test accounts: test@example.com / password123 and taylor@example.com / password123.
+        </div>
+
         <div className="friends-stat-bar">
           <div className="friends-stat-chip">
             <strong>{state.friends.list.length}</strong>
             <span>Friends</span>
+          </div>
+          <div className="friends-stat-divider" aria-hidden="true" />
+          <div className="friends-stat-chip">
+            <strong>{pendingCount}</strong>
+            <span>Pending</span>
+          </div>
+          <div className="friends-stat-divider" aria-hidden="true" />
+          <div className="friends-stat-chip">
+            <strong>{incomingCount}</strong>
+            <span>Incoming</span>
           </div>
           <div className="friends-stat-divider" aria-hidden="true" />
           <div className="friends-stat-chip">
@@ -135,12 +148,11 @@ export default function FriendsPage() {
           </div>
           <div className="friends-stat-divider" aria-hidden="true" />
           <div className="friends-stat-chip friends-stat-chip--accent">
-            <strong>{bestMultiplier.toFixed(2)}×</strong>
+            <strong>{bestMultiplier.toFixed(2)}x</strong>
             <span>Best multiplier</span>
           </div>
         </div>
 
-        {/* ── Friends hero list ── */}
         <div className="friends-hero-list">
           {state.friends.list.length ? (
             state.friends.list.map((friend) => {
@@ -160,14 +172,13 @@ export default function FriendsPage() {
             })
           ) : (
             <div className="friends-empty">
-              <p>No friends yet — send an invite above to get started.</p>
+              <strong>No friends yet.</strong>
+              <p>This demo account starts with no friends. Send an invite to @taylor above.</p>
             </div>
           )}
         </div>
-
       </div>
 
-      {/* ── Boost slide-in panel ── */}
       {boostPanelFriend && (
         <BoostPanel
           friend={boostPanelFriend}
@@ -189,7 +200,7 @@ function FriendCard({ friend, isBoosting, disabled, pendingAction, onBoost }) {
   const initials = friend.name
     .split(" ")
     .slice(0, 2)
-    .map((w) => w[0])
+    .map((word) => word[0])
     .join("")
     .toUpperCase();
   const actionKey = `boost-${friend.username}`;
@@ -201,7 +212,7 @@ function FriendCard({ friend, isBoosting, disabled, pendingAction, onBoost }) {
       </div>
       <div className="friend-card-body">
         <strong className="friend-card-name">{friend.name}</strong>
-        <div className="friend-card-username caption">@{friend.username.replace("@", "")}</div>
+        <div className="friend-card-username caption">{friend.username}</div>
         {friend.boostCount > 0 && (
           <div className="friend-card-boosts caption">
             {friend.boostCount} market{friend.boostCount !== 1 ? "s" : ""} together
@@ -214,7 +225,7 @@ function FriendCard({ friend, isBoosting, disabled, pendingAction, onBoost }) {
         disabled={disabled || pendingAction === actionKey}
         onClick={onBoost}
       >
-        {isBoosting ? "✓ Boosting" : "+ Boost"}
+        {isBoosting ? "Boosting" : "Boost"}
       </button>
     </div>
   );
@@ -236,7 +247,7 @@ function BoostPanel({ friend, selectedMarket, boostSlotsRemaining, state, action
   const initials = friend.name
     .split(" ")
     .slice(0, 2)
-    .map((w) => w[0])
+    .map((word) => word[0])
     .join("")
     .toUpperCase();
 
@@ -251,11 +262,11 @@ function BoostPanel({ friend, selectedMarket, boostSlotsRemaining, state, action
             </div>
             <div>
               <strong>{friend.name}</strong>
-              <div className="caption">@{friend.username.replace("@", "")}</div>
+              <div className="caption">{friend.username}</div>
             </div>
           </div>
           <button className="btn btn-ghost boost-panel-close" type="button" onClick={onClose} aria-label="Close">
-            ✕
+            Close
           </button>
         </div>
 
@@ -273,12 +284,12 @@ function BoostPanel({ friend, selectedMarket, boostSlotsRemaining, state, action
         <div className="boost-panel-multiplier">
           <div className="boost-panel-multiplier-row">
             <span className="caption">Current multiplier</span>
-            <strong>{multiplierNow.toFixed(2)}×</strong>
+            <strong>{multiplierNow.toFixed(2)}x</strong>
           </div>
           {multiplierAfter !== multiplierNow && (
             <div className="boost-panel-multiplier-row boost-panel-multiplier-after">
               <span className="caption">After this boost</span>
-              <strong className="accent">{multiplierAfter.toFixed(2)}×</strong>
+              <strong className="accent">{multiplierAfter.toFixed(2)}x</strong>
             </div>
           )}
         </div>
@@ -301,8 +312,8 @@ function BoostPanel({ friend, selectedMarket, boostSlotsRemaining, state, action
             {pendingAction === `boost-${friend.username}`
               ? "Updating..."
               : isBoosting
-              ? `Remove ${friend.name.split(" ")[0]} from boost`
-              : `Add ${friend.name.split(" ")[0]} to boost`}
+                ? `Remove ${friend.name.split(" ")[0]} from boost`
+                : `Add ${friend.name.split(" ")[0]} to boost`}
           </button>
         )}
       </div>

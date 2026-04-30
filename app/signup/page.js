@@ -43,7 +43,10 @@ export default function SignupPage() {
             <div className="brand-mark">FM</div>
           </Link>
           <h2>Create account</h2>
-          <p>Join FriendMarket — social prediction markets.</p>
+          <p>Demo mode uses test accounts. Use the sign-in page to enter the basic user sandbox.</p>
+        </div>
+        <div className="note-banner auth-note">
+          Use test@example.com or taylor@example.com with password123 to test friend invites from clean $100 accounts.
         </div>
         <form className="form-grid" onSubmit={handleSubmit}>
           <div className="field full">
