@@ -18,6 +18,7 @@
     "next": "latest",
     "prisma": "^6.19.3",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "recharts": "^3.8.1"
   }
 }

@@ -1,32 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useFriendMarket } from "../../context/FriendMarketContext";
-import { money, titleCase } from "../../lib/formatters";
-import { InfoRow, SectionHead } from "../ui";
+import { money } from "../../lib/formatters";
+import PortfolioChart from "../PortfolioChart";
 
 export default function ProfilePage() {
   const { state, actions } = useFriendMarket();
   const [profileDraft, setProfileDraft] = useState({
     name: state.currentUser.name,
     email: state.currentUser.email,
+    username: state.currentUser.username,
   });
   const [loginIdentifier, setLoginIdentifier] = useState(state.currentUser.email);
   const [loginPassword, setLoginPassword] = useState("");
-  const [signupDraft, setSignupDraft] = useState({
-    name: "",
-    email: "",
-    username: "",
-    password: "",
-  });
   const [pendingAction, setPendingAction] = useState("");
 
   useEffect(() => {
     setProfileDraft({
       name: state.currentUser.name,
       email: state.currentUser.email,
+      username: state.currentUser.username,
     });
-  }, [state.currentUser.email, state.currentUser.name]);
+  }, [state.currentUser.name, state.currentUser.email, state.currentUser.username]);
 
   async function saveProfile(event) {
     event.preventDefault();
@@ -50,240 +47,178 @@ export default function ProfilePage() {
     }
   }
 
-  async function signup(event) {
-    event.preventDefault();
+  async function logout() {
     if (pendingAction) return;
-    setPendingAction("signup");
+    setPendingAction("logout");
     try {
-      await actions.signup(signupDraft);
+      await actions.logout();
     } finally {
       setPendingAction("");
     }
   }
 
-  async function runProfileAction(actionKey, callback) {
-    if (pendingAction) return;
-    setPendingAction(actionKey);
-    try {
-      await callback();
-    } finally {
-      setPendingAction("");
-    }
+  if (!state.auth.authenticated) {
+    return <LoginView loginIdentifier={loginIdentifier} setLoginIdentifier={setLoginIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} pendingAction={pendingAction} onLogin={login} />;
   }
+
+  const totalBalance =
+    (state.currentUser.withdrawable_balance ?? 0) +
+    (state.currentUser.bonus_balance ?? 0) +
+    (state.currentUser.play_credit_balance ?? 0);
+
+  const pastBets = state.portfolio.pastBets;
+  const totalBets = state.portfolio.openBets.length + pastBets.length;
+  const wins = pastBets.filter((b) => (b.payout ?? 0) > 0).length;
+  const winRate = pastBets.length > 0 ? Math.round((wins / pastBets.length) * 100) : 0;
+  const totalWinnings = pastBets.reduce((sum, b) => sum + (b.payout ?? 0) + (b.boost ?? 0), 0);
+
+  const initials = state.currentUser.name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
 
   return (
     <section className="page active">
-      <SectionHead
-        title="Profile"
-        body="Basic account details with enough structure to support future verification and risk tooling."
-      />
-      <div className="profile-grid">
-        <div className="list-card">
-          <h3>Session</h3>
-          <div className="info-list profile-meta">
-            <InfoRow label="Status" value={state.auth.authenticated ? "Signed in" : "Demo guest"} />
-            <InfoRow label="Signed in as" value={state.currentUser.email} />
+      <div className="profile-stack">
+
+        {/* ── Avatar + identity ── */}
+        <div className="profile-identity">
+          <div className="profile-avatar" aria-hidden="true">{initials}</div>
+          <div>
+            <h2 className="profile-identity-name">{state.currentUser.name}</h2>
+            <div className="profile-identity-username caption">
+              @{state.currentUser.username.replace("@", "")}
+            </div>
           </div>
-          {state.auth.authenticated ? (
-            <div className="inline-actions profile-actions">
-              <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("logout", actions.logout)}>
-                {pendingAction === "logout" ? "Logging out..." : "Log Out"}
-              </button>
-            </div>
-          ) : (
-            <form className="form-grid" onSubmit={login}>
-              <div className="field">
-                <label className="label" htmlFor="login-identifier">
-                  Email or username
-                </label>
-                <input
-                  id="login-identifier"
-                  autoComplete="username email"
-                  value={loginIdentifier}
-                  onChange={(event) => setLoginIdentifier(event.currentTarget.value)}
-                />
-              </div>
-              <div className="field">
-                <label className="label" htmlFor="login-password">
-                  Password
-                </label>
-                <input
-                  id="login-password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={loginPassword}
-                  onChange={(event) => setLoginPassword(event.currentTarget.value)}
-                />
-              </div>
-              <div className="field full">
-                <button className="btn btn-primary" type="submit" disabled={!!pendingAction}>
-                  {pendingAction === "login" ? "Logging in..." : "Log In"}
-                </button>
-              </div>
-            </form>
-          )}
         </div>
-        <div className="list-card">
-          <h3>Create account</h3>
-          <form className="form-grid" onSubmit={signup}>
-            <div className="field">
-              <label className="label" htmlFor="signup-name">
-                Name
-              </label>
-              <input
-                id="signup-name"
-                value={signupDraft.name}
-                onChange={(event) =>
-                  setSignupDraft((draft) => ({ ...draft, name: event.currentTarget.value }))
-                }
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="signup-email">
-                Email
-              </label>
-              <input
-                id="signup-email"
-                type="email"
-                value={signupDraft.email}
-                onChange={(event) =>
-                  setSignupDraft((draft) => ({ ...draft, email: event.currentTarget.value }))
-                }
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="signup-username">
-                Username
-              </label>
-              <input
-                id="signup-username"
-                value={signupDraft.username}
-                placeholder="@username"
-                autoComplete="username"
-                onChange={(event) =>
-                  setSignupDraft((draft) => ({ ...draft, username: event.currentTarget.value }))
-                }
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="signup-password">
-                Password
-              </label>
-              <input
-                id="signup-password"
-                type="password"
-                autoComplete="new-password"
-                placeholder="Min. 8 characters"
-                value={signupDraft.password}
-                onChange={(event) =>
-                  setSignupDraft((draft) => ({ ...draft, password: event.currentTarget.value }))
-                }
-              />
-            </div>
-            <div className="field full">
-              <button className="btn btn-secondary" type="submit" disabled={!!pendingAction}>
-                {pendingAction === "signup" ? "Creating..." : "Sign Up"}
-              </button>
-            </div>
-          </form>
+
+        {/* ── Balance card ── */}
+        <div className="profile-balance-card">
+          <div>
+            <div className="label">Total balance</div>
+            <strong className="profile-balance-total">{money(totalBalance)}</strong>
+          </div>
+          <Link href="/deposit" className="btn btn-primary">
+            Deposit
+          </Link>
         </div>
+
+        {/* ── Portfolio performance chart ── */}
+        <PortfolioChart />
+
+        {/* ── Edit profile ── */}
         <div className="list-card">
           <h3>Account</h3>
-          <form className="form-grid" onSubmit={saveProfile}>
-            <div className="field">
-              <label className="label" htmlFor="profile-name">
-                Name
-              </label>
-              <input
-                id="profile-name"
-                value={profileDraft.name}
-                onChange={(event) =>
-                  setProfileDraft((draft) => ({ ...draft, name: event.currentTarget.value }))
-                }
-              />
+          <form onSubmit={saveProfile}>
+            <div className="profile-edit-fields">
+              <div className="field">
+                <label className="label" htmlFor="profile-name">Name</label>
+                <input
+                  id="profile-name"
+                  value={profileDraft.name}
+                  autoComplete="name"
+                  onChange={(e) => setProfileDraft((d) => ({ ...d, name: e.currentTarget.value }))}
+                />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="profile-email">Email</label>
+                <input
+                  id="profile-email"
+                  type="email"
+                  autoComplete="email"
+                  value={profileDraft.email}
+                  onChange={(e) => setProfileDraft((d) => ({ ...d, email: e.currentTarget.value }))}
+                />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="profile-username">Username</label>
+                <input
+                  id="profile-username"
+                  autoComplete="username"
+                  value={profileDraft.username}
+                  onChange={(e) => setProfileDraft((d) => ({ ...d, username: e.currentTarget.value }))}
+                />
+              </div>
             </div>
-            <div className="field">
-              <label className="label" htmlFor="profile-email">
-                Email
-              </label>
-              <input
-                id="profile-email"
-                type="email"
-                value={profileDraft.email}
-                onChange={(event) =>
-                  setProfileDraft((draft) => ({ ...draft, email: event.currentTarget.value }))
-                }
-              />
-            </div>
-            <div className="field full">
+            <div className="profile-save-row">
               <button className="btn btn-primary" type="submit" disabled={!!pendingAction}>
-                {pendingAction === "profile" ? "Saving..." : "Save Profile"}
+                {pendingAction === "profile" ? "Saving..." : "Save"}
               </button>
             </div>
           </form>
-          <div className="info-list profile-meta">
-            <InfoRow label="Username" value={state.currentUser.username} />
-            <InfoRow label="Role" value={state.currentUser.isAdmin ? "Admin" : "Member"} />
+        </div>
+
+        {/* ── Stats row ── */}
+        <div className="profile-stats-row">
+          <div className="profile-stat">
+            <strong>{totalBets}</strong>
+            <span>Bets placed</span>
+          </div>
+          <div className="profile-stat-divider" aria-hidden="true" />
+          <div className="profile-stat">
+            <strong>{winRate}%</strong>
+            <span>Win rate</span>
+          </div>
+          <div className="profile-stat-divider" aria-hidden="true" />
+          <div className="profile-stat">
+            <strong>{money(totalWinnings)}</strong>
+            <span>Total winnings</span>
           </div>
         </div>
-        <div className="list-card">
-          <h3>Balances</h3>
-          <div className="info-list">
-            <InfoRow label="Withdrawable" value={money(state.currentUser.withdrawable_balance)} />
-            <InfoRow label="Bonus" value={money(state.currentUser.bonus_balance)} />
-            <InfoRow label="Play credit total" value={money(state.currentUser.play_credit_balance)} />
+
+        {/* ── Log out ── */}
+        <button
+          className="btn btn-logout"
+          type="button"
+          disabled={!!pendingAction}
+          onClick={logout}
+        >
+          {pendingAction === "logout" ? "Logging out..." : "Log Out"}
+        </button>
+
+      </div>
+    </section>
+  );
+}
+
+function LoginView({ loginIdentifier, setLoginIdentifier, loginPassword, setLoginPassword, pendingAction, onLogin }) {
+  return (
+    <section className="page active">
+      <div className="login-centered">
+        <h1 className="login-heading">Sign in</h1>
+        <form className="login-form" onSubmit={onLogin}>
+          <div className="field">
+            <label className="label" htmlFor="login-identifier">Email</label>
+            <input
+              id="login-identifier"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={loginIdentifier}
+              onChange={(e) => setLoginIdentifier(e.currentTarget.value)}
+            />
           </div>
-        </div>
-        <div className="list-card">
-          <h3>Settings</h3>
-          <div className="settings-grid">
-            <InfoRow label="Bonus usage" value={titleCase(state.currentUser.settings.betBonusUsage)} />
-            <InfoRow
-              label="Bonus market eligibility"
-              value={titleCase(state.currentUser.settings.bonusMarketEligibility)}
+          <div className="field">
+            <label className="label" htmlFor="login-password">Password</label>
+            <input
+              id="login-password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.currentTarget.value)}
             />
-            <InfoRow
-              label="Email verification"
-              value={titleCase(state.currentUser.settings.emailVerificationStatus ?? "pending")}
-            />
-            <InfoRow
-              label="Phone verification"
-              value={titleCase(state.currentUser.settings.phoneVerificationStatus)}
-            />
-            <InfoRow
-              label="Identity verification"
-              value={titleCase(state.currentUser.settings.identityVerificationStatus ?? "placeholder")}
-            />
-            <InfoRow
-              label="Payment verification"
-              value={titleCase(state.currentUser.settings.paymentVerificationStatus ?? "placeholder")}
-            />
-            <InfoRow label="Risk status" value={titleCase(state.currentUser.settings.riskStatus)} />
           </div>
-          <div className="inline-actions profile-actions">
-            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("verify-email", () => actions.updateVerification("email"))}>
-              {pendingAction === "verify-email" ? "Verifying..." : "Verify Email"}
-            </button>
-            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("verify-phone", () => actions.updateVerification("phone"))}>
-              {pendingAction === "verify-phone" ? "Verifying..." : "Verify Phone"}
-            </button>
-            <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("verify-identity", () => actions.updateVerification("identity"))}>
-              {pendingAction === "verify-identity" ? "Updating..." : "Identity Placeholder"}
-            </button>
-            <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runProfileAction("verify-payment", () => actions.updateVerification("payment"))}>
-              {pendingAction === "verify-payment" ? "Updating..." : "Payment Placeholder"}
-            </button>
-          </div>
-        </div>
-        <div className="list-card">
-          <h3>Future anti-abuse placeholders</h3>
-          <div className="info-list">
-            <InfoRow label="Identity signals" value="Phone, email, government ID" />
-            <InfoRow label="Payment signals" value="Card, bank, payment-method uniqueness" />
-            <InfoRow label="Behavioral signals" value="Device, IP, household, friend-graph risk scoring" />
-            <InfoRow label="Manual controls" value="Freeze account, claw back bonus, review queue" />
-          </div>
-        </div>
+          <button className="btn btn-primary login-submit" type="submit" disabled={!!pendingAction}>
+            {pendingAction === "login" ? "Signing in..." : "Log In"}
+          </button>
+        </form>
+        <p className="login-signup-link">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="login-signup-anchor">Sign up</Link>
+        </p>
       </div>
     </section>
   );

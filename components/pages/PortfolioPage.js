@@ -10,6 +10,7 @@ export default function PortfolioPage() {
   const { state, actions } = useFriendMarket();
   const [disputeDraft, setDisputeDraft] = useState({ betId: "", reason: "" });
   const [pendingAction, setPendingAction] = useState("");
+  const [showTxHistory, setShowTxHistory] = useState(false);
 
   async function runPortfolioAction(actionKey, callback) {
     if (pendingAction) return;
@@ -34,30 +35,39 @@ export default function PortfolioPage() {
     }
   }
 
+  const totalBalance =
+    (state.currentUser.withdrawable_balance ?? 0) +
+    (state.currentUser.bonus_balance ?? 0) +
+    (state.currentUser.play_credit_balance ?? 0);
+
   return (
     <section className="page active">
       <SectionHead
         title="Portfolio"
         body="Open bets, settled history, and separate play-money balances that mirror a real-money architecture."
       />
-      <div className="portfolio-grid">
-        <div className="list-card">
-          <h3>Balances</h3>
-          <div className="portfolio-balance">
+      <div className="portfolio-stack">
+        {/* ── 1. Balance hero ── */}
+        <div className="balance-hero">
+          <div className="balance-hero-total">
+            <span className="label">Total balance</span>
+            <strong>{money(totalBalance)}</strong>
+          </div>
+          <div className="balance-hero-breakdown">
             <BalanceBox
-              label="Withdrawable balance"
+              label="Withdrawable"
               value={money(state.currentUser.withdrawable_balance)}
-              body="Comes from deposits and normal winnings tied to withdrawable funds."
+              body="Deposits and normal winnings."
             />
             <BalanceBox
-              label="Bonus balance"
+              label="Bonus"
               value={money(state.currentUser.bonus_balance)}
-              body="Comes from social boosts, promotions, referrals, and bonus-funded winnings."
+              body="Social boosts, promos, referrals."
             />
             <BalanceBox
-              label="Play-credit balance"
+              label="Play credit"
               value={money(state.currentUser.play_credit_balance)}
-              body="Displayed as a friendly total, but still backed by separate ledger currencies."
+              body="Backed by separate ledger currencies."
             />
           </div>
           <div className="inline-actions">
@@ -69,9 +79,10 @@ export default function PortfolioPage() {
             </button>
           </div>
         </div>
-        <PortfolioLedger />
-        <div className="list-card">
-          <h3>Open bets</h3>
+
+        {/* ── 2. Open bets (visual hero) ── */}
+        <div className="list-card open-bets-hero">
+          <h2 className="open-bets-heading">Open bets</h2>
           <div className="bet-list">
             {state.portfolio.openBets.length ? (
               state.portfolio.openBets.map((bet) => (
@@ -90,6 +101,8 @@ export default function PortfolioPage() {
             )}
           </div>
         </div>
+
+        {/* ── 3. Past bets ── */}
         <div className="list-card">
           <h3>Past bets</h3>
           <div className="bet-list">
@@ -144,6 +157,20 @@ export default function PortfolioPage() {
               <div className="empty-note">No settled bets yet.</div>
             )}
           </div>
+        </div>
+
+        {/* ── 4. Transaction history (collapsed by default) ── */}
+        <div className="txn-collapse-wrap">
+          <button
+            className="txn-toggle"
+            type="button"
+            onClick={() => setShowTxHistory((v) => !v)}
+            aria-expanded={showTxHistory}
+          >
+            <span>{showTxHistory ? "Hide transaction history" : "Show transaction history"}</span>
+            <span className="txn-toggle-chevron" aria-hidden="true">{showTxHistory ? "▲" : "▼"}</span>
+          </button>
+          {showTxHistory && <PortfolioLedger />}
         </div>
       </div>
     </section>
