@@ -221,7 +221,7 @@ a { color: inherit; text-decoration: none; }
   padding: 16px 12px;
   transition: transform 200ms ease;
   z-index: 20;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .nav-actions.collapsed {
@@ -259,6 +259,50 @@ a { color: inherit; text-decoration: none; }
   color: var(--accent);
   background: var(--accent-soft);
   font-weight: 600;
+}
+
+.nav-flyout-item {
+  position: relative;
+}
+
+.nav-flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 10px);
+  width: 176px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-hover);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.nav-flyout-item:hover .nav-flyout,
+.nav-flyout-item:focus-within .nav-flyout {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.nav-flyout-link {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.nav-flyout-link:hover,
+.nav-flyout-link:focus-visible {
+  background: var(--surface-alt);
+  color: var(--text);
+  outline: none;
 }
 
 .admin-link {
@@ -513,6 +557,14 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ── Landing stats bar ────────────────────────────────────── */
+.hero-ctas {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .landing-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1254,6 +1306,358 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ── Detail grid ──────────────────────────────────────────── */
+/* Settings */
+.settings-command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.settings-section-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -8px 0 18px;
+}
+
+.settings-section-menu a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.settings-section-menu a:hover,
+.settings-section-menu a:focus-visible {
+  background: var(--accent-soft);
+  border-color: rgba(245, 93, 0, 0.28);
+  color: var(--accent);
+  outline: none;
+}
+
+.settings-anchor {
+  scroll-margin-top: 84px;
+}
+
+.settings-command-grid > .list-card,
+.settings-ledger-card {
+  padding: 20px;
+}
+
+.settings-hero-card,
+.settings-referrals-card,
+.deposit-card,
+.settings-ledger-card {
+  grid-column: 1 / -1;
+}
+
+.settings-command-grid > .list-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-inline-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.settings-inline-form .field,
+.deposit-amount-field {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 220px;
+}
+
+.settings-inline-form input,
+.money-input input {
+  width: 100%;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.settings-inline-form input {
+  padding: 8px 12px;
+}
+
+.settings-inline-form input:focus,
+.money-input:focus-within {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245, 93, 0, 0.14);
+}
+
+.theme-choice-grid,
+.balance-mini-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.theme-choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+  flex: 1;
+}
+
+.choice-card {
+  display: grid;
+  gap: 5px;
+  min-height: 88px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text);
+  text-align: left;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.choice-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.choice-card strong {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.choice-card.active,
+.choice-card:hover {
+  border-color: rgba(245, 93, 0, 0.28);
+  background: var(--accent-soft);
+}
+
+#appearance {
+  justify-content: center;
+}
+
+.deposit-card {
+  display: grid;
+  gap: 18px;
+}
+
+.deposit-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.deposit-method-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.deposit-method {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 96px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.deposit-method:hover,
+.deposit-method.active {
+  border-color: rgba(245, 93, 0, 0.32);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-soft);
+}
+
+.method-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.deposit-method.active .method-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.method-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.method-copy strong {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.method-copy span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.method-badge {
+  grid-column: 1 / -1;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.deposit-amount-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+
+.deposit-amount-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.money-input {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.money-input > span {
+  padding-left: 13px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.money-input input {
+  min-height: 42px;
+  padding: 8px 12px 8px 6px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.money-input input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.deposit-submit {
+  min-height: 44px;
+}
+
+.quick-amount-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quick-amount {
+  min-height: 34px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.quick-amount:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.deposit-summary {
+  display: grid;
+  padding-top: 2px;
+}
+
+.settings-ledger-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.settings-ledger-card > .list-card {
+  padding: 22px;
+}
+
+.referral-list {
+  margin-top: 12px;
+}
+
+.referral-code-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 520px) auto;
+  align-items: end;
+  justify-content: start;
+}
+
+.referral-code-form .field {
+  width: 100%;
+  flex: initial;
+}
+
+.money-page {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.money-card {
+  padding: 22px;
+}
+
+.compact-method-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .detail-grid {
   grid-template-columns: 1.3fr 0.9fr;
   align-items: start;
@@ -1520,6 +1924,33 @@ textarea { min-height: 130px; resize: vertical; }
 }
 
 .compact-field { min-width: 170px; margin: 0; }
+.compact-field .ui-select {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 36px 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%) right 15px center / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%) right 10px center / 6px 6px no-repeat,
+    var(--surface-alt);
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 700;
+  appearance: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.compact-field .ui-select:hover {
+  border-color: var(--border-strong);
+  background-color: var(--surface);
+}
+
+.compact-field .ui-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245, 93, 0, 0.14);
+}
 .pagination-copy { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
 .pagination-controls { justify-content: flex-end; margin-bottom: 0; }
 
@@ -1824,13 +2255,15 @@ textarea { min-height: 130px; resize: vertical; }
   .friends-grid,
   .portfolio-grid,
   .admin-grid,
-  .profile-grid { grid-template-columns: 1fr; }
+  .profile-grid,
+  .settings-command-grid { grid-template-columns: 1fr; }
 
   .market-grid,
   .step-grid,
   .stats-grid,
   .admin-summary,
-  .landing-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .landing-stats,
+  .deposit-method-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .ops-grid,
   .taxonomy-grid,
@@ -1885,15 +2318,43 @@ textarea { min-height: 130px; resize: vertical; }
   .ops-strip,
   .market-command-row,
   .signal-rail,
-  .model-meter-grid { grid-template-columns: 1fr; }
+  .model-meter-grid,
+  .theme-choice-grid,
+  .deposit-method-grid,
+  .deposit-amount-row { grid-template-columns: 1fr; }
 
   .quote-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .nav-flyout {
+    position: static;
+    width: auto;
+    margin: 2px 0 0 12px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .nav-actions {
+    overflow-y: auto;
+  }
+
+  .deposit-card-head,
+  .settings-inline-form { align-items: stretch; }
+
+  .referral-code-form {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-amount-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .button-row,
   .market-actions,
   .inline-actions { flex-direction: column; }
 
   .btn,
+  .deposit-submit,
   .market-actions .btn,
   .inline-actions .btn { width: 100%; }
 

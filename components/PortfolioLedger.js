@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { signedMoney, titleCase } from "../lib/formatters";
 import { getLedgerView, ledgerFilterOptions, ledgerSortOptions } from "../lib/ledgerViews";
@@ -11,9 +11,20 @@ export default function PortfolioLedger() {
   const [page, setPage] = useState(1);
   const ledgerEntries = selectors.getLedgerEntries();
   const view = useMemo(
-    () => getLedgerView({ entries: ledgerEntries, sort, page, pageSize: 6 }),
-    [ledgerEntries, page, sort],
+    () => getLedgerView({ entries: ledgerEntries, filter: state.ledgerFilter, sort, page, pageSize: 6 }),
+    [ledgerEntries, page, sort, state.ledgerFilter],
   );
+  const visibleFilterOptions = useMemo(
+    () => ledgerFilterOptions.filter(([value]) => value !== "admin_adjustment"),
+    [],
+  );
+
+  useEffect(() => {
+    if (!visibleFilterOptions.some(([value]) => value === state.ledgerFilter)) {
+      actions.setLedgerFilter("all");
+      setPage(1);
+    }
+  }, [actions, state.ledgerFilter, visibleFilterOptions]);
 
   function updateFilter(value) {
     actions.setLedgerFilter(value);
@@ -24,17 +35,16 @@ export default function PortfolioLedger() {
     setSort(value);
     setPage(1);
   }
-
   return (
     <div className="list-card">
       <div className="row-between">
         <div>
-          <h3>Ledger preview</h3>
-          <p>Every movement stores user, market, bet, source, currency, and metadata.</p>
+          <h3>Transaction history</h3>
+          <p>Audit trail for deposits, withdrawals, bets, payouts, and boosts.</p>
         </div>
       </div>
       <div className="segmented-control" aria-label="Ledger filter">
-        {ledgerFilterOptions.slice(0, 5).map(([value, label]) => (
+        {visibleFilterOptions.slice(0, 5).map(([value, label]) => (
           <button
             key={value}
             className={state.ledgerFilter === value ? "active" : ""}
@@ -48,7 +58,7 @@ export default function PortfolioLedger() {
       <div className="table-toolbar">
         <label className="field compact-field" htmlFor="portfolio-ledger-sort">
           <span className="label">Sort</span>
-          <select id="portfolio-ledger-sort" value={sort} onChange={(event) => updateSort(event.currentTarget.value)}>
+          <select className="ui-select" id="portfolio-ledger-sort" value={sort} onChange={(event) => updateSort(event.currentTarget.value)}>
             {ledgerSortOptions.map(([value, label]) => (
               <option value={value} key={value}>
                 {label}

@@ -6,6 +6,14 @@ import { money } from "../../lib/formatters";
 import PortfolioLedger from "../PortfolioLedger";
 import { InfoRow, SectionHead } from "../ui";
 
+const settingsSections = [
+  ["#account", "Account"],
+  ["#balances", "Balances"],
+  ["#appearance", "Appearance"],
+  ["#referrals", "Referrals"],
+  ["#ledger", "Transaction history"],
+];
+
 export default function SettingsPage() {
   const { state, actions } = useFriendMarket();
   const [pendingAction, setPendingAction] = useState("");
@@ -25,11 +33,19 @@ export default function SettingsPage() {
     <section className="page active">
       <SectionHead
         title="Settings"
-        body="Account, appearance, money movement, referrals, and transaction history in one clean control center."
+        body="Account, appearance, referrals, and transaction history in one clean control center."
       />
 
+      <nav className="settings-section-menu" aria-label="Settings sections">
+        {settingsSections.map(([href, label]) => (
+          <a href={href} key={href}>
+            {label}
+          </a>
+        ))}
+      </nav>
+
       <div className="settings-command-grid">
-        <div className="list-card settings-hero-card">
+        <div className="list-card settings-hero-card settings-anchor" id="account">
           <h3>Account</h3>
           <div className="info-list">
             <InfoRow label="Session" value={state.auth.authenticated ? "Signed in" : "Demo guest"} />
@@ -60,7 +76,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="list-card">
+        <div className="list-card settings-anchor" id="appearance">
           <h3>Appearance</h3>
           <div className="theme-choice-grid">
             <button
@@ -82,7 +98,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="list-card">
+        <div className="list-card settings-anchor" id="balances">
           <h3>Balances</h3>
           <div className="balance-mini-grid">
             <InfoRow label="Withdrawable" value={money(state.currentUser.withdrawable_balance)} />
@@ -91,52 +107,14 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="list-card">
-          <h3>Deposit</h3>
-          <div className="settings-inline-form">
-            <label className="field" htmlFor="deposit-amount">
-              <span className="label">Amount</span>
-              <input
-                id="deposit-amount"
-                type="number"
-                min="1"
-                value={state.fundingDrafts.depositAmount}
-                onChange={(event) => actions.updateFundingDraft("depositAmount", event.currentTarget.value)}
-              />
-            </label>
-            <button className="btn btn-primary" type="button" disabled={!!pendingAction} onClick={() => run("deposit", actions.addDeposit)}>
-              {pendingAction === "deposit" ? "Adding..." : "Add deposit"}
-            </button>
-          </div>
-        </div>
-
-        <div className="list-card">
-          <h3>Withdraw</h3>
-          <div className="settings-inline-form">
-            <label className="field" htmlFor="withdraw-amount">
-              <span className="label">Amount</span>
-              <input
-                id="withdraw-amount"
-                type="number"
-                min="1"
-                value={state.fundingDrafts.withdrawAmount}
-                onChange={(event) => actions.updateFundingDraft("withdrawAmount", event.currentTarget.value)}
-              />
-            </label>
-            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => run("withdraw", actions.requestWithdrawal)}>
-              {pendingAction === "withdraw" ? "Submitting..." : "Request withdraw"}
-            </button>
-          </div>
-        </div>
-
-        <div className="list-card">
+        <div className="list-card settings-referrals-card settings-anchor" id="referrals">
           <h3>Referrals</h3>
           <div className="info-list">
             <InfoRow label="Your code" value={state.referrals.code} />
             <InfoRow label="Reward" value={`${money(state.referrals.reward)} bonus`} />
             <InfoRow label="Completed" value={state.referrals.completedReferrals} />
           </div>
-          <div className="settings-inline-form">
+          <div className="settings-inline-form referral-code-form">
             <label className="field" htmlFor="referral-code">
               <span className="label">Apply code</span>
               <input
@@ -162,7 +140,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="settings-ledger-card">
+        <div className="settings-ledger-card settings-anchor" id="ledger">
           <PortfolioLedger />
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { useFriendMarket } from "../../context/FriendMarketContext";
 import { formatPercent, money } from "../../lib/formatters";
 import { getMarketPipelineSummary, rankMarketsBySignal } from "../../lib/marketAlgorithms";
@@ -8,11 +9,21 @@ import MarketCard from "../MarketCard";
 
 export default function LandingPage() {
   const { state } = useFriendMarket();
-  const featuredMarkets = state.markets.slice(0, 6);
-  const totalVolume = state.markets.reduce((sum, market) => sum + Number(market.volume || 0), 0);
-  const openBetExposure = state.portfolio.openBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
-  const pipeline = getMarketPipelineSummary(state.markets, state.liveGames);
-  const signalLeaders = rankMarketsBySignal(state.markets, state.liveGames).slice(0, 1);
+  const landingData = useMemo(() => {
+    const featuredMarkets = state.markets.slice(0, 6);
+    const totalVolume = state.markets.reduce((sum, market) => sum + Number(market.volume || 0), 0);
+    const openBetExposure = state.portfolio.openBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+    const pipeline = getMarketPipelineSummary(state.markets, state.liveGames);
+    const signalLeaders = rankMarketsBySignal(state.markets, state.liveGames).slice(0, 1);
+
+    return {
+      featuredMarkets,
+      totalVolume,
+      openBetExposure,
+      pipeline,
+      topSignal: signalLeaders[0]?.snapshot.signal ?? "-",
+    };
+  }, [state.liveGames, state.markets, state.portfolio.openBets]);
 
   return (
     <section className="page active">
@@ -35,11 +46,11 @@ export default function LandingPage() {
         </div>
         <div className="landing-stat">
           <span className="landing-stat-label">Total volume</span>
-          <span className="landing-stat-value">{money(totalVolume)}</span>
+          <span className="landing-stat-value">{money(landingData.totalVolume)}</span>
         </div>
         <div className="landing-stat">
           <span className="landing-stat-label">Your exposure</span>
-          <span className="landing-stat-value">{money(openBetExposure)}</span>
+          <span className="landing-stat-value">{money(landingData.openBetExposure)}</span>
         </div>
         <div className="landing-stat">
           <span className="landing-stat-label">Bonus cap</span>
@@ -47,11 +58,11 @@ export default function LandingPage() {
         </div>
         <div className="landing-stat">
           <span className="landing-stat-label">Top signal</span>
-          <span className="landing-stat-value">{signalLeaders[0]?.snapshot.signal ?? "—"}</span>
+          <span className="landing-stat-value">{landingData.topSignal}</span>
         </div>
         <div className="landing-stat">
           <span className="landing-stat-label">Source-ready</span>
-          <span className="landing-stat-value">{state.markets.length - pipeline.needsSource}/{state.markets.length}</span>
+          <span className="landing-stat-value">{state.markets.length - landingData.pipeline.needsSource}/{state.markets.length}</span>
         </div>
       </div>
 
@@ -64,7 +75,7 @@ export default function LandingPage() {
           <Link className="btn btn-ghost" href="/markets">All Markets →</Link>
         </div>
         <div className="market-grid">
-          {featuredMarkets.map((market) => (
+          {landingData.featuredMarkets.map((market) => (
             <MarketCard market={market} key={market.id} />
           ))}
         </div>

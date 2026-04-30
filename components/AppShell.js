@@ -2,17 +2,26 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { money } from "../lib/formatters";
 
 const routes = [
   ["/markets", "Markets"],
   ["/portfolio", "Portfolio"],
+  ["/deposit", "Deposit"],
+  ["/withdraw", "Withdraw"],
   ["/friends", "Friends"],
   ["/create", "Create"],
   ["/profile", "Profile"],
-  ["/settings", "Settings"],
+];
+
+const settingsRoutes = [
+  ["/settings#account", "Account"],
+  ["/settings#balances", "Balances"],
+  ["/settings#appearance", "Appearance"],
+  ["/settings#referrals", "Referrals"],
+  ["/settings#ledger", "Transaction history"],
 ];
 
 export default function AppShell({ children }) {
@@ -21,6 +30,7 @@ export default function AppShell({ children }) {
   const { state, actions } = useFriendMarket();
   const [sessionPending, setSessionPending] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(true);
+  const navCloseTimerRef = useRef(null);
   const openPositions = state.portfolio.openBets.length;
 
   useEffect(() => {
@@ -35,6 +45,8 @@ export default function AppShell({ children }) {
       "market-detail": `/markets/${state.selectedMarketId}`,
       friends: "/friends",
       portfolio: "/portfolio",
+      deposit: "/deposit",
+      withdraw: "/withdraw",
       create: "/create",
       profile: "/profile",
       admin: "/admin",
@@ -48,6 +60,14 @@ export default function AppShell({ children }) {
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
   }, [state.theme]);
+
+  useEffect(() => {
+    return () => {
+      if (navCloseTimerRef.current) {
+        window.clearTimeout(navCloseTimerRef.current);
+      }
+    };
+  }, []);
 
   function isActive(path) {
     if (path === "/markets") {
@@ -74,6 +94,24 @@ export default function AppShell({ children }) {
     }
   }
 
+  function closeNavigation() {
+    if (navCloseTimerRef.current) {
+      window.clearTimeout(navCloseTimerRef.current);
+      navCloseTimerRef.current = null;
+    }
+    actions.closeMobileNav();
+    setNavCollapsed(true);
+  }
+
+  function scheduleNavigationClose(delay = 320) {
+    if (navCloseTimerRef.current) {
+      window.clearTimeout(navCloseTimerRef.current);
+    }
+    navCloseTimerRef.current = window.setTimeout(() => {
+      closeNavigation();
+    }, delay);
+  }
+
   return (
     <div className="shell" data-theme={state.theme}>
       <header className="site-header">
@@ -89,7 +127,7 @@ export default function AppShell({ children }) {
             <span />
             <span />
           </button>
-          <Link className="brand" href="/" onClick={actions.closeMobileNav}>
+          <Link className="brand" href="/" onClick={() => scheduleNavigationClose()}>
             <div className="brand-mark">FM</div>
             <div className="brand-copy">
               <h1>FriendMarket</h1>
@@ -105,7 +143,7 @@ export default function AppShell({ children }) {
               <span>Positions</span>
               <strong>{openPositions}</strong>
             </Link>
-            <Link className="btn btn-primary top-deposit-button" href="/settings">
+            <Link className="btn btn-primary top-deposit-button" href="/deposit">
               Deposit
             </Link>
           </div>
@@ -115,7 +153,7 @@ export default function AppShell({ children }) {
                 className={`nav-link ${pathname === "/" ? "active" : ""}`}
                 href="/"
                 aria-current={pathname === "/" ? "page" : undefined}
-                onClick={actions.closeMobileNav}
+                onClick={() => scheduleNavigationClose()}
               >
                 Home
               </Link>
@@ -125,17 +163,34 @@ export default function AppShell({ children }) {
                   className={`nav-link ${isActive(path) ? "active" : ""}`}
                   href={path}
                   aria-current={isActive(path) ? "page" : undefined}
-                  onClick={actions.closeMobileNav}
+                  onClick={() => scheduleNavigationClose()}
                 >
                   {label}
                 </Link>
               ))}
+              <div className="nav-flyout-item">
+                <Link
+                  className={`nav-link ${pathname === "/settings" ? "active" : ""}`}
+                  href="/settings"
+                  aria-current={pathname === "/settings" ? "page" : undefined}
+                  onClick={() => scheduleNavigationClose()}
+                >
+                  Settings
+                </Link>
+                <div className="nav-flyout" aria-label="Settings sections">
+                  {settingsRoutes.map(([path, label]) => (
+                    <Link className="nav-flyout-link" href={path} key={path} onClick={() => scheduleNavigationClose()}>
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
               {state.currentUser.isAdmin ? (
                 <Link
                   className={`nav-link admin-link ${pathname === "/admin" ? "active" : ""}`}
                   href="/admin"
                   aria-current={pathname === "/admin" ? "page" : undefined}
-                  onClick={actions.closeMobileNav}
+                  onClick={() => scheduleNavigationClose()}
                 >
                   Admin
                 </Link>
@@ -156,7 +211,7 @@ export default function AppShell({ children }) {
                 {sessionPending ? "Logging out..." : "Log out"}
               </button>
             ) : (
-              <Link className="btn btn-ghost" href="/login" onClick={actions.closeMobileNav}>
+              <Link className="btn btn-ghost" href="/login" onClick={() => scheduleNavigationClose()}>
                 Log in
               </Link>
             )}
