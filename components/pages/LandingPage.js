@@ -29,7 +29,7 @@ export default function LandingPage() {
         <p className="hero-eyebrow">Social prediction markets</p>
         <h2 className="hero-headline">Trade what you know. Boost with friends.</h2>
         <p className="hero-sub">
-          Binary YES/NO markets on sports, crypto, politics, and more. Social boosts amplify your winnings.
+          Binary YES/NO markets on the sports you follow. Social boosts amplify your winnings.
         </p>
         <div className="hero-ctas">
           <Link className="btn btn-primary" href="/markets">Browse Markets</Link>
@@ -47,7 +47,7 @@ export default function LandingPage() {
           <strong className="landing-stat-value">{money(landingData.totalVolume)}</strong>
         </div>
         <div className="landing-stat">
-          <span className="landing-stat-label">Categories</span>
+          <span className="landing-stat-label">Sports</span>
           <strong className="landing-stat-value">{landingData.pipeline.categories}</strong>
         </div>
         <div className="landing-stat">

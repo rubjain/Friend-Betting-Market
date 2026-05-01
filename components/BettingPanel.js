@@ -53,14 +53,14 @@ export default function BettingPanel({ market }) {
           className={`bet-side-btn ${side === "YES" ? "active-yes" : ""}`}
           onClick={() => actions.updateBetDraft("side", "YES")}
         >
-          Yes {market.yesPrice ? `${Math.round(market.yesPrice * 100)}¢` : ""}
+          Yes {market.yesPrice ? `${Math.round(market.yesPrice * 100)}c` : ""}
         </button>
         <button
           type="button"
           className={`bet-side-btn ${side === "NO" ? "active-no" : ""}`}
           onClick={() => actions.updateBetDraft("side", "NO")}
         >
-          No {market.noPrice ? `${Math.round(market.noPrice * 100)}¢` : ""}
+          No {market.noPrice ? `${Math.round(market.noPrice * 100)}c` : ""}
         </button>
       </div>
 
@@ -94,7 +94,7 @@ export default function BettingPanel({ market }) {
       ) : null}
 
       {!marketAcceptsBets ? (
-        <div className="note-banner panel-note">Market is {market.status} — not accepting bets.</div>
+        <div className="note-banner panel-note">Market is {market.status} - not accepting bets.</div>
       ) : null}
       {payout.note ? <div className="note-banner panel-note">{payout.note}</div> : null}
 
@@ -104,7 +104,7 @@ export default function BettingPanel({ market }) {
         disabled={!marketAcceptsBets || !!pendingSide}
         onClick={submitBet}
       >
-        {pendingSide ? "Placing…" : `Buy ${side}`}
+        {pendingSide ? "Placing..." : `Buy ${side}`}
       </button>
 
       <div className="bet-panel-footer">

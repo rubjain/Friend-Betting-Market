@@ -20,7 +20,7 @@ export default function MarketsPage() {
       <div className="markets-overview">
         <SectionHead
           title="Markets"
-          body="Trade live sports, macro, crypto, tech, culture, and politics markets with clear settlement rules."
+          body="Trade sports markets by league with clear settlement rules and social boosts."
         />
         <div className="market-discovery-panel">
           <div className="category-scroll" aria-label="Market categories">
@@ -57,7 +57,7 @@ export default function MarketsPage() {
       <div className="market-command-row">
         <div>
           <span className="label">Expansion map</span>
-          <strong>{pipeline.categories} categories · {state.markets.length} seeded markets</strong>
+          <strong>{pipeline.categories} sports - {state.markets.length} seeded markets</strong>
         </div>
         <div>
           <span className="label">Algorithms</span>

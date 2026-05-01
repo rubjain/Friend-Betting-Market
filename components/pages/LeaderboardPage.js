@@ -208,7 +208,7 @@ export default function LeaderboardPage() {
                   <tr className="leaderboard-divider-row">
                     <td colSpan={5}>
                       <div className="leaderboard-rank-gap">
-                        · · · Rank #{currentUserRank} · · ·
+                        ... Rank #{currentUserRank} ...
                       </div>
                     </td>
                   </tr>

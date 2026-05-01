@@ -425,38 +425,37 @@ test("risk engine flags repeated and dense friend boosts", () => {
   assert.equal(user.risk_signals.length, signals.length);
 });
 
-test("market taxonomy covers core expansion categories", () => {
+test("market taxonomy covers sport-specific categories", () => {
   const options = getMarketCategoryOptions();
-  assert.equal(options.includes("Sports"), true);
-  assert.equal(options.includes("Politics"), true);
-  assert.equal(options.includes("Weather"), true);
-  assert.equal(options.includes("Finance"), true);
+  assert.equal(options.includes("NBA"), true);
+  assert.equal(options.includes("NFL"), true);
+  assert.equal(options.includes("MLB"), true);
+  assert.equal(options.includes("Soccer"), true);
 
-  const weather = getMarketCategory("Weather");
-  assert.equal(weather.resolutionNeeds.includes("Station ID"), true);
-  assert.equal(getResolutionTemplate("Weather").template.includes("named station"), true);
-  assert.equal(getCategoryCoverageSummary().some((item) => item.label === "Politics"), true);
+  const nba = getMarketCategory("NBA");
+  assert.equal(nba.resolutionNeeds.includes("Official NBA box score"), true);
+  assert.equal(getResolutionTemplate("NBA").template.includes("official NBA result"), true);
+  assert.equal(getCategoryCoverageSummary().some((item) => item.label === "College Sports"), true);
 });
 
 test("source adapters define required settlement fields by category", () => {
-  const sports = getSourceAdapter("Sports");
-  assert.equal(sports.providerType, "official_league_or_paid_data_provider");
-  assert.equal(sports.requiredFields.includes("officialResultsUrl"), true);
+  const nba = getSourceAdapter("NBA");
+  assert.equal(nba.providerType, "official_league_or_paid_sports_data_provider");
+  assert.equal(nba.requiredFields.includes("officialBoxScoreUrl"), true);
 
-  const invalidWeather = validateSourceAdapterConfig("Weather", {
-    stationId: "KLGA",
-    metric: "daily_high_temperature",
+  const invalidNfl = validateSourceAdapterConfig("NFL", {
+    league: "NFL",
+    gameId: "game_1",
   });
-  assert.equal(invalidWeather.ok, false);
-  assert.deepEqual(invalidWeather.missingFields, ["observationWindow", "sourceUrl"]);
+  assert.equal(invalidNfl.ok, false);
+  assert.deepEqual(invalidNfl.missingFields, ["officialGamebookUrl"]);
 
-  const validCrypto = validateSourceAdapterConfig("Crypto", {
-    assetSymbol: "BTC",
-    quoteCurrency: "USD",
-    referenceVenue: "Coinbase",
-    snapshotTime: "2026-07-31T20:00:00Z",
+  const validMlb = validateSourceAdapterConfig("MLB", {
+    league: "MLB",
+    gameId: "game_2",
+    officialBoxScoreUrl: "https://www.mlb.com/scores",
   });
-  assert.equal(validCrypto.ok, true);
+  assert.equal(validMlb.ok, true);
 });
 
 test("request auth helper recognizes dev admin shortcut header when enabled", async () => {
@@ -486,13 +485,15 @@ test("request auth helper recognizes dev admin shortcut header when enabled", as
   }
 });
 
-test("default market seeds include expansion markets", async () => {
+test("default market seeds include sport-specific markets only", async () => {
   const { defaultState } = await import("../lib/defaultState.js");
   const categories = new Set(defaultState.markets.map((market) => market.category));
 
-  assert.equal(categories.has("Sports"), true);
-  assert.equal(categories.has("Politics"), true);
-  assert.equal(categories.has("Weather"), true);
+  assert.equal(categories.has("NBA"), true);
+  assert.equal(categories.has("NFL"), true);
+  assert.equal(categories.has("MLB"), true);
+  assert.equal(categories.has("Crypto"), false);
+  assert.equal(categories.has("Finance"), false);
   assert.equal(defaultState.markets.every((market) => market.resolutionTemplate), true);
   assert.equal(defaultState.markets.every((market) => market.closeTime), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionRule), true);
@@ -511,7 +512,7 @@ test("market algorithms expose live tracking and signal summaries", async () => 
   const ranked = rankMarketsBySignal(defaultState.markets, defaultState.liveGames);
 
   assert.equal(linkedGame.id, "game_knicks_celtics");
-  assert.equal(getLiveGameClock(linkedGame), "Q3 · 6:42");
+  assert.equal(getLiveGameClock(linkedGame), "Q3 - 6:42");
   assert.equal(snapshot.model, "Live sports tracker");
   assert.equal(snapshot.movementScore > 0, true);
   assert.equal(summary.liveLinked >= 3, true);

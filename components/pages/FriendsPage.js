@@ -50,7 +50,7 @@ export default function FriendsPage() {
       const json = await res.json();
       if (json.ok) setFeedItems(json.items);
     } catch {
-      // silently fail — feed is non-critical
+      // silently fail; feed is non-critical
     } finally {
       setFeedLoading(false);
     }
@@ -94,7 +94,7 @@ export default function FriendsPage() {
       />
 
       <div className="friends-layout">
-        {/* ── Left column: friends list ── */}
+        {/* Left column: friends list */}
         <div className="friends-main">
           <div className="friends-page-stack">
             {pendingCount > 0 && (
@@ -117,7 +117,7 @@ export default function FriendsPage() {
                         <div>
                           <strong>{request.name}</strong>
                           <span className="caption">
-                            {" "}{request.username} · {request.direction}
+                            {" "}{request.username} - {request.direction}
                           </span>
                         </div>
                         <div className="inline-actions">
@@ -238,7 +238,7 @@ export default function FriendsPage() {
           </div>
         </div>
 
-        {/* ── Right column: activity feed ── */}
+        {/* Right column: activity feed */}
         <aside className="friends-feed-aside">
           <div className="friends-feed-card">
             <div className="friends-feed-header">
@@ -262,12 +262,12 @@ export default function FriendsPage() {
               <div className="friends-feed-empty">
                 {hasFriends ? (
                   <>
-                    <span className="friends-feed-empty-icon" aria-hidden="true">⚡</span>
+                    <span className="friends-feed-empty-icon" aria-hidden="true">!</span>
                     <p>No bets in the last 24 hours.</p>
                   </>
                 ) : (
                   <>
-                    <span className="friends-feed-empty-icon" aria-hidden="true">👥</span>
+                    <span className="friends-feed-empty-icon" aria-hidden="true">+</span>
                     <p>Add friends to see their activity here.</p>
                   </>
                 )}
@@ -504,7 +504,7 @@ function BoostPanel({ friend, selectedMarket, boostSlotsRemaining, state, action
           <div className="boost-panel-market-meta caption">
             {selectedMarket.friendGroup.length} / {state.adminConfig.maxGroupSize} boosters
             {boostSlotsRemaining > 0 && !isBoosting && (
-              <> · {boostSlotsRemaining} slot{boostSlotsRemaining !== 1 ? "s" : ""} left</>
+              <> - {boostSlotsRemaining} slot{boostSlotsRemaining !== 1 ? "s" : ""} left</>
             )}
           </div>
         </div>

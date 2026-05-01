@@ -1,5 +1,5 @@
 {
-  "name": "friendmarket-mvp",
+  "name": "agora-mvp",
   "version": "0.2.0",
   "private": true,
   "type": "module",
@@ -11,6 +11,8 @@
     "sync": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-github.ps1",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "node scripts/seedDatabase.js",
+    "db:verify": "node scripts/verifyDatabase.js",
     "check": "npm run test && next build --webpack"
   },
   "dependencies": {

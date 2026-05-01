@@ -49,7 +49,7 @@ const defaultState = {
     {
       id: "market_1",
       title: "Will the Knicks make the 2026 Eastern Conference Finals?",
-      category: "Sports",
+      category: "NBA",
       volume: 12400,
       endDate: "2026-05-21",
       yesPrice: 0.54,
@@ -66,8 +66,8 @@ const defaultState = {
     },
     {
       id: "market_2",
-      title: "Will Bitcoin finish May above $90,000?",
-      category: "Crypto",
+      title: "Will the Dodgers win the NL West in 2026?",
+      category: "MLB",
       volume: 30120,
       endDate: "2026-05-31",
       yesPrice: 0.49,
@@ -75,7 +75,7 @@ const defaultState = {
       eligibleForBonus: true,
       friendsBoosting: 2,
       friendGroup: ["Riley", "Noah"],
-      description: "A simple binary market on month-end Bitcoin price, with social boosts capped by admin rules.",
+      description: "Season-long MLB division market with official standings as the settlement source.",
       recentActivity: [
         { user: "Noah", action: "Bet YES", amount: 20, time: "8 min ago" },
         { user: "Riley", action: "Bet NO", amount: 7, time: "22 min ago" },
@@ -83,8 +83,8 @@ const defaultState = {
     },
     {
       id: "market_3",
-      title: "Will OpenAI launch a new consumer app before July?",
-      category: "Tech",
+      title: "Will the Lakers win their next playoff game?",
+      category: "NBA",
       volume: 18900,
       endDate: "2026-06-30",
       yesPrice: 0.57,
@@ -92,7 +92,7 @@ const defaultState = {
       eligibleForBonus: false,
       friendsBoosting: 3,
       friendGroup: ["Lena", "Sofia", "Owen"],
-      description: "An admin can choose whether company-funded bonus balances are allowed on a market-by-market basis.",
+      description: "NBA playoff market with official final score settlement and injury-report inputs.",
       recentActivity: [
         { user: "Owen", action: "Bet YES", amount: 9, time: "12 min ago" },
         { user: "Lena", action: "Invited 1 friend", amount: 0, time: "1 hr ago" },
@@ -113,29 +113,29 @@ const defaultState = {
   portfolio: {
     openBets: [
       { id: "bet_seed_1", marketId: "market_1", market: "Will the Knicks make the 2026 Eastern Conference Finals?", side: "YES", stake: 10, status: "Open", funding: "60% withdrawable / 40% bonus", withdrawableStake: 6, bonusStake: 4, placedAt: "2026-04-25" },
-      { id: "bet_seed_2", marketId: "market_2", market: "Will Bitcoin finish May above $90,000?", side: "NO", stake: 16, status: "Open", funding: "100% withdrawable", withdrawableStake: 16, bonusStake: 0, placedAt: "2026-04-25" },
+      { id: "bet_seed_2", marketId: "market_2", market: "Will the Dodgers win the NL West in 2026?", side: "NO", stake: 16, status: "Open", funding: "100% withdrawable", withdrawableStake: 16, bonusStake: 0, placedAt: "2026-04-25" },
     ],
     pastBets: [
-      { market: "Fed cuts rates in Q1", side: "YES", payout: 20, boost: 4, settlement: "Settled to $20 withdrawable + $4 bonus" },
+      { market: "Lakers make playoffs", side: "YES", payout: 20, boost: 4, settlement: "Settled to $20 withdrawable + $4 bonus" },
       { market: "Lakers make playoffs", side: "NO", payout: 18, boost: 0, settlement: "Settled fully to withdrawable" },
     ],
   },
   createMarketDraft: {
     title: "",
-    category: "Sports",
+    category: "NBA",
     closeDate: "",
     description: "",
   },
   pendingMarkets: [
-    { id: "pending_1", title: "Will the Jets sign a veteran QB by camp?", submittedBy: "@ava", createdAt: "2026-04-25", category: "Sports" },
-    { id: "pending_2", title: "Will ETH outperform BTC in June?", submittedBy: "@maya", createdAt: "2026-04-26", category: "Crypto" },
+    { id: "pending_1", title: "Will the Jets sign a veteran QB by camp?", submittedBy: "@ava", createdAt: "2026-04-25", category: "NFL" },
+    { id: "pending_2", title: "Will the Yankees win their next series?", submittedBy: "@maya", createdAt: "2026-04-26", category: "MLB" },
   ],
   activeMarkets: [
     { id: "active_1", marketId: "market_1", title: "Will the Knicks make the 2026 Eastern Conference Finals?", volume: 12400, status: "Active" },
-    { id: "active_2", marketId: "market_2", title: "Will Bitcoin finish May above $90,000?", volume: 30120, status: "Active" },
+    { id: "active_2", marketId: "market_2", title: "Will the Dodgers win the NL West in 2026?", volume: 30120, status: "Active" },
   ],
   resolvedMarkets: [
-    { id: "resolved_1", title: "Fed cuts rates in Q1", result: "YES", resolvedAt: "2026-03-28" },
+    { id: "resolved_1", title: "Lakers make playoffs", result: "YES", resolvedAt: "2026-03-28" },
   ],
   users: [
     { id: "user_1", name: "Arush", withdrawable_balance: 148, bonus_balance: 39, risk_status: "monitor", risk_score: 42, frozen: false, risk_signals: ["Shared device signal", "Repeat boost group"] },
@@ -823,7 +823,7 @@ function createMarket(event) {
 
   state.createMarketDraft = {
     title: "",
-    category: "Sports",
+    category: "NBA",
     closeDate: "",
     description: "",
   };
@@ -997,9 +997,9 @@ function renderNav() {
     <header class="site-header">
       <div class="nav-wrap">
         <div class="brand">
-          <div class="brand-mark">FM</div>
+          <div class="brand-mark">AG</div>
           <div class="brand-copy">
-            <h1>FriendMarket</h1>
+            <h1>Agora</h1>
             <p>Social prediction markets, designed for trust.</p>
           </div>
         </div>
@@ -1046,7 +1046,7 @@ function renderLanding() {
         <div class="hero-copy card">
           <span class="eyebrow">Responsive web MVP</span>
           <h2>Prediction markets that feel simple, social, and trustworthy.</h2>
-          <p>FriendMarket lets people create and join clear yes-or-no markets with friends, while keeping withdrawable funds and bonus boosts separate in the ledger.</p>
+          <p>Agora lets people create and join clear yes-or-no markets with friends, while keeping withdrawable funds and bonus boosts separate in the ledger.</p>
           <div class="button-row">
             <button class="btn btn-primary" data-route-jump="markets">Browse Markets</button>
             <button class="btn btn-secondary" data-route-jump="profile">Sign Up</button>
@@ -1137,10 +1137,11 @@ function renderMarkets() {
         </div>
         <div class="field">
           <select id="market-category">
-            <option value="all" ${state.filters.category === "all" ? "selected" : ""}>All categories</option>
-            <option value="Sports" ${state.filters.category === "Sports" ? "selected" : ""}>Sports</option>
-            <option value="Crypto" ${state.filters.category === "Crypto" ? "selected" : ""}>Crypto</option>
-            <option value="Tech" ${state.filters.category === "Tech" ? "selected" : ""}>Tech</option>
+            <option value="all" ${state.filters.category === "all" ? "selected" : ""}>All sports</option>
+            <option value="NBA" ${state.filters.category === "NBA" ? "selected" : ""}>NBA</option>
+            <option value="NFL" ${state.filters.category === "NFL" ? "selected" : ""}>NFL</option>
+            <option value="MLB" ${state.filters.category === "MLB" ? "selected" : ""}>MLB</option>
+            <option value="Soccer" ${state.filters.category === "Soccer" ? "selected" : ""}>Soccer</option>
           </select>
         </div>
       </div>
@@ -1497,10 +1498,10 @@ function renderCreateMarket() {
           <div class="field">
             <label class="label" for="market-category-create">Category</label>
             <select id="market-category-create" name="category">
-              <option value="Sports" ${state.createMarketDraft.category === "Sports" ? "selected" : ""}>Sports</option>
-              <option value="Crypto" ${state.createMarketDraft.category === "Crypto" ? "selected" : ""}>Crypto</option>
-              <option value="Tech" ${state.createMarketDraft.category === "Tech" ? "selected" : ""}>Tech</option>
-              <option value="Politics" ${state.createMarketDraft.category === "Politics" ? "selected" : ""}>Politics</option>
+              <option value="NBA" ${state.createMarketDraft.category === "NBA" ? "selected" : ""}>NBA</option>
+              <option value="NFL" ${state.createMarketDraft.category === "NFL" ? "selected" : ""}>NFL</option>
+              <option value="MLB" ${state.createMarketDraft.category === "MLB" ? "selected" : ""}>MLB</option>
+              <option value="Soccer" ${state.createMarketDraft.category === "Soccer" ? "selected" : ""}>Soccer</option>
             </select>
           </div>
           <div class="field full">
@@ -1828,7 +1829,7 @@ function renderApp() {
         ${renderAdmin()}
       </main>
       <footer class="footer-wrap">
-        <p>FriendMarket MVP prototype for a responsive web app with separate withdrawable and bonus ledger balances.</p>
+        <p>Agora MVP prototype for a responsive web app with separate withdrawable and bonus ledger balances.</p>
       </footer>
     </div>
   `;

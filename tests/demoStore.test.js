@@ -147,7 +147,7 @@ test("server market submission validates and queues admin review", () => {
     userId: "user_1",
     draft: {
       title: "Short",
-      category: "Sports",
+      category: "NFL",
       closeDate: "2026-04-27",
       description: "Thin",
     },
@@ -160,7 +160,7 @@ test("server market submission validates and queues admin review", () => {
     userId: "user_1",
     draft: {
       title: "Will the Giants make the playoffs?",
-      category: "Sports",
+      category: "NFL",
       closeDate: "2026-09-01",
       description: "Resolves yes if the Giants officially qualify for the postseason.",
       sourceUrl: "https://www.nfl.com/standings/",
@@ -179,11 +179,11 @@ test("server admin approval and rejection mutate market queues", () => {
   const submitted = submitDemoMarket({
     userId: "user_1",
     draft: {
-      title: "Will ETH outperform BTC in July?",
-      category: "Crypto",
+      title: "Will the Yankees win their next series?",
+      category: "MLB",
       closeDate: "2026-07-31",
-      description: "Resolves yes if ETH has a higher July percentage return than BTC.",
-      sourceUrl: "https://www.coinbase.com/price/ethereum",
+      description: "Resolves yes if the Yankees win their next completed regular-season series.",
+      sourceUrl: "https://www.mlb.com/yankees/schedule",
     },
   });
   const pendingId = submitted.state.pendingMarkets[0].id;
@@ -191,10 +191,10 @@ test("server admin approval and rejection mutate market queues", () => {
 
   assert.equal(approved.ok, true);
   assert.equal(approved.state.pendingMarkets.some((market) => market.id === pendingId), false);
-  assert.equal(approved.state.activeMarkets[0].title, "Will ETH outperform BTC in July?");
-  assert.equal(approved.state.markets[0].category, "Crypto");
-  assert.equal(approved.state.markets[0].resolutionChecklist.includes("Reference exchange"), true);
-  assert.equal(approved.state.markets[0].evidenceLinks[0].url, "https://www.coinbase.com/price/ethereum");
+  assert.equal(approved.state.activeMarkets[0].title, "Will the Yankees win their next series?");
+  assert.equal(approved.state.markets[0].category, "MLB");
+  assert.equal(approved.state.markets[0].resolutionChecklist.includes("Official MLB box score"), true);
+  assert.equal(approved.state.markets[0].evidenceLinks[0].url, "https://www.mlb.com/yankees/schedule");
   assert.equal(approved.state.markets[0].status, "active");
 
   const rejected = rejectDemoMarket({ pendingId: "pending_1" });

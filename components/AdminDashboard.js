@@ -97,7 +97,7 @@ export default function AdminDashboard() {
   async function exportLedger() {
     await downloadCsvFromApi(
       "/api/admin/exports/ledger",
-      "friendmarket-ledger-export.csv",
+      "agora-ledger-export.csv",
       toCsv(buildLedgerExportRows(state.ledger), ledgerExportColumns),
     );
     actions.setFlashMessage("Ledger CSV export prepared.");
@@ -106,7 +106,7 @@ export default function AdminDashboard() {
   async function exportRiskReview() {
     await downloadCsvFromApi(
       "/api/admin/exports/risk-review",
-      "friendmarket-risk-review-export.csv",
+      "agora-risk-review-export.csv",
       toCsv(buildRiskReviewExportRows(riskUsers), riskReviewExportColumns),
     );
     actions.setFlashMessage("Risk review CSV export prepared.");

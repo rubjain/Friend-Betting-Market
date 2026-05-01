@@ -43,7 +43,7 @@ export default function LoginPage() {
       <div className="auth-card">
         <div className="auth-head">
           <Link className="brand" href="/">
-            <div className="brand-mark">FM</div>
+            <div className="brand-mark">AG</div>
           </Link>
           <h2>Sign in</h2>
           <p>Use a demo account to test the full user side with $100 and no starting friends.</p>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import BettingPanel from "../BettingPanel";
 import { useFriendMarket } from "../../context/FriendMarketContext";
-import { formatPercent, money } from "../../lib/formatters";
+import { formatMarketDate, formatPercent, money } from "../../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock, getMarketAlgorithmSnapshot } from "../../lib/marketAlgorithms";
 import { getMultiplier } from "../../lib/marketMath";
 import { getResolutionTemplate } from "../../lib/marketTaxonomy";
@@ -69,7 +69,7 @@ export default function MarketDetailPage({ marketId }) {
               </div>
               <div>
                 <span className="label">Closes</span>
-                <strong>{market.endDate}</strong>
+                <strong>{formatMarketDate(market.endDate)}</strong>
               </div>
             </div>
             <div className="info-list">

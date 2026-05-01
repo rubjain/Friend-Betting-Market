@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFriendMarket } from "../context/FriendMarketContext";
-import { formatPercent, money } from "../lib/formatters";
+import { formatMarketDate, formatPercent, money } from "../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock } from "../lib/marketAlgorithms";
 
 export default function MarketCard({ market, compact = false }) {
@@ -44,7 +44,7 @@ export default function MarketCard({ market, compact = false }) {
       <div className="market-card-footer">
         <div className="market-meta-group">
           <span className="market-meta-item">Vol {money(market.volume)}</span>
-          <span className="market-meta-item">Closes {market.endDate}</span>
+          <span className="market-meta-item">Closes {formatMarketDate(market.endDate)}</span>
           {compact ? null : <span className="market-meta-item">{market.friendsBoosting} boosts</span>}
         </div>
         <div className="market-card-actions">

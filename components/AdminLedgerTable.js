@@ -84,7 +84,7 @@ export default function AdminLedgerTable({ ledger }) {
           </select>
         </label>
         <div className="pagination-copy">
-          {view.totalEntries} entries · page {view.currentPage} of {view.totalPages}
+          {view.totalEntries} entries - page {view.currentPage} of {view.totalPages}
         </div>
       </div>
       <table className="data-table dense-table">

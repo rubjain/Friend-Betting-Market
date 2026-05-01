@@ -6,7 +6,7 @@ export function sportsMarketGenerator(): MarketGeneratorResult {
     markets: [
       {
         question: "Will the Warriors win their next scheduled home game?",
-        category: "sports",
+        category: "NBA",
         closeTime: "2026-05-07T02:00:00.000Z",
         resolutionTime: "2026-05-07T06:00:00.000Z",
         resolutionSource: "Official league box score",

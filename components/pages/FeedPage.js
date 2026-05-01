@@ -119,7 +119,7 @@ export default function FeedPage() {
 
         {lastUpdated && !loading && (
           <div className="feed-footer caption">
-            Updates every 30 seconds · Last refreshed {timeAgo(lastUpdated.toISOString())}
+            Updates every 30 seconds - Last refreshed {timeAgo(lastUpdated.toISOString())}
           </div>
         )}
       </div>

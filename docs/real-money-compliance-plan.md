@@ -1,6 +1,6 @@
-# FriendMarket Real-Money Compliance Plan
+# Agora Real-Money Compliance Plan
 
-FriendMarket should remain play-money only until these gates are complete and reviewed with qualified legal, payments, tax, and compliance counsel.
+Agora should remain play-money only until these gates are complete and reviewed with qualified legal, payments, tax, and compliance counsel.
 
 ## Launch Gates
 
@@ -24,4 +24,4 @@ FriendMarket should remain play-money only until these gates are complete and re
 
 ## Production Decision
 
-The current product name can stay `FriendMarket` for the MVP, but run trademark, domain, app-store, social-handle, and financial-services naming checks before public launch.
+The current product name can stay `Agora` for the MVP, but run trademark, domain, app-store, social-handle, and financial-services naming checks before public launch.

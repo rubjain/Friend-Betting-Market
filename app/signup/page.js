@@ -40,7 +40,7 @@ export default function SignupPage() {
       <div className="auth-card">
         <div className="auth-head">
           <Link className="brand" href="/">
-            <div className="brand-mark">FM</div>
+            <div className="brand-mark">AG</div>
           </Link>
           <h2>Create account</h2>
           <p>Demo mode uses test accounts. Use the sign-in page to enter the basic user sandbox.</p>

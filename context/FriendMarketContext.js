@@ -12,10 +12,12 @@ import {
 import { defaultState, STORAGE_KEY } from "../lib/defaultState";
 import { money } from "../lib/formatters";
 import { calculatePayout } from "../lib/marketMath";
-import { getResolutionTemplate } from "../lib/marketTaxonomy";
+import { getResolutionTemplate, marketCategories } from "../lib/marketTaxonomy";
 import { applyRiskSignalsToUser, getBoostRiskSignals } from "../lib/riskEngine";
 
 const FriendMarketContext = createContext(null);
+
+const sportCategoryLabels = new Set(marketCategories.map((category) => category.label));
 
 const numericAdminFields = new Set([
   "maxGroupSize",
@@ -84,6 +86,40 @@ function normalizeMarkets(markets) {
   });
 }
 
+function isSportMarket(market) {
+  return sportCategoryLabels.has(market?.category);
+}
+
+function filterSportMarkets(markets = []) {
+  return markets.filter(isSportMarket);
+}
+
+function filterQueueBySport(queue = []) {
+  return queue.filter((market) => !market.category || sportCategoryLabels.has(market.category));
+}
+
+function filterActiveMarketsByIds(markets = [], marketById) {
+  return markets
+    .filter((market) => !market.marketId || marketById.has(market.marketId))
+    .map((market) => {
+      const sourceMarket = marketById.get(market.marketId);
+      return sourceMarket ? { ...market, title: sourceMarket.title, volume: sourceMarket.volume } : market;
+    });
+}
+
+function filterPortfolioByIds(portfolio = {}, marketById) {
+  return {
+    ...portfolio,
+    openBets: (portfolio.openBets || defaultState.portfolio.openBets).filter(
+      (bet) => !bet.marketId || marketById.has(bet.marketId),
+    ).map((bet) => {
+      const sourceMarket = marketById.get(bet.marketId);
+      return sourceMarket ? { ...bet, market: sourceMarket.title } : bet;
+    }),
+    pastBets: portfolio.pastBets || defaultState.portfolio.pastBets,
+  };
+}
+
 function mergeById(defaultItems, savedItems = []) {
   const savedIds = new Set(savedItems.map((item) => item.id));
   return [
@@ -93,6 +129,14 @@ function mergeById(defaultItems, savedItems = []) {
 }
 
 function mergeStoredState(parsed) {
+  const mergedMarkets = normalizeMarkets(
+    mergeById(defaultState.markets, filterSportMarkets(parsed.markets || [])),
+  );
+  const marketById = new Map(mergedMarkets.map((market) => [market.id, market]));
+  const selectedMarketId = marketById.has(parsed.selectedMarketId)
+    ? parsed.selectedMarketId
+    : defaultState.selectedMarketId;
+
   return {
     ...cloneState(defaultState),
     ...parsed,
@@ -130,15 +174,17 @@ function mergeStoredState(parsed) {
       list: parsed.friends?.list || defaultState.friends.list,
       pending: parsed.friends?.pending || defaultState.friends.pending,
     },
-    portfolio: {
+    selectedMarketId,
+    portfolio: filterPortfolioByIds({
       ...defaultState.portfolio,
       ...(parsed.portfolio || {}),
-      openBets: parsed.portfolio?.openBets || defaultState.portfolio.openBets,
-      pastBets: parsed.portfolio?.pastBets || defaultState.portfolio.pastBets,
-    },
-    markets: normalizeMarkets(mergeById(defaultState.markets, parsed.markets || [])),
-    pendingMarkets: mergeById(defaultState.pendingMarkets, parsed.pendingMarkets || []),
-    activeMarkets: mergeById(defaultState.activeMarkets, parsed.activeMarkets || []),
+    }, marketById),
+    markets: mergedMarkets,
+    pendingMarkets: mergeById(defaultState.pendingMarkets, filterQueueBySport(parsed.pendingMarkets || [])),
+    activeMarkets: mergeById(
+      defaultState.activeMarkets,
+      filterActiveMarketsByIds(parsed.activeMarkets || [], marketById),
+    ),
     resolvedMarkets: mergeById(defaultState.resolvedMarkets, parsed.resolvedMarkets || []),
     users: normalizeUsers(mergeById(defaultState.users, parsed.users || [])),
     ledger: normalizeLedger(parsed.ledger || defaultState.ledger),

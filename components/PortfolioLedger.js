@@ -67,7 +67,7 @@ export default function PortfolioLedger() {
           </select>
         </label>
         <div className="pagination-copy">
-          {view.totalEntries} entries · page {view.currentPage} of {view.totalPages}
+          {view.totalEntries} entries - page {view.currentPage} of {view.totalPages}
         </div>
       </div>
       <div className="ledger-list">

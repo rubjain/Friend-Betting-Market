@@ -129,9 +129,9 @@ export default function AppShell({ children }) {
             <span />
           </button>
           <Link className="brand" href="/" onClick={() => scheduleNavigationClose()}>
-            <div className="brand-mark">FM</div>
+            <div className="brand-mark">AG</div>
             <div className="brand-copy">
-              <h1>FriendMarket</h1>
+              <h1>Agora</h1>
               <p>Social markets desk</p>
             </div>
           </Link>
@@ -236,7 +236,7 @@ export default function AppShell({ children }) {
         {children}
       </main>
       <footer className="footer-wrap">
-        <p>FriendMarket keeps market prices, balances, boosts, and audit state in one workspace.</p>
+        <p>Agora keeps market prices, balances, boosts, and audit state in one workspace.</p>
       </footer>
     </div>
   );

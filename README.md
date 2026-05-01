@@ -1,4 +1,4 @@
-# FriendMarket MVP
+# Agora MVP
 
 This is a responsive Next.js MVP for a social prediction market product: a sports-betting-style app where friends can place predictions together and use social boosts to increase bonus-side upside. It keeps the original localStorage-backed demo behavior while moving the app into routes, components, and reusable payout/accounting modules.
 
@@ -12,7 +12,7 @@ This is a responsive Next.js MVP for a social prediction market product: a sport
 - Admin CSV exports for ledger and risk-review data
 - Compact admin operations snapshot with balance mix, ledger-source bars, market-volume bars, and audit history
 - Persisted light/dark mode toggle
-- Central market taxonomy for Sports, Politics, Weather, Crypto, Finance, Tech, and Culture
+- Sports-first market taxonomy for NBA, NFL, MLB, NHL, Soccer, College Sports, Combat Sports, Tennis, Golf, and Motorsports
 - Interactive friend invites, pending-request handling, and market boost toggles
 - Separate `withdrawable_balance` and `bonus_balance` treatment in the sample payout and ledger model
 - Server-owned demo state exposed through API routes, with `localStorage` retained for UI preferences and offline fallback
@@ -56,8 +56,8 @@ This is a responsive Next.js MVP for a social prediction market product: a sport
 - Admins can pause and resume active markets; paused markets reject new bets in both the UI and API
 - Friend boost actions now feed a reusable risk engine for repeat boosts, dense clusters, and boost-pattern review signals
 - Login, logout, signup, persisted user sessions, and a dev-only admin shortcut provide the first real auth foundation
-- Signup stores `scrypt`-hashed passwords (Node built-in `crypto`, no extra deps); login verifies them with constant-time comparison; demo-seeded users with no `passwordHash` can still log in without a password in demo mode
-- Category source-adapter contracts now define required settlement fields for Sports, Politics, Weather, Crypto, Finance, Tech, and Culture
+- Signup and database seeding store `scrypt`-hashed passwords (Node built-in `crypto`, no extra deps); login verifies them with constant-time comparison and rate-limits repeated failures
+- Category source-adapter contracts now define required settlement fields by sport
 - `prisma/schema.prisma` sketches the production data model for users, markets, bets, balances, ledger entries, friendships, boosts, admin config, risk reviews, resolutions, evidence links, audit trails, odds snapshots, orders, and AMM liquidity pools
 - `docs/real-money-compliance-plan.md` captures the compliance gates that must be complete before withdrawable play funds become real money
 
@@ -77,6 +77,8 @@ To run against a local Postgres database, copy `.env.example` to `.env`, set `DA
 ```bash
 npm run prisma:generate
 npm run prisma:migrate
+npm run prisma:seed
+npm run db:verify
 ```
 
 ### Hosted database options
@@ -84,18 +86,18 @@ npm run prisma:migrate
 **Supabase (recommended for development)**
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Go to **Project Settings → Database → Connection string → URI** and copy the pooler URL.
+2. Go to **Project Settings > Database > Connection string > URI** and copy the pooler URL.
 3. Paste it into `.env` as `DATABASE_URL` (replace the `[YOUR-PASSWORD]` placeholder with your DB password).
 4. Run `npm run prisma:migrate` to apply the schema.
 
 **Railway**
 
 1. Create a new project at [railway.app](https://railway.app) and add a **PostgreSQL** service.
-2. Click the service → **Connect** tab → copy the **DATABASE_URL**.
+2. Click the service > **Connect** tab > copy the **DATABASE_URL**.
 3. Paste it into `.env` as `DATABASE_URL`.
 4. Run `npm run prisma:migrate` to apply the schema.
 
-When `DATABASE_URL` is present, `/api/session` hydrates from persisted users and sessions, while `/api/demo-state` remains available for reset/fallback workflows. Bet placement, market submission, admin approval/rejection, lifecycle changes, resolution, void/refund handling, admin funds, admin config, profile edits, verification status updates, friend invites, friend request actions, social boosts, risk actions, and admin CSV exports all use Prisma-backed services. Without `DATABASE_URL`, the existing in-memory demo store remains the fallback.
+When `DATABASE_URL` is present, `/api/session` hydrates from persisted users and sessions, while `/api/demo-state` remains available for reset/fallback workflows. The seed flow now creates persisted demo users with hashed passwords, balance accounts, markets, friendships, a friend activity bet, ledger entries, and a seed session. Bet placement, market submission, admin approval/rejection, lifecycle changes, resolution, void/refund handling, admin funds, admin config, profile edits, verification status updates, friend invites, friend request actions, social boosts, risk actions, and admin CSV exports all use Prisma-backed services. Without `DATABASE_URL`, the existing in-memory demo store remains the fallback.
 
 Set `FRIENDMARKET_SESSION_SECRET` to a long random value before sharing any environment. To expose the temporary admin toggle locally, set `FRIENDMARKET_DEV_ADMIN_SHORTCUT=1`; keep it disabled outside local development.
 

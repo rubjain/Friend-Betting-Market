@@ -47,7 +47,7 @@ export default function PortfolioPage() {
         body="Open bets, settled history, and separate play-money balances that mirror a real-money architecture."
       />
       <div className="portfolio-stack">
-        {/* ── 1. Balance hero ── */}
+        {/* 1. Balance hero */}
         <div className="balance-hero">
           <div className="balance-hero-total">
             <span className="label">Total balance</span>
@@ -80,7 +80,7 @@ export default function PortfolioPage() {
           </div>
         </div>
 
-        {/* ── 2. Open bets (visual hero) ── */}
+        {/* 2. Open bets (visual hero) */}
         <div className="list-card open-bets-hero">
           <h2 className="open-bets-heading">Open bets</h2>
           <div className="bet-list">
@@ -102,7 +102,7 @@ export default function PortfolioPage() {
           </div>
         </div>
 
-        {/* ── 3. Past bets ── */}
+        {/* 3. Past bets */}
         <div className="list-card">
           <h3>Past bets</h3>
           <div className="bet-list">
@@ -159,7 +159,7 @@ export default function PortfolioPage() {
           </div>
         </div>
 
-        {/* ── 4. Transaction history (collapsed by default) ── */}
+        {/* 4. Transaction history (collapsed by default) */}
         <div className="txn-collapse-wrap">
           <button
             className="txn-toggle"
@@ -168,7 +168,7 @@ export default function PortfolioPage() {
             aria-expanded={showTxHistory}
           >
             <span>{showTxHistory ? "Hide transaction history" : "Show transaction history"}</span>
-            <span className="txn-toggle-chevron" aria-hidden="true">{showTxHistory ? "▲" : "▼"}</span>
+            <span className="txn-toggle-chevron" aria-hidden="true">{showTxHistory ? "^" : "v"}</span>
           </button>
           {showTxHistory && <PortfolioLedger />}
         </div>

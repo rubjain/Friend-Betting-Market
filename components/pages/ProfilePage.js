@@ -83,7 +83,7 @@ export default function ProfilePage() {
     <section className="page active">
       <div className="profile-stack">
 
-        {/* ── Avatar + identity ── */}
+        {/* Avatar + identity */}
         <div className="profile-identity">
           <div className="profile-avatar" aria-hidden="true">{initials}</div>
           <div>
@@ -94,7 +94,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* ── Balance card ── */}
+        {/* Balance card */}
         <div className="profile-balance-card">
           <div>
             <div className="label">Total balance</div>
@@ -105,10 +105,10 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        {/* ── Portfolio performance chart ── */}
+        {/* Portfolio performance chart */}
         <PortfolioChart />
 
-        {/* ── Edit profile ── */}
+        {/* Edit profile */}
         <div className="list-card profile-account-card">
           <h3>Account</h3>
           <form onSubmit={saveProfile}>
@@ -150,7 +150,7 @@ export default function ProfilePage() {
           </form>
         </div>
 
-        {/* ── Stats row ── */}
+        {/* Stats row */}
         <div className="profile-stats-row">
           <div className="profile-stat">
             <strong>{totalBets}</strong>
@@ -168,7 +168,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* ── Log out ── */}
+        {/* Log out */}
         <button
           className="btn btn-logout"
           type="button"
@@ -206,7 +206,7 @@ function LoginView({ loginIdentifier, setLoginIdentifier, loginPassword, setLogi
               id="login-password"
               type="password"
               autoComplete="current-password"
-              placeholder="••••••••"
+              placeholder="********"
               value={loginPassword}
               onChange={(e) => setLoginPassword(e.currentTarget.value)}
             />

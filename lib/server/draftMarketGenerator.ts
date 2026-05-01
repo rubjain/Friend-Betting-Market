@@ -1,9 +1,5 @@
 import { defaultState } from "../defaultState.js";
 import { hasDatabaseUrl, prisma } from "./prisma.js";
-import { cryptoMarketGenerator } from "./marketGenerators/cryptoMarketGenerator";
-import { financeMarketGenerator } from "./marketGenerators/financeMarketGenerator";
-import { kalshiInspirationGenerator } from "./marketGenerators/kalshiInspirationGenerator";
-import { newsMarketGenerator } from "./marketGenerators/newsMarketGenerator";
 import { sportsMarketGenerator } from "./marketGenerators/sportsMarketGenerator";
 import type {
   DraftMarketRecord,
@@ -15,10 +11,6 @@ import type {
 
 const generators: MarketGenerator[] = [
   sportsMarketGenerator,
-  cryptoMarketGenerator,
-  financeMarketGenerator,
-  newsMarketGenerator,
-  kalshiInspirationGenerator,
 ];
 
 type DraftStore = {

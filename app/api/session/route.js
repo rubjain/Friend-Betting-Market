@@ -37,6 +37,12 @@ async function stateForSession(session) {
   };
 }
 
+function getRequestRateLimitKey(request) {
+  const forwardedFor = request.headers.get("x-forwarded-for") || "";
+  const clientIp = forwardedFor.split(",")[0].trim();
+  return clientIp || request.headers.get("x-real-ip") || "local";
+}
+
 export async function GET(request) {
   const session = await getSessionFromRequest(request);
   return NextResponse.json({
@@ -87,6 +93,7 @@ export async function POST(request) {
       : await loginUser({
           identifier: payload.identifier || payload.email || payload.username,
           password: payload.password,
+          rateLimitKey: getRequestRateLimitKey(request),
         });
 
   if (!result.ok) {
