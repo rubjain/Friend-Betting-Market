@@ -19,10 +19,18 @@ async function stateForSession(session) {
   const state = hasDatabaseUrl()
     ? await getDatabaseState(undefined, session.userId)
     : getDemoState(session.userId);
+  const demoAdminProfile = session.isAdmin && session.userId === "admin_1"
+    ? {
+        name: "Admin",
+        username: "@admin",
+        email: "admin@example.com",
+      }
+    : {};
   return {
     ...state,
     currentUser: {
       ...state.currentUser,
+      ...demoAdminProfile,
       id: session.userId,
       isAdmin: session.isAdmin,
     },

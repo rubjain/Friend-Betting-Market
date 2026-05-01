@@ -11,6 +11,7 @@ import {
 } from "../lib/exporters";
 import { money, titleCase } from "../lib/formatters";
 import AdminDisputeQueue from "./AdminDisputeQueue";
+import AdminDraftMarkets from "./AdminDraftMarkets";
 import AdminInsights from "./AdminInsights";
 import AdminAuditTable from "./AdminAuditTable";
 import AdminLedgerTable from "./AdminLedgerTable";
@@ -150,6 +151,7 @@ export default function AdminDashboard() {
         </div>
       </div>
       <div className="admin-grid">
+        <AdminDraftMarkets onMessage={actions.setFlashMessage} />
         <AdminInsights users={state.users} ledger={state.ledger} activeMarkets={state.activeMarkets} />
         <div className="table-card">
           <h3>Pending markets</h3>

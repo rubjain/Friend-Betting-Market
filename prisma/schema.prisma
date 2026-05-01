@@ -38,11 +38,24 @@ enum MarketStatus {
   PENDING
   APPROVED
   ACTIVE
+  OPEN
+  CLOSED
   PAUSED
   RESOLVING
   DISPUTED
   RESOLVED
+  REJECTED
   VOIDED
+}
+
+enum MarketOutcomeType {
+  BINARY
+}
+
+enum MarketCreatedBy {
+  SYSTEM
+  ADMIN
+  USER
 }
 
 enum BetSide {
@@ -160,13 +173,24 @@ model UserSession {
 model Market {
   id                 String               @id @default(cuid())
   title              String
+  question           String               @default("")
   description        String
   category           String
   status             MarketStatus         @default(PENDING)
   closeAt            DateTime?
+  closeTime          DateTime?
   settlementAt       DateTime?
+  resolutionTime     DateTime?
+  resolutionSource   String?
+  resolutionRules    String               @default("")
   yesPrice           Decimal              @default(0.5) @db.Decimal(8, 4)
   noPrice            Decimal              @default(0.5) @db.Decimal(8, 4)
+  outcomeType        MarketOutcomeType    @default(BINARY)
+  createdBy          MarketCreatedBy      @default(USER)
+  externalSourceName String?
+  externalSourceId   String?
+  normalizedQuestion String?
+  metadata           Json?
   volume             Decimal              @default(0) @db.Decimal(14, 2)
   eligibleForBonus   Boolean              @default(false)
   bonusUseLimitPct   Decimal?             @db.Decimal(5, 2)
@@ -187,6 +211,10 @@ model Market {
   disputes           MarketDispute[]
   riskReviews        RiskReview[]
   auditEntries       AuditTrail[]
+
+  @@unique([externalSourceName, externalSourceId])
+  @@index([status, createdAt])
+  @@index([normalizedQuestion])
 }
 
 model Bet {

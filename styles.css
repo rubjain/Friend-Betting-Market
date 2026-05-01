@@ -2787,6 +2787,27 @@ textarea { min-height: 130px; resize: vertical; }
 .admin-head-actions { margin-top: 0; flex: 0 0 auto; }
 .admin-wide { grid-column: 1 / -1; }
 .admin-banner { margin-bottom: 16px; }
+.compact-section-head { margin-bottom: 16px; }
+.draft-market-list {
+  display: grid;
+  gap: 14px;
+}
+.draft-market-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  background: var(--surface-subtle);
+}
+.draft-market-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.draft-market-card textarea {
+  min-height: 96px;
+}
 .compact-actions { margin-top: 0; }
 .compact-actions .btn { flex-basis: auto; min-width: 80px; }
 

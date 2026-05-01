@@ -49,6 +49,10 @@ export default function LoginPage() {
           <p>Use a demo account to test the full user side with $100 and no starting friends.</p>
         </div>
         <div className="demo-login-grid" aria-label="Demo login shortcuts">
+          <button type="button" onClick={() => useDemoAccount("admin@example.com")}>
+            <strong>Admin</strong>
+            <span>admin@example.com</span>
+          </button>
           <button type="button" onClick={() => useDemoAccount("test@example.com")}>
             <strong>Test User</strong>
             <span>test@example.com</span>
@@ -92,7 +96,7 @@ export default function LoginPage() {
           </div>
         </form>
         <div className="auth-foot">
-          <span>Password for both demo accounts: password123.</span>
+          <span>Password for demo accounts: password123.</span>
           <Link href="/signup">Create one</Link>
         </div>
       </div>
