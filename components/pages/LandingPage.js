@@ -3,27 +3,25 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useFriendMarket } from "../../context/FriendMarketContext";
-import { formatPercent, money } from "../../lib/formatters";
-import { getMarketPipelineSummary, rankMarketsBySignal } from "../../lib/marketAlgorithms";
+import { money } from "../../lib/formatters";
+import { getMarketPipelineSummary } from "../../lib/marketAlgorithms";
 import MarketCard from "../MarketCard";
 
 export default function LandingPage() {
   const { state } = useFriendMarket();
   const landingData = useMemo(() => {
-    const featuredMarkets = state.markets.slice(0, 6);
+    const featuredMarkets = [...state.markets]
+      .sort((left, right) => Number(right.volume || 0) - Number(left.volume || 0))
+      .slice(0, 12);
     const totalVolume = state.markets.reduce((sum, market) => sum + Number(market.volume || 0), 0);
-    const openBetExposure = state.portfolio.openBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
     const pipeline = getMarketPipelineSummary(state.markets, state.liveGames);
-    const signalLeaders = rankMarketsBySignal(state.markets, state.liveGames).slice(0, 1);
 
     return {
       featuredMarkets,
       totalVolume,
-      openBetExposure,
       pipeline,
-      topSignal: signalLeaders[0]?.snapshot.signal ?? "-",
     };
-  }, [state.liveGames, state.markets, state.portfolio.openBets]);
+  }, [state.liveGames, state.markets]);
 
   return (
     <section className="page active">
@@ -42,27 +40,19 @@ export default function LandingPage() {
       <div className="landing-stats">
         <div className="landing-stat">
           <span className="landing-stat-label">Markets</span>
-          <span className="landing-stat-value">{state.markets.length}</span>
+          <strong className="landing-stat-value">{state.markets.length}</strong>
         </div>
         <div className="landing-stat">
           <span className="landing-stat-label">Total volume</span>
-          <span className="landing-stat-value">{money(landingData.totalVolume)}</span>
+          <strong className="landing-stat-value">{money(landingData.totalVolume)}</strong>
         </div>
         <div className="landing-stat">
-          <span className="landing-stat-label">Your exposure</span>
-          <span className="landing-stat-value">{money(landingData.openBetExposure)}</span>
+          <span className="landing-stat-label">Categories</span>
+          <strong className="landing-stat-value">{landingData.pipeline.categories}</strong>
         </div>
         <div className="landing-stat">
-          <span className="landing-stat-label">Bonus cap</span>
-          <span className="landing-stat-value">{formatPercent(state.adminConfig.maxBonusStakePercent / 100)}</span>
-        </div>
-        <div className="landing-stat">
-          <span className="landing-stat-label">Top signal</span>
-          <span className="landing-stat-value">{landingData.topSignal}</span>
-        </div>
-        <div className="landing-stat">
-          <span className="landing-stat-label">Source-ready</span>
-          <span className="landing-stat-value">{state.markets.length - landingData.pipeline.needsSource}/{state.markets.length}</span>
+          <span className="landing-stat-label">Live-linked</span>
+          <strong className="landing-stat-value">{landingData.pipeline.liveLinked}</strong>
         </div>
       </div>
 
@@ -70,13 +60,13 @@ export default function LandingPage() {
         <div className="section-head">
           <div>
             <h3>Top Markets</h3>
-            <p>Live YES/NO prices — click to open a position.</p>
+            <p>Concise YES/NO markets ranked by volume.</p>
           </div>
-          <Link className="btn btn-ghost" href="/markets">All Markets →</Link>
+          <Link className="btn btn-ghost" href="/markets">All Markets</Link>
         </div>
-        <div className="market-grid">
+        <div className="market-grid market-grid--compact">
           {landingData.featuredMarkets.map((market) => (
-            <MarketCard market={market} key={market.id} />
+            <MarketCard market={market} key={market.id} compact />
           ))}
         </div>
       </section>

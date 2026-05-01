@@ -4,13 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { formatPercent, money } from "../lib/formatters";
-import { getLinkedLiveGame, getLiveGameClock, getMarketAlgorithmSnapshot } from "../lib/marketAlgorithms";
+import { getLinkedLiveGame, getLiveGameClock } from "../lib/marketAlgorithms";
 
-export default function MarketCard({ market }) {
+export default function MarketCard({ market, compact = false }) {
   const router = useRouter();
   const { state, actions } = useFriendMarket();
   const linkedGame = getLinkedLiveGame(market, state.liveGames);
-  const snapshot = getMarketAlgorithmSnapshot(market, state.liveGames);
 
   function prepare(side) {
     actions.prepareBet(market.id, side);
@@ -18,7 +17,7 @@ export default function MarketCard({ market }) {
   }
 
   return (
-    <article className="market-card">
+    <article className={`market-card${compact ? " market-card--compact" : ""}`}>
       <div className="market-card-header">
         <span className="market-category-kicker">{market.category}</span>
         {market.status && market.status !== "active" ? (
@@ -26,10 +25,10 @@ export default function MarketCard({ market }) {
         ) : null}
       </div>
       <h4 className="market-card-title">{market.title}</h4>
-      {linkedGame ? (
+      {linkedGame && !compact ? (
         <div className="mini-live-card">
-          <span>{linkedGame.league} · {getLiveGameClock(linkedGame)}</span>
-          <strong>{linkedGame.awayTeam} {linkedGame.awayScore} · {linkedGame.homeTeam} {linkedGame.homeScore}</strong>
+          <span>{linkedGame.league} - {getLiveGameClock(linkedGame)}</span>
+          <strong>{linkedGame.awayTeam} {linkedGame.awayScore} - {linkedGame.homeTeam} {linkedGame.homeScore}</strong>
         </div>
       ) : null}
       <div className="market-price-grid" aria-label={`${market.title} prices`}>
@@ -43,16 +42,20 @@ export default function MarketCard({ market }) {
         </button>
       </div>
       <div className="market-card-footer">
-        <span className="market-meta-item">Vol {money(market.volume)}</span>
-        <span className="market-meta-item">Closes {market.endDate}</span>
-        <span className="market-meta-item">{market.friendsBoosting} boosts</span>
+        <div className="market-meta-group">
+          <span className="market-meta-item">Vol {money(market.volume)}</span>
+          <span className="market-meta-item">Closes {market.endDate}</span>
+          {compact ? null : <span className="market-meta-item">{market.friendsBoosting} boosts</span>}
+        </div>
         <div className="market-card-actions">
           <Link className="btn btn-secondary btn-sm" href={`/markets/${market.id}`}>
             Details
           </Link>
-          <Link className="btn btn-ghost btn-sm" href="/friends" onClick={() => actions.setSelectedMarket(market.id)}>
-            Boost
-          </Link>
+          {compact ? null : (
+            <Link className="btn btn-ghost btn-sm" href="/friends" onClick={() => actions.setSelectedMarket(market.id)}>
+              Boost
+            </Link>
+          )}
         </div>
       </div>
     </article>

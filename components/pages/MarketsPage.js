@@ -1,9 +1,8 @@
 "use client";
 
 import { useFriendMarket } from "../../context/FriendMarketContext";
-import { money } from "../../lib/formatters";
 import { marketCategories } from "../../lib/marketTaxonomy";
-import { getMarketPipelineSummary, rankMarketsBySignal } from "../../lib/marketAlgorithms";
+import { getMarketPipelineSummary } from "../../lib/marketAlgorithms";
 import MarketCard from "../MarketCard";
 import { EmptyState, SectionHead } from "../ui";
 
@@ -15,8 +14,6 @@ export default function MarketsPage() {
     return matchesQuery && matchesCategory;
   });
   const pipeline = getMarketPipelineSummary(state.markets, state.liveGames);
-  const topSignals = rankMarketsBySignal(filteredMarkets, state.liveGames).slice(0, 3);
-  const openExposure = state.portfolio.openBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
 
   return (
     <section className="page active">
@@ -25,21 +22,36 @@ export default function MarketsPage() {
           title="Markets"
           body="Trade live sports, macro, crypto, tech, culture, and politics markets with clear settlement rules."
         />
-        <div className="market-account-panel">
-          <div>
-            <span className="label">Balance</span>
-            <strong>{money(state.currentUser.play_credit_balance)}</strong>
+        <div className="market-discovery-panel">
+          <div className="category-scroll" aria-label="Market categories">
+            <button
+              className={`category-chip${state.filters.category === "all" ? " active" : ""}`}
+              type="button"
+              onClick={() => actions.setFilters({ category: "all" })}
+            >
+              All
+            </button>
+            {marketCategories.map((category) => (
+              <button
+                className={`category-chip${state.filters.category === category.label ? " active" : ""}`}
+                type="button"
+                key={category.id}
+                onClick={() => actions.setFilters({ category: category.label })}
+              >
+                {category.label}
+              </button>
+            ))}
           </div>
-          <div>
-            <span className="label">Open positions</span>
-            <strong>{state.portfolio.openBets.length}</strong>
-          </div>
-          <div>
-            <span className="label">Exposure</span>
-            <strong>{money(openExposure)}</strong>
-          </div>
-          <a className="btn btn-primary" href="/settings">Deposit</a>
-          <a className="btn btn-secondary" href="/portfolio">Positions</a>
+          <label className="market-search-control" htmlFor="market-search">
+            <span aria-hidden="true">Search</span>
+            <input
+              id="market-search"
+              type="search"
+              placeholder="Find markets"
+              value={state.filters.query}
+              onChange={(event) => actions.setFilters({ query: event.currentTarget.value })}
+            />
+          </label>
         </div>
       </div>
       <div className="market-command-row">
@@ -56,65 +68,17 @@ export default function MarketsPage() {
           <strong>{pipeline.liveLinked} game-linked</strong>
         </div>
       </div>
-      <div className="toolbar">
-        <div className="field">
-          <label className="visually-hidden" htmlFor="market-search">
-            Search markets
-          </label>
-          <input
-            id="market-search"
-            type="search"
-            placeholder="Search markets"
-            value={state.filters.query}
-            onChange={(event) => actions.setFilters({ query: event.currentTarget.value })}
-          />
-        </div>
-        <div className="field">
-          <label className="visually-hidden" htmlFor="market-category">
-            Category
-          </label>
-          <select
-            id="market-category"
-            value={state.filters.category}
-            onChange={(event) => actions.setFilters({ category: event.currentTarget.value })}
-          >
-            <option value="all">All categories</option>
-            {marketCategories.map((category) => (
-              <option value={category.label} key={category.id}>
-                {category.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
       <div className="market-count-strip">
         <strong>{filteredMarkets.length}</strong>
         <span>{filteredMarkets.length === 1 ? "market" : "markets"} visible</span>
       </div>
-      {topSignals.length ? (
-        <div className="signal-rail">
-          {topSignals.map(({ market, snapshot }) => (
-            <LinkPreviewSignal key={market.id} market={market} snapshot={snapshot} />
-          ))}
-        </div>
-      ) : null}
-      <div className="market-grid">
+      <div className="market-grid market-grid--compact">
         {filteredMarkets.length ? (
-          filteredMarkets.map((market) => <MarketCard market={market} key={market.id} />)
+          filteredMarkets.map((market) => <MarketCard market={market} key={market.id} compact />)
         ) : (
           <EmptyState title="No matching markets" body="Try a different search or filter to find a market." />
         )}
       </div>
     </section>
-  );
-}
-
-function LinkPreviewSignal({ market, snapshot }) {
-  return (
-    <a className="signal-pill" href={`/markets/${market.id}`}>
-      <span>{snapshot.signal}</span>
-      <strong>{market.title}</strong>
-      <em>{snapshot.movementScore} movement</em>
-    </a>
   );
 }

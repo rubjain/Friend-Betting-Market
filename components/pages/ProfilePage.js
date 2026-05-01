@@ -109,7 +109,7 @@ export default function ProfilePage() {
         <PortfolioChart />
 
         {/* ── Edit profile ── */}
-        <div className="list-card">
+        <div className="list-card profile-account-card">
           <h3>Account</h3>
           <form onSubmit={saveProfile}>
             <div className="profile-edit-fields">
