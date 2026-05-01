@@ -1,15 +1,66 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { useFriendMarket } from "../../context/FriendMarketContext";
 import { getMultiplier } from "../../lib/marketMath";
 import { SectionHead } from "../ui";
+
+const FEED_POLL_MS = 30_000;
+
+function formatMoney(n) {
+  const abs = Math.abs(n);
+  const formatted = abs >= 1000 ? "$" + (abs / 1000).toFixed(1) + "k" : "$" + abs.toFixed(2);
+  return n < 0 ? "-" + formatted : "+" + formatted;
+}
+
+function timeAgo(isoString) {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
+}
+
+function getInitials(name) {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
 
 export default function FriendsPage() {
   const { state, actions, selectors } = useFriendMarket();
   const [pendingAction, setPendingAction] = useState("");
   const [boostPanelFriend, setBoostPanelFriend] = useState(null);
+  const [h2hPanelFriend, setH2hPanelFriend] = useState(null);
   const [pendingExpanded, setPendingExpanded] = useState(false);
+
+  // Feed state
+  const [feedItems, setFeedItems] = useState([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const feedIntervalRef = useRef(null);
+
+  const fetchFeed = useCallback(async () => {
+    try {
+      const res = await fetch("/api/feed/friends");
+      const json = await res.json();
+      if (json.ok) setFeedItems(json.items);
+    } catch {
+      // silently fail — feed is non-critical
+    } finally {
+      setFeedLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFeed();
+    feedIntervalRef.current = setInterval(fetchFeed, FEED_POLL_MS);
+    return () => clearInterval(feedIntervalRef.current);
+  }, [fetchFeed]);
 
   const selectedMarket = selectors.getSelectedMarket();
   const boostSlotsRemaining = Math.max(
@@ -17,10 +68,10 @@ export default function FriendsPage() {
     state.adminConfig.maxGroupSize - selectedMarket.friendGroup.length,
   );
   const pendingCount = state.friends.pending.length;
-  const incomingCount = state.friends.pending.filter((request) => request.direction === "incoming").length;
-  const totalBoosts = state.friends.list.reduce((sum, friend) => sum + (friend.boostCount || 0), 0);
+  const incomingCount = state.friends.pending.filter((r) => r.direction === "incoming").length;
+  const totalBoosts = state.friends.list.reduce((sum, f) => sum + (f.boostCount || 0), 0);
   const bestMultiplier = state.markets.length
-    ? Math.max(...state.markets.map((market) => getMultiplier(market, state.adminConfig)))
+    ? Math.max(...state.markets.map((m) => getMultiplier(m, state.adminConfig)))
     : 1;
 
   async function runFriendAction(actionKey, callback) {
@@ -33,151 +84,230 @@ export default function FriendsPage() {
     }
   }
 
+  const hasFriends = state.friends.list.length > 0;
+
   return (
     <section className="page active">
       <SectionHead
         title="Friends"
-        body="Invite @taylor from the clean demo account, accept requests, and test social boosts."
+        body="Invite friends, track your records, and see what they're betting on."
       />
-      <div className="friends-page-stack">
-        {pendingCount > 0 && (
-          <div className="pending-banner">
-            <div className="pending-banner-summary">
-              <span className="pending-dot" aria-hidden="true" />
-              <strong>{pendingCount} friend request{pendingCount !== 1 ? "s" : ""} waiting</strong>
+
+      <div className="friends-layout">
+        {/* ── Left column: friends list ── */}
+        <div className="friends-main">
+          <div className="friends-page-stack">
+            {pendingCount > 0 && (
+              <div className="pending-banner">
+                <div className="pending-banner-summary">
+                  <span className="pending-dot" aria-hidden="true" />
+                  <strong>{pendingCount} friend request{pendingCount !== 1 ? "s" : ""} waiting</strong>
+                  <button
+                    className="pending-banner-toggle"
+                    type="button"
+                    onClick={() => setPendingExpanded((v) => !v)}
+                  >
+                    {pendingExpanded ? "Hide" : "Review"}
+                  </button>
+                </div>
+                {pendingExpanded && (
+                  <div className="pending-banner-list">
+                    {state.friends.pending.map((request) => (
+                      <div className="pending-request-row" key={request.username}>
+                        <div>
+                          <strong>{request.name}</strong>
+                          <span className="caption">
+                            {" "}{request.username} · {request.direction}
+                          </span>
+                        </div>
+                        <div className="inline-actions">
+                          {request.direction === "incoming" ? (
+                            <>
+                              <button
+                                className="btn btn-secondary"
+                                type="button"
+                                disabled={!!pendingAction}
+                                onClick={() => runFriendAction(`accept-${request.username}`, () => actions.handleFriendRequest(request.username, "accept"))}
+                              >
+                                {pendingAction === `accept-${request.username}` ? "Accepting..." : "Accept"}
+                              </button>
+                              <button
+                                className="btn btn-ghost"
+                                type="button"
+                                disabled={!!pendingAction}
+                                onClick={() => runFriendAction(`decline-${request.username}`, () => actions.handleFriendRequest(request.username, "decline"))}
+                              >
+                                {pendingAction === `decline-${request.username}` ? "Declining..." : "Decline"}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              className="btn btn-ghost"
+                              type="button"
+                              disabled={!!pendingAction}
+                              onClick={() => runFriendAction(`cancel-${request.username}`, () => actions.handleFriendRequest(request.username, "cancel"))}
+                            >
+                              {pendingAction === `cancel-${request.username}` ? "Canceling..." : "Cancel"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="friends-search-row">
+              <label className="visually-hidden" htmlFor="friend-invite-input">
+                Friend username
+              </label>
+              <input
+                id="friend-invite-input"
+                type="text"
+                placeholder="Invite by @username"
+                value={state.friendInviteDraft}
+                onChange={(e) => actions.updateFriendInviteDraft(e.currentTarget.value)}
+              />
               <button
-                className="pending-banner-toggle"
+                className="btn btn-primary"
                 type="button"
-                onClick={() => setPendingExpanded((value) => !value)}
+                disabled={!!pendingAction}
+                onClick={() => runFriendAction("invite", actions.sendFriendInvite)}
               >
-                {pendingExpanded ? "Hide" : "Review"}
+                {pendingAction === "invite" ? "Sending..." : "Invite"}
               </button>
             </div>
-            {pendingExpanded && (
-              <div className="pending-banner-list">
-                {state.friends.pending.map((request) => (
-                  <div className="pending-request-row" key={request.username}>
-                    <div>
-                      <strong>{request.name}</strong>
-                      <span className="caption">
-                        {" "}{request.username} · {request.direction}
-                      </span>
-                    </div>
-                    <div className="inline-actions">
-                      {request.direction === "incoming" ? (
-                        <>
-                          <button
-                            className="btn btn-secondary"
-                            type="button"
-                            disabled={!!pendingAction}
-                            onClick={() => runFriendAction(`accept-${request.username}`, () => actions.handleFriendRequest(request.username, "accept"))}
-                          >
-                            {pendingAction === `accept-${request.username}` ? "Accepting..." : "Accept"}
-                          </button>
-                          <button
-                            className="btn btn-ghost"
-                            type="button"
-                            disabled={!!pendingAction}
-                            onClick={() => runFriendAction(`decline-${request.username}`, () => actions.handleFriendRequest(request.username, "decline"))}
-                          >
-                            {pendingAction === `decline-${request.username}` ? "Declining..." : "Decline"}
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="btn btn-ghost"
-                          type="button"
-                          disabled={!!pendingAction}
-                          onClick={() => runFriendAction(`cancel-${request.username}`, () => actions.handleFriendRequest(request.username, "cancel"))}
-                        >
-                          {pendingAction === `cancel-${request.username}` ? "Canceling..." : "Cancel"}
-                        </button>
-                      )}
+
+            <div className="friends-demo-note">
+              Test accounts: test@example.com / password123 and taylor@example.com / password123.
+            </div>
+
+            <div className="friends-stat-bar">
+              <div className="friends-stat-chip">
+                <strong>{state.friends.list.length}</strong>
+                <span>Friends</span>
+              </div>
+              <div className="friends-stat-divider" aria-hidden="true" />
+              <div className="friends-stat-chip">
+                <strong>{pendingCount}</strong>
+                <span>Pending</span>
+              </div>
+              <div className="friends-stat-divider" aria-hidden="true" />
+              <div className="friends-stat-chip">
+                <strong>{incomingCount}</strong>
+                <span>Incoming</span>
+              </div>
+              <div className="friends-stat-divider" aria-hidden="true" />
+              <div className="friends-stat-chip">
+                <strong>{totalBoosts}</strong>
+                <span>Active boosts</span>
+              </div>
+              <div className="friends-stat-divider" aria-hidden="true" />
+              <div className="friends-stat-chip friends-stat-chip--accent">
+                <strong>{bestMultiplier.toFixed(2)}x</strong>
+                <span>Best multiplier</span>
+              </div>
+            </div>
+
+            <div className="friends-hero-list">
+              {hasFriends ? (
+                state.friends.list.map((friend) => {
+                  const boostName = selectors.getFriendBoostName(friend);
+                  const isBoosting = selectedMarket.friendGroup.includes(boostName);
+                  const disabled = !isBoosting && boostSlotsRemaining <= 0;
+                  return (
+                    <FriendCard
+                      key={friend.username}
+                      friend={friend}
+                      isBoosting={isBoosting}
+                      disabled={disabled}
+                      pendingAction={pendingAction}
+                      onBoost={() => setBoostPanelFriend(friend)}
+                      onH2H={() => setH2hPanelFriend(friend)}
+                    />
+                  );
+                })
+              ) : (
+                <div className="friends-empty">
+                  <strong>No friends yet.</strong>
+                  <p>Send an invite to @taylor above to get started.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right column: activity feed ── */}
+        <aside className="friends-feed-aside">
+          <div className="friends-feed-card">
+            <div className="friends-feed-header">
+              <h4 className="friends-feed-title">Friend Activity</h4>
+              <span className="friends-feed-subtitle caption">Last 24 hours</span>
+            </div>
+
+            {feedLoading ? (
+              <div className="friends-feed-body">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="friends-feed-skeleton">
+                    <div className="friends-feed-skeleton-avatar" />
+                    <div className="friends-feed-skeleton-lines">
+                      <div className="skeleton-line skeleton-line--long" />
+                      <div className="skeleton-line skeleton-line--short" />
                     </div>
                   </div>
                 ))}
               </div>
+            ) : feedItems.length === 0 ? (
+              <div className="friends-feed-empty">
+                {hasFriends ? (
+                  <>
+                    <span className="friends-feed-empty-icon" aria-hidden="true">⚡</span>
+                    <p>No bets in the last 24 hours.</p>
+                  </>
+                ) : (
+                  <>
+                    <span className="friends-feed-empty-icon" aria-hidden="true">👥</span>
+                    <p>Add friends to see their activity here.</p>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="friends-feed-body">
+                {feedItems.map((item) => (
+                  <Link key={item.id} className="friends-feed-item" href={`/markets/${item.marketId}`}>
+                    <div className="friends-feed-avatar" aria-hidden="true">
+                      {getInitials(item.friendName)}
+                    </div>
+                    <div className="friends-feed-item-body">
+                      <p className="friends-feed-item-text">
+                        <strong>{item.friendName}</strong>
+                        {" bet "}
+                        <span className={`friends-feed-side friends-feed-side--${item.side.toLowerCase()}`}>
+                          {item.side}
+                        </span>
+                      </p>
+                      <p className="friends-feed-item-market caption">{item.marketTitle}</p>
+                      <span className="friends-feed-time caption">{timeAgo(item.placedAt)}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             )}
-          </div>
-        )}
 
-        <div className="friends-search-row">
-          <label className="visually-hidden" htmlFor="friend-invite-input">
-            Friend username
-          </label>
-          <input
-            id="friend-invite-input"
-            type="text"
-            placeholder="Invite @taylor"
-            value={state.friendInviteDraft}
-            onChange={(event) => actions.updateFriendInviteDraft(event.currentTarget.value)}
-          />
-          <button
-            className="btn btn-primary"
-            type="button"
-            disabled={!!pendingAction}
-            onClick={() => runFriendAction("invite", actions.sendFriendInvite)}
-          >
-            {pendingAction === "invite" ? "Sending..." : "Invite"}
-          </button>
-        </div>
-
-        <div className="friends-demo-note">
-          Test accounts: test@example.com / password123 and taylor@example.com / password123.
-        </div>
-
-        <div className="friends-stat-bar">
-          <div className="friends-stat-chip">
-            <strong>{state.friends.list.length}</strong>
-            <span>Friends</span>
-          </div>
-          <div className="friends-stat-divider" aria-hidden="true" />
-          <div className="friends-stat-chip">
-            <strong>{pendingCount}</strong>
-            <span>Pending</span>
-          </div>
-          <div className="friends-stat-divider" aria-hidden="true" />
-          <div className="friends-stat-chip">
-            <strong>{incomingCount}</strong>
-            <span>Incoming</span>
-          </div>
-          <div className="friends-stat-divider" aria-hidden="true" />
-          <div className="friends-stat-chip">
-            <strong>{totalBoosts}</strong>
-            <span>Active boosts</span>
-          </div>
-          <div className="friends-stat-divider" aria-hidden="true" />
-          <div className="friends-stat-chip friends-stat-chip--accent">
-            <strong>{bestMultiplier.toFixed(2)}x</strong>
-            <span>Best multiplier</span>
-          </div>
-        </div>
-
-        <div className="friends-hero-list">
-          {state.friends.list.length ? (
-            state.friends.list.map((friend) => {
-              const boostName = selectors.getFriendBoostName(friend);
-              const isBoosting = selectedMarket.friendGroup.includes(boostName);
-              const disabled = !isBoosting && boostSlotsRemaining <= 0;
-              return (
-                <FriendCard
-                  key={friend.username}
-                  friend={friend}
-                  isBoosting={isBoosting}
-                  disabled={disabled}
-                  pendingAction={pendingAction}
-                  onBoost={() => setBoostPanelFriend(friend)}
-                />
-              );
-            })
-          ) : (
-            <div className="friends-empty">
-              <strong>No friends yet.</strong>
-              <p>This demo account starts with no friends. Send an invite to @taylor above.</p>
+            <div className="friends-feed-footer caption">
+              Refreshes every 30s
             </div>
-          )}
-        </div>
+          </div>
+        </aside>
       </div>
+
+      {h2hPanelFriend && (
+        <H2HPanel
+          friend={h2hPanelFriend}
+          onClose={() => setH2hPanelFriend(null)}
+        />
+      )}
 
       {boostPanelFriend && (
         <BoostPanel
@@ -196,13 +326,8 @@ export default function FriendsPage() {
   );
 }
 
-function FriendCard({ friend, isBoosting, disabled, pendingAction, onBoost }) {
-  const initials = friend.name
-    .split(" ")
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
+function FriendCard({ friend, isBoosting, disabled, pendingAction, onBoost, onH2H }) {
+  const initials = getInitials(friend.name);
   const actionKey = `boost-${friend.username}`;
 
   return (
@@ -219,15 +344,127 @@ function FriendCard({ friend, isBoosting, disabled, pendingAction, onBoost }) {
           </div>
         )}
       </div>
-      <button
-        className={`btn friend-boost-btn ${isBoosting ? "btn-secondary" : "btn-ghost"}`}
-        type="button"
-        disabled={disabled || pendingAction === actionKey}
-        onClick={onBoost}
-      >
-        {isBoosting ? "Boosting" : "Boost"}
-      </button>
+      <div className="friend-card-actions">
+        <button
+          className="btn btn-ghost friend-h2h-btn"
+          type="button"
+          onClick={onH2H}
+        >
+          Record
+        </button>
+        <button
+          className={`btn friend-boost-btn ${isBoosting ? "btn-secondary" : "btn-ghost"}`}
+          type="button"
+          disabled={disabled || pendingAction === actionKey}
+          onClick={onBoost}
+        >
+          {isBoosting ? "Boosting" : "Boost"}
+        </button>
+      </div>
     </div>
+  );
+}
+
+function H2HPanel({ friend, onClose }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const initials = getInitials(friend.name);
+
+  const fetchH2H = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/friends/h2h?friendId=${encodeURIComponent(friend.id)}`);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.message || "Failed to load record.");
+      setData(json);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [friend.id]);
+
+  useEffect(() => {
+    fetchH2H();
+  }, [fetchH2H]);
+
+  const record = data?.record ?? { wins: 0, losses: 0, pushes: 0 };
+  const netAmount = data?.netAmount ?? 0;
+  const recentMatchups = data?.recentMatchups ?? [];
+  const hasMatchups = record.wins + record.losses + record.pushes > 0;
+
+  return (
+    <>
+      <div className="boost-panel-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="boost-panel h2h-panel" role="dialog" aria-label={`Head-to-head with ${friend.name}`}>
+        <div className="boost-panel-header">
+          <div className="boost-panel-friend">
+            <div className="friend-avatar friend-avatar--lg" aria-hidden="true">{initials}</div>
+            <div>
+              <strong>{friend.name}</strong>
+              <div className="caption">{friend.username}</div>
+            </div>
+          </div>
+          <button className="btn btn-ghost boost-panel-close" type="button" onClick={onClose}>Close</button>
+        </div>
+
+        {loading ? (
+          <div className="h2h-loading caption">Loading record...</div>
+        ) : error ? (
+          <div className="h2h-error caption">{error}</div>
+        ) : !hasMatchups ? (
+          <div className="h2h-empty">
+            <strong>No matchups yet.</strong>
+            <p className="caption">A matchup happens when you and {friend.name.split(" ")[0]} bet on opposite sides of the same market.</p>
+          </div>
+        ) : (
+          <>
+            <div className="h2h-record-row">
+              <div className="h2h-stat h2h-stat--win">
+                <strong>{record.wins}</strong>
+                <span className="caption">Wins</span>
+              </div>
+              <div className="h2h-stat-divider" aria-hidden="true">/</div>
+              <div className="h2h-stat h2h-stat--loss">
+                <strong>{record.losses}</strong>
+                <span className="caption">Losses</span>
+              </div>
+              {record.pushes > 0 && (
+                <>
+                  <div className="h2h-stat-divider" aria-hidden="true">/</div>
+                  <div className="h2h-stat">
+                    <strong>{record.pushes}</strong>
+                    <span className="caption">Push</span>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className={`h2h-net ${netAmount >= 0 ? "h2h-net--up" : "h2h-net--down"}`}>
+              {netAmount >= 0
+                ? `You're up ${formatMoney(netAmount)} lifetime`
+                : `You're down ${formatMoney(netAmount)} lifetime`}
+            </div>
+            {recentMatchups.length > 0 && (
+              <div className="h2h-recent">
+                <div className="h2h-recent-label caption">Last {recentMatchups.length} matchup{recentMatchups.length !== 1 ? "s" : ""}</div>
+                {recentMatchups.map((m, i) => (
+                  <div key={i} className="h2h-matchup-row">
+                    <span className={`h2h-matchup-result h2h-matchup-result--${(m.myStatus || "open").toLowerCase()}`}>
+                      {m.myStatus === "WON" ? "W" : m.myStatus === "LOST" ? "L" : "P"}
+                    </span>
+                    <span className="h2h-matchup-title caption">{m.title}</span>
+                    <span className="h2h-matchup-sides caption">{m.mySide} vs {m.friendSide}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -244,12 +481,7 @@ function BoostPanel({ friend, selectedMarket, boostSlotsRemaining, state, action
     state.adminConfig,
   );
 
-  const initials = friend.name
-    .split(" ")
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
+  const initials = getInitials(friend.name);
 
   return (
     <>
@@ -257,17 +489,13 @@ function BoostPanel({ friend, selectedMarket, boostSlotsRemaining, state, action
       <div className="boost-panel" role="dialog" aria-label={`Boost with ${friend.name}`}>
         <div className="boost-panel-header">
           <div className="boost-panel-friend">
-            <div className="friend-avatar friend-avatar--lg" aria-hidden="true">
-              {initials}
-            </div>
+            <div className="friend-avatar friend-avatar--lg" aria-hidden="true">{initials}</div>
             <div>
               <strong>{friend.name}</strong>
               <div className="caption">{friend.username}</div>
             </div>
           </div>
-          <button className="btn btn-ghost boost-panel-close" type="button" onClick={onClose} aria-label="Close">
-            Close
-          </button>
+          <button className="btn btn-ghost boost-panel-close" type="button" onClick={onClose}>Close</button>
         </div>
 
         <div className="boost-panel-market">

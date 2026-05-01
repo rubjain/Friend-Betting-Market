@@ -12,6 +12,7 @@ const routes = [
   ["/deposit", "Deposit"],
   ["/withdraw", "Withdraw"],
   ["/friends", "Friends"],
+  ["/leaderboard", "Leaderboard"],
   ["/create", "Create"],
   ["/profile", "Profile"],
 ];
