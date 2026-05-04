@@ -522,3 +522,17 @@ test("market algorithms expose live tracking and signal summaries", async () => 
   assert.equal(summary.algorithmic >= 4, true);
   assert.equal(ranked[0].snapshot.movementScore >= ranked.at(-1).snapshot.movementScore, true);
 });
+
+test("getLinkedLiveGame matches seeded liveGameId to ESPN payload via matchingLegacyIds", async () => {
+  const { defaultState } = await import("../lib/defaultState.js");
+  const market = defaultState.markets.find((m) => m.id === "market_nba_cavs_raptors_live");
+  const stub = {
+    id: "espn_nba_stub",
+    matchingLegacyIds: [market.liveGameId],
+    status: "live",
+    period: "Q4",
+    clock: "2:00",
+    shortName: "Raptors",
+  };
+  assert.equal(getLinkedLiveGame(market, [stub])?.id, "espn_nba_stub");
+});

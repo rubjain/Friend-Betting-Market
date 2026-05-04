@@ -2027,6 +2027,775 @@ a { color: inherit; text-decoration: none; }
 .detail-stack { display: grid; gap: 16px; }
 .detail-panel { padding: 24px; }
 
+.detail-stack--aside {
+  position: sticky;
+  top: 72px;
+  align-self: start;
+}
+
+.detail-panel--chart {
+  padding: 0;
+  overflow: hidden;
+}
+
+.detail-panel--compact .aside-panel-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.aside-panel-copy {
+  margin: 0 0 14px;
+}
+
+.detail-panel--compact {
+  padding: 18px;
+}
+
+.friend-boost-list {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.multiplier-box--compact {
+  padding: 14px;
+  margin-top: 8px;
+}
+
+.empty-note--sm {
+  font-size: 0.82rem;
+  margin-top: 8px;
+}
+
+/* ── Market detail (Kalshi-style hierarchy + chart) ───────── */
+.market-detail-header {
+  margin-bottom: 22px;
+}
+
+.market-detail-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.market-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.market-detail-category {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.market-detail-live-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #dc2626;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.market-detail-status-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.market-detail-title {
+  margin: 0 0 8px;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.market-detail-sub {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.market-detail-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.market-detail-header--solo {
+  margin-bottom: 18px;
+}
+
+.market-detail-header--solo .market-detail-title {
+  margin-bottom: 6px;
+}
+
+.market-detail-header--pricing {
+  margin-bottom: 20px;
+}
+
+.market-detail-header--pricing .market-detail-price-row {
+  margin-top: 0;
+}
+
+/* ── Live game panel (score + play-by-play + box) ─────────── */
+.market-game-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.market-game-panel--live {
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 1px 0 rgba(239, 68, 68, 0.08);
+}
+
+.market-game-panel-head {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.market-game-panel-title {
+  margin: 0 0 6px;
+  font-size: clamp(1.05rem, 2.2vw, 1.28rem);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.market-game-panel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.market-game-panel-clock {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.market-game-score-strip {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--surface-alt);
+  text-align: center;
+}
+
+.market-game-score-team {
+  text-align: center;
+}
+
+.market-game-score-team--home {
+  text-align: center;
+}
+
+.market-game-score-abbr {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.market-game-score-strip strong {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.market-game-score-long {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.market-game-score-divider {
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.market-game-feed-line {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 0.74rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.market-game-broadcast {
+  margin: 0;
+  padding: 0 14px 10px;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.market-game-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.market-game-tabs button {
+  padding: 10px 12px;
+  font-weight: 650;
+  font-size: 0.82rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.market-game-tabs button.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  background: var(--surface-alt);
+}
+
+.market-game-tab-panel {
+  padding: 10px 12px 12px;
+  max-height: min(340px, 42vh);
+  overflow: auto;
+}
+
+.market-game-pbp-note {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.market-game-pbp-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.market-game-pbp-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.market-game-pbp-item:last-child {
+  border-bottom: 0;
+}
+
+.market-game-pbp-scores {
+  font-weight: 800;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+  color: var(--muted);
+}
+
+.market-game-pbp-dash {
+  margin: 0 2px;
+  opacity: 0.6;
+}
+
+.market-game-pbp-meta {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.market-game-pbp-text {
+  color: var(--text);
+}
+
+.market-game-box-fallback {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 12px 0 0;
+}
+
+.market-price-chart-stats--dual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  text-align: right;
+  font-size: 0.8rem;
+}
+
+.market-price-chart-stats--dual > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.market-price-chart-legend-a {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.market-price-chart-legend-b {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+[data-theme="dark"] .market-price-chart-legend-a {
+  color: #4ade80;
+}
+
+[data-theme="dark"] .market-price-chart-legend-b {
+  color: #f87171;
+}
+
+.market-chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.market-chart-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.market-chart-tooltip-dot--a {
+  background: #15803d;
+}
+
+.market-chart-tooltip-dot--b {
+  background: #b91c1c;
+}
+
+.market-detail-price-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr minmax(160px, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.market-detail-price-card {
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.market-detail-price-card--yes {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.06);
+}
+
+.market-detail-price-card--no {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.market-detail-price-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.market-detail-price-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.market-detail-price-card--yes .market-detail-price-value {
+  color: #15803d;
+}
+
+[data-theme="dark"] .market-detail-price-card--yes .market-detail-price-value {
+  color: #4ade80;
+}
+
+.market-detail-price-card--no .market-detail-price-value {
+  color: #b91c1c;
+}
+
+[data-theme="dark"] .market-detail-price-card--no .market-detail-price-value {
+  color: #f87171;
+}
+
+.market-detail-price-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.market-detail-price-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.market-detail-price-meta .label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.market-detail-price-meta strong {
+  font-size: 0.92rem;
+}
+
+.market-detail-desc {
+  margin: 0 0 14px;
+  line-height: 1.55;
+}
+
+.info-list--tight .info-row {
+  padding: 8px 0;
+}
+
+.resolution-rule-text {
+  margin: 0 0 14px;
+  line-height: 1.55;
+}
+
+.subsection-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+.resolution-checklist {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.resolution-checklist li {
+  margin-bottom: 6px;
+}
+
+.detail-disclosure {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.detail-disclosure summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 14px 18px;
+  font-weight: 650;
+  font-size: 0.95rem;
+}
+
+.detail-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.detail-disclosure summary::after {
+  content: "";
+  float: right;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.detail-disclosure[open] summary::after {
+  transform: rotate(-135deg);
+  margin-top: 10px;
+}
+
+.detail-disclosure-body {
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.signal-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.signal-chip {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.model-lede {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.model-hint {
+  margin-top: 8px;
+}
+
+.feed-update-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.feed-update-list li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.feed-update-index {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 2px;
+}
+
+.market-live-banner {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  background: var(--surface-alt);
+}
+
+.market-live-banner--active {
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.08);
+}
+
+.market-live-banner-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.market-live-banner-league {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.market-live-banner-state {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.market-live-banner-scores {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+  text-align: center;
+}
+
+.market-live-banner-scores > div:first-child {
+  text-align: left;
+}
+
+.market-live-banner-scores > div:last-child {
+  text-align: right;
+}
+
+.market-live-team {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.market-live-banner-scores strong {
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+.market-live-at {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.market-live-feed-note {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.market-price-chart {
+  padding: 18px 18px 8px;
+}
+
+.market-price-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.market-price-chart-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.market-price-chart-caption {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.market-price-chart-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.market-price-chart-delta {
+  font-weight: 700;
+}
+
+.market-price-chart-delta.up {
+  color: #15803d;
+}
+
+[data-theme="dark"] .market-price-chart-delta.up {
+  color: #4ade80;
+}
+
+.market-price-chart-delta.down {
+  color: #b91c1c;
+}
+
+[data-theme="dark"] .market-price-chart-delta.down {
+  color: #f87171;
+}
+
+.market-price-chart-range {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.market-price-chart-frame {
+  width: 100%;
+  min-height: 240px;
+  margin-top: 4px;
+}
+
+.market-price-chart-footnote {
+  margin: 10px 0 0;
+  padding: 0 18px 14px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.market-chart-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+}
+
+.market-chart-tooltip-time {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+
+.market-chart-tooltip-price strong {
+  font-size: 1rem;
+}
+
+@media (max-width: 900px) {
+  .market-detail-price-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .market-detail-price-meta {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .detail-stack--aside {
+    position: static;
+  }
+}
+
 /* ── Model meter / scoreboard ─────────────────────────────── */
 .model-meter-grid,
 .game-scoreboard {
@@ -2056,27 +2825,61 @@ a { color: inherit; text-decoration: none; }
   margin: 0 0 8px;
 }
 
+.live-box-score-wrap {
+  margin-top: 8px;
+}
+
+.live-box-score-subtabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.live-box-score-subtabs button {
+  padding: 7px 10px;
+  font-weight: 650;
+  font-size: 0.74rem;
+  border: none;
+  background: var(--surface-alt);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.live-box-score-subtabs button.is-active {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
 .live-box-score {
-  margin-top: 16px;
+  margin-top: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+}
+
+.live-box-score--players {
+  padding: 0;
 }
 
 .live-box-score-head,
 .live-box-score-row {
   display: grid;
-  grid-template-columns: minmax(52px, 1.1fr) repeat(4, minmax(0, 1fr)) minmax(36px, 0.6fr);
-  gap: 4px;
-  padding: 8px 10px;
+  grid-template-columns: minmax(44px, 1fr) repeat(4, minmax(0, 1fr)) minmax(30px, 0.55fr);
+  gap: 3px;
+  padding: 6px 8px;
   align-items: center;
 }
 
 .live-box-score-head {
   background: var(--surface-alt);
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -2092,17 +2895,17 @@ a { color: inherit; text-decoration: none; }
 .live-box-score-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 8px 10px;
   border-top: 1px solid var(--border);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--muted);
 }
 
 .live-box-score-stats > div {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -2113,14 +2916,91 @@ a { color: inherit; text-decoration: none; }
 }
 
 .live-box-score-top {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-top: 1px solid var(--border);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+}
+
+.live-box-score-top--solo {
+  border-top: none;
+}
+
+.live-box-score-empty,
+.live-box-score-muted {
+  margin: 0;
+  padding: 10px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.live-box-score-muted {
+  padding: 0 0 8px;
 }
 
 .live-box-score-top ul {
   margin: 6px 0 0;
   padding-left: 18px;
+}
+
+.live-box-score-player-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.live-box-score-player-team-title {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.live-box-score-player-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-sm);
+}
+
+.live-box-score-player-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-box-score-player-table th,
+.live-box-score-player-table td {
+  padding: 4px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.live-box-score-player-table th {
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.live-box-score-player-name-col {
+  text-align: left;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-box-score-starter {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 5px;
+  vertical-align: middle;
 }
 
 .game-scoreboard strong {

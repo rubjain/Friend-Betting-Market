@@ -1,19 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import BettingPanel from "../BettingPanel";
+import MarketGamePanel from "../MarketGamePanel";
+import MarketPriceChart from "../MarketPriceChart";
 import { useFriendMarket } from "../../context/FriendMarketContext";
 import { formatMarketDate, formatPercent, money } from "../../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock, getMarketAlgorithmSnapshot } from "../../lib/marketAlgorithms";
 import { getMultiplier } from "../../lib/marketMath";
 import { getResolutionTemplate } from "../../lib/marketTaxonomy";
-import LiveBoxScore from "../LiveBoxScore";
+import { getContractSideLabels } from "../../lib/marketLabels";
 import { EmptyState, InfoRow } from "../ui";
+
+function cents(price) {
+  if (price == null || Number.isNaN(Number(price))) {
+    return "—";
+  }
+  return `${Math.round(Number(price) * 100)}¢`;
+}
 
 export default function MarketDetailPage({ marketId }) {
   const { state, actions, selectors } = useFriendMarket();
   const market = selectors.getSelectedMarket(marketId);
+  const linkedGame = useMemo(
+    () => (market ? getLinkedLiveGame(market, state.liveGames) : null),
+    [market, state.liveGames],
+  );
+  const sides = useMemo(() => (market ? getContractSideLabels(market, linkedGame) : { yesLabel: "Yes", noLabel: "No" }), [
+    market,
+    linkedGame,
+  ]);
 
   useEffect(() => {
     if (market?.id && state.selectedMarketId !== market.id) {
@@ -32,205 +49,214 @@ export default function MarketDetailPage({ marketId }) {
   const resolutionTemplate = getResolutionTemplate(market.category);
   const checklist = market.resolutionChecklist ?? resolutionTemplate.checklist;
   const evidenceLinks = market.evidenceLinks ?? [];
-  const linkedGame = getLinkedLiveGame(market, state.liveGames);
   const algorithm = getMarketAlgorithmSnapshot(market, state.liveGames);
   const updateLog = linkedGame?.updates ?? market.liveUpdates ?? [
     `${market.algorithm?.refreshCadence ?? "Daily"}: source monitor checked with no settlement event.`,
     "Price engine recalculated YES/NO display from current signal inputs.",
   ];
+  const mult = getMultiplier(market, state.adminConfig);
+  const isLive = linkedGame?.status === "live";
 
   return (
-    <section className="page active">
-      <div className="section-head">
-        <div>
-          <h3>{market.title}</h3>
-          <p>{market.category} / YES {formatPercent(market.yesPrice)} / NO {formatPercent(market.noPrice)}</p>
+    <section className="page active market-detail">
+      <div className="market-detail-topbar">
+        <div className="market-detail-badges">
+          <span className="market-detail-category">{market.category}</span>
+          {isLive ? (
+            <span className="market-detail-live-badge" role="status">
+              Live
+            </span>
+          ) : null}
+          {market.status && market.status !== "active" ? (
+            <span className="market-detail-status-pill">{market.status}</span>
+          ) : null}
         </div>
-        <Link className="btn btn-secondary" href="/markets">
-          Back to Markets
+        <Link className="btn btn-secondary btn-sm" href="/markets">
+          Back to markets
         </Link>
       </div>
-      <div className="detail-grid">
-        <div className="detail-stack">
-          <div className="detail-panel">
-            <h3>Market information</h3>
-            <p>{market.description}</p>
-            <div className="quote-strip">
-              <div>
-                <span className="label">YES</span>
-                <strong>{formatPercent(market.yesPrice)}</strong>
-              </div>
-              <div>
-                <span className="label">NO</span>
-                <strong>{formatPercent(market.noPrice)}</strong>
-              </div>
-              <div>
-                <span className="label">Volume</span>
-                <strong>{money(market.volume)}</strong>
-              </div>
-              <div>
-                <span className="label">Closes</span>
-                <strong>{formatMarketDate(market.endDate)}</strong>
-              </div>
+
+      {linkedGame ? (
+        <MarketGamePanel market={market} game={linkedGame} />
+      ) : (
+        <header className="market-detail-header market-detail-header--solo">
+          <h2 className="market-detail-title">{market.title}</h2>
+          <p className="market-detail-sub">Closes {formatMarketDate(market.endDate)}</p>
+        </header>
+      )}
+
+      <header className="market-detail-header market-detail-header--pricing">
+        <div className="market-detail-price-row" aria-label="Contract prices">
+          <div className="market-detail-price-card market-detail-price-card--yes">
+            <span className="market-detail-price-label">{sides.yesLabel}</span>
+            <strong className="market-detail-price-value">{cents(market.yesPrice)}</strong>
+            <span className="market-detail-price-sub">{formatPercent(market.yesPrice)} implied</span>
+          </div>
+          <div className="market-detail-price-card market-detail-price-card--no">
+            <span className="market-detail-price-label">{sides.noLabel}</span>
+            <strong className="market-detail-price-value">{cents(market.noPrice)}</strong>
+            <span className="market-detail-price-sub">{formatPercent(market.noPrice)} implied</span>
+          </div>
+          <div className="market-detail-price-meta">
+            <div>
+              <span className="label">Volume</span>
+              <strong>{money(market.volume)}</strong>
             </div>
-            <div className="info-list">
-              <InfoRow label="Status" value={market.status ?? "active"} />
-              <InfoRow label="Close time" value={market.closeTime ?? "Not configured"} />
-              <InfoRow label="Settlement time" value={market.settlementTime ?? "After resolution"} />
+            <div>
+              <span className="label">Signal</span>
+              <strong>{algorithm.signal}</strong>
             </div>
+            {linkedGame ? (
+              <div>
+                <span className="label">Game</span>
+                <strong>
+                  {linkedGame.league}
+                  {linkedGame.status === "live" ? ` · ${getLiveGameClock(linkedGame)}` : ""}
+                </strong>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </header>
+
+      <div className="detail-grid market-detail-grid">
+        <div className="detail-stack detail-stack--main">
+          <div className="detail-panel detail-panel--chart">
+            <MarketPriceChart market={market} linkedGame={linkedGame} />
           </div>
 
-          <div className="detail-panel">
-            <h3>How this market resolves</h3>
-            <p>{market.resolutionRule ?? market.resolutionTemplate ?? resolutionTemplate.template}</p>
-            <div className="info-list">
-              {checklist.map((item) => (
-                <InfoRow key={item} label={item} value="Required" />
-              ))}
+          <details className="detail-disclosure" open>
+            <summary>About this market</summary>
+            <div className="detail-disclosure-body">
+              <p className="market-detail-desc">{market.description}</p>
+              <div className="info-list info-list--tight">
+                <InfoRow label="Market status" value={market.status ?? "active"} />
+                <InfoRow label="Close time" value={market.closeTime ?? "—"} />
+                <InfoRow label="Settlement" value={market.settlementTime ?? "After official resolution"} />
+              </div>
             </div>
-            <h3 className="subsection-title">Outcome sources</h3>
-            <div className="source-list source-card-list">
-              {evidenceLinks.length ? (
-                evidenceLinks.map((source) => (
-                  source.url ? (
-                    <div className="source-card" key={`${source.label}-${source.url}`}>
-                      <div>
-                        <strong>{source.label}</strong>
-                        <span>{source.sourceType ?? "source"}</span>
+          </details>
+
+          <details className="detail-disclosure" open>
+            <summary>Rules &amp; resolution</summary>
+            <div className="detail-disclosure-body">
+              <p className="resolution-rule-text">{market.resolutionRule ?? market.resolutionTemplate ?? resolutionTemplate.template}</p>
+              <p className="subsection-label">Checklist</p>
+              <ul className="resolution-checklist">
+                {checklist.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </details>
+
+          <details className="detail-disclosure">
+            <summary>Outcome sources</summary>
+            <div className="detail-disclosure-body">
+              <div className="source-list source-card-list">
+                {evidenceLinks.length ? (
+                  evidenceLinks.map((source) =>
+                    source.url ? (
+                      <div className="source-card" key={`${source.label}-${source.url}`}>
+                        <div>
+                          <strong>{source.label}</strong>
+                          <span>{source.sourceType ?? "source"}</span>
+                        </div>
+                        <a href={source.url} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
                       </div>
-                      <a href={source.url} target="_blank" rel="noreferrer">
-                        Open source
-                      </a>
-                    </div>
-                  ) : (
-                    <span key={source.label} className="empty-note">
-                      Planned source: {source.label}
-                    </span>
+                    ) : (
+                      <p key={source.label} className="empty-note">
+                        Planned: {source.label}
+                      </p>
+                    ),
                   )
-                ))
-              ) : (
-                <div className="empty-note">No evidence sources configured yet.</div>
-              )}
+                ) : (
+                  <p className="empty-note">No sources configured.</p>
+                )}
+              </div>
             </div>
-          </div>
+          </details>
 
-          <div className="detail-panel">
-            <h3>Algorithm signal</h3>
-            <p>{market.algorithm?.model ?? algorithm.model}</p>
-            <div className="model-meter-grid">
-              <div>
-                <span className="label">Confidence</span>
-                <strong>{formatPercent(algorithm.confidence)}</strong>
+          <details className="detail-disclosure">
+            <summary>Model &amp; feeds</summary>
+            <div className="detail-disclosure-body">
+              <p className="model-lede">{market.algorithm?.model ?? algorithm.model}</p>
+              <div className="signal-chip-row">
+                <span className="signal-chip">Confidence {formatPercent(algorithm.confidence)}</span>
+                <span className="signal-chip">Movement {algorithm.movementScore}/100</span>
+                <span className="signal-chip">Liquidity {algorithm.liquidityScore}/100</span>
               </div>
-              <div>
-                <span className="label">Movement</span>
-                <strong>{algorithm.movementScore}/100</strong>
-              </div>
-              <div>
-                <span className="label">Liquidity</span>
-                <strong>{algorithm.liquidityScore}/100</strong>
-              </div>
+              <p className="caption model-hint">{algorithm.recommendation}</p>
+              <p className="caption">Refresh: {market.algorithm?.refreshCadence ?? "Daily baseline"}</p>
             </div>
-            <div className="info-list">
-              {(market.algorithm?.dataFeeds ?? ["Resolution source", "Market price", "Friend boost velocity"]).map((feed) => (
-                <InfoRow key={feed} label={feed} value="Tracked" />
-              ))}
-              <InfoRow label="Refresh" value={market.algorithm?.refreshCadence ?? "Daily baseline"} />
-              <InfoRow label="Signal" value={algorithm.recommendation} />
-            </div>
-          </div>
+          </details>
 
-          {linkedGame ? (
-            <div className="detail-panel live-detail-panel">
-              <h3>Live game feed</h3>
-              {linkedGame.status === "live" ? (
-                <p className="live-pill" role="status">
-                  LIVE · {linkedGame.league}
-                </p>
-              ) : null}
-              <p>{linkedGame.feedStatus}</p>
-              {linkedGame.broadcast ? <p className="caption">{linkedGame.broadcast}</p> : null}
-              {linkedGame.venue ? <p className="caption">{linkedGame.venue}</p> : null}
-              <div className="game-scoreboard">
-                <div>
-                  <span>{linkedGame.awayTeam}</span>
-                  <strong>{linkedGame.awayScore}</strong>
-                </div>
-                <div>
-                  <span>{linkedGame.homeTeam}</span>
-                  <strong>{linkedGame.homeScore}</strong>
-                </div>
+          {!linkedGame ? (
+            <details className="detail-disclosure">
+              <summary>Feed updates</summary>
+              <div className="detail-disclosure-body">
+                <ul className="feed-update-list">
+                  {updateLog.map((update, index) => (
+                    <li key={`${market.id}-update-${index}`}>
+                      <span className="feed-update-index">{index === 0 ? "Latest" : `#${index + 1}`}</span>
+                      <span>{update}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div className="info-list">
-                <InfoRow label="League" value={linkedGame.league} />
-                <InfoRow label="Clock" value={getLiveGameClock(linkedGame)} />
-                {linkedGame.lastUpdated ? (
-                  <InfoRow label="Feed tick" value={new Date(linkedGame.lastUpdated).toLocaleTimeString()} />
-                ) : null}
-              </div>
-              <LiveBoxScore game={linkedGame} />
-            </div>
+            </details>
           ) : null}
 
-          <div className="detail-panel">
-            <h3>Real-time update log</h3>
-            <p>Live markets update from connected feed adapters; non-live markets update on their source cadence.</p>
-            <div className="activity-list">
-              {updateLog.map((update, index) => (
-                <div className="activity-item" key={`${market.id}-update-${index}`}>
-                  <div>
-                    <strong>Feed update</strong>
-                    <div className="caption">{update}</div>
-                  </div>
-                  <div className="caption">{index === 0 ? "Latest" : "Previous"}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="detail-panel">
-            <h3>Recent activity</h3>
-            <div className="activity-list">
-              {market.recentActivity.length ? (
-                market.recentActivity.map((item, index) => (
-                  <div className="activity-item" key={`${item.user}-${item.action}-${index}`}>
-                    <div>
-                      <strong>{item.user}</strong>
-                      <div className="caption">
-                        {item.action}
-                        {item.amount ? <> / {money(item.amount)}</> : null}
+          <details className="detail-disclosure">
+            <summary>Recent activity</summary>
+            <div className="detail-disclosure-body">
+              <div className="activity-list">
+                {market.recentActivity.length ? (
+                  market.recentActivity.map((item, index) => (
+                    <div className="activity-item" key={`${item.user}-${item.action}-${index}`}>
+                      <div>
+                        <strong>{item.user}</strong>
+                        <div className="caption">
+                          {item.action}
+                          {item.amount ? <> · {money(item.amount)}</> : null}
+                        </div>
                       </div>
+                      <div className="caption">{item.time}</div>
                     </div>
-                    <div className="caption">{item.time}</div>
-                  </div>
-                ))
-              ) : (
-                <div className="empty-note">No recent activity yet.</div>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="detail-stack">
-          <BettingPanel market={market} />
-          <div className="detail-panel">
-            <h3>Friend multiplier</h3>
-            <p>Boosts apply to the total normal payout, but the extra amount always lands in bonus balance.</p>
-            <div className="multiplier-box">
-              <div className="label">Current multiplier</div>
-              <div className="multiplier-value">{getMultiplier(market, state.adminConfig).toFixed(2)}x</div>
-              <div className="caption">
-                {market.friendsBoosting} friends boosting this market / Max {state.adminConfig.maxMultiplier.toFixed(2)}x
+                  ))
+                ) : (
+                  <div className="empty-note">No recent activity yet.</div>
+                )}
               </div>
             </div>
-            <div className="info-list">
-              {market.friendGroup.length ? (
-                market.friendGroup.map((friend) => <InfoRow key={friend} label={friend} value="Boosting" />)
-              ) : (
-                <div className="empty-note">No friends are boosting this market yet.</div>
-              )}
-            </div>
-          </div>
+          </details>
         </div>
+
+        <aside className="detail-stack detail-stack--aside">
+          <BettingPanel market={market} linkedGame={linkedGame} />
+          <div className="detail-panel detail-panel--compact">
+            <h3 className="aside-panel-title">Friend multiplier</h3>
+            <p className="caption aside-panel-copy">
+              Boosts apply to normal payout; extra lands in bonus balance. Max {state.adminConfig.maxMultiplier.toFixed(2)}x.
+            </p>
+            <div className="multiplier-box multiplier-box--compact">
+              <div className="label">Current</div>
+              <div className="multiplier-value">{mult.toFixed(2)}x</div>
+              <div className="caption">{market.friendsBoosting} friends boosting</div>
+            </div>
+            {market.friendGroup.length ? (
+              <ul className="friend-boost-list">
+                {market.friendGroup.map((friend) => (
+                  <li key={friend}>{friend}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty-note empty-note--sm">No boost group yet.</p>
+            )}
+          </div>
+        </aside>
       </div>
     </section>
   );

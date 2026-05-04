@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { formatMarketDate, formatPercent, money } from "../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock } from "../lib/marketAlgorithms";
+import { getContractSideLabels } from "../lib/marketLabels";
 
 export default function MarketCard({ market, compact = false }) {
   const router = useRouter();
   const { state, actions } = useFriendMarket();
   const linkedGame = getLinkedLiveGame(market, state.liveGames);
+  const { yesLabel, noLabel } = getContractSideLabels(market, linkedGame);
 
   function prepare(side) {
     actions.prepareBet(market.id, side);
@@ -39,11 +41,11 @@ export default function MarketCard({ market, compact = false }) {
       ) : null}
       <div className="market-price-grid" aria-label={`${market.title} prices`}>
         <button className="price-button yes-price" type="button" onClick={() => prepare("YES")}>
-          <span>Yes</span>
+          <span>{yesLabel}</span>
           <strong>{formatPercent(market.yesPrice)}</strong>
         </button>
         <button className="price-button no-price" type="button" onClick={() => prepare("NO")}>
-          <span>No</span>
+          <span>{noLabel}</span>
           <strong>{formatPercent(market.noPrice)}</strong>
         </button>
       </div>

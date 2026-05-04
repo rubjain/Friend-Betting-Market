@@ -13,7 +13,7 @@ const STANDALONE_AUTH_ROUTES = new Set([
 ]);
 
 /**
- * Polls `/api/live/games` to refresh scoreboard + box score tick (demo; replace with websockets in prod).
+ * Polls `/api/live/games` (ESPN-backed when available) about every 5s to refresh the live scoreboard.
  */
 export default function LiveGamesPoller() {
   const { hydrated, actions } = useFriendMarket();
@@ -41,7 +41,7 @@ export default function LiveGamesPoller() {
       }
     }
     void pull();
-    const id = window.setInterval(pull, 12_000);
+    const id = window.setInterval(pull, 5_000);
     return () => {
       canceled = true;
       window.clearInterval(id);

@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { money } from "../lib/formatters";
+import { getContractSideLabels } from "../lib/marketLabels";
 import { calculatePayout } from "../lib/marketMath";
 import { hasValidationErrors, validateBetDraft } from "../lib/validation";
 
-export default function BettingPanel({ market }) {
+export default function BettingPanel({ market, linkedGame = null }) {
   const { state, actions } = useFriendMarket();
   const [submitted, setSubmitted] = useState(false);
   const [pendingSide, setPendingSide] = useState("");
@@ -24,6 +25,7 @@ export default function BettingPanel({ market }) {
     () => validateBetDraft({ payout, currentUser: state.currentUser }),
     [payout, state.currentUser],
   );
+  const { yesLabel, noLabel } = useMemo(() => getContractSideLabels(market, linkedGame), [market, linkedGame]);
   const marketAcceptsBets = !market.status || market.status === "active";
 
   async function submitBet() {
@@ -53,14 +55,14 @@ export default function BettingPanel({ market }) {
           className={`bet-side-btn ${side === "YES" ? "active-yes" : ""}`}
           onClick={() => actions.updateBetDraft("side", "YES")}
         >
-          Yes {market.yesPrice ? `${Math.round(market.yesPrice * 100)}c` : ""}
+          {yesLabel} {market.yesPrice ? `${Math.round(market.yesPrice * 100)}¢` : ""}
         </button>
         <button
           type="button"
           className={`bet-side-btn ${side === "NO" ? "active-no" : ""}`}
           onClick={() => actions.updateBetDraft("side", "NO")}
         >
-          No {market.noPrice ? `${Math.round(market.noPrice * 100)}c` : ""}
+          {noLabel} {market.noPrice ? `${Math.round(market.noPrice * 100)}¢` : ""}
         </button>
       </div>
 
@@ -104,7 +106,7 @@ export default function BettingPanel({ market }) {
         disabled={!marketAcceptsBets || !!pendingSide}
         onClick={submitBet}
       >
-        {pendingSide ? "Placing..." : `Buy ${side}`}
+        {pendingSide ? "Placing..." : `Buy ${side === "YES" ? yesLabel : noLabel}`}
       </button>
 
       <div className="bet-panel-footer">
