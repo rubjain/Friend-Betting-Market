@@ -17,7 +17,11 @@ function leagueToApiParam(league) {
   return "nba";
 }
 
-export default function MarketGamePanel({ market, game }) {
+/**
+ * @param {{ market?: object, game: object, bettingPanel?: React.ReactNode }} props
+ *   bettingPanel — optional slot rendered inside the Betting tab (LiveGameDetailPage only)
+ */
+export default function MarketGamePanel({ market, game, bettingPanel }) {
   const headline = market?.title ?? `${game.awayTeam} at ${game.homeTeam}`;
   const category = market?.category ?? getGameMarketCategory(game);
   const [tab, setTab] = useState("pbp");
@@ -29,6 +33,7 @@ export default function MarketGamePanel({ market, game }) {
   const leagueParam = useMemo(() => leagueToApiParam(game.league), [game.league]);
   const eventId = game.espnEventId;
 
+  // ── Live summary poll (5s for plays + tennis, 30s for player box) ──────
   useEffect(() => {
     if (!eventId) {
       setRemotePlays([]);
@@ -37,6 +42,8 @@ export default function MarketGamePanel({ market, game }) {
       return undefined;
     }
     let canceled = false;
+    let boxPollCount = 0;
+
     async function load() {
       try {
         const qs = new URLSearchParams();
@@ -51,13 +58,16 @@ export default function MarketGamePanel({ market, game }) {
         if (canceled) return;
         setFeedError(!!data.feedError);
         setRemotePlays(Array.isArray(data.plays) ? data.plays : []);
-        setPlayerBox(data.playerBox ?? null);
         setTennisBoard(data.tennisBoard ?? null);
+        // Refresh player box on first load and then every ~6 ticks (30s)
+        if (data.playerBox && (boxPollCount === 0 || boxPollCount % 6 === 0)) {
+          setPlayerBox(data.playerBox);
+        }
+        boxPollCount++;
       } catch {
         if (!canceled) {
           setFeedError(true);
           setRemotePlays([]);
-          setPlayerBox(null);
           setTennisBoard(null);
         }
       }
@@ -98,6 +108,10 @@ export default function MarketGamePanel({ market, game }) {
 
   const isLive = game.status === "live";
   const clock = getLiveGameClock(game);
+  const showBettingTab = !!bettingPanel;
+  const TABS = showBettingTab
+    ? [{ id: "pbp", label: "Play-by-play" }, { id: "box", label: "Box score" }, { id: "bet", label: "Betting" }]
+    : [{ id: "pbp", label: "Play-by-play" }, { id: "box", label: "Box score" }];
 
   return (
     <div className={`market-game-panel ${isLive ? "market-game-panel--live" : ""}`}>
@@ -139,27 +153,23 @@ export default function MarketGamePanel({ market, game }) {
         />
       ) : (
         <>
-          <div className="market-game-tabs" role="tablist" aria-label="Game detail tabs">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "pbp"}
-              className={tab === "pbp" ? "is-active" : ""}
-              onClick={() => setTab("pbp")}
-            >
-              Play-by-play
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "box"}
-              className={tab === "box" ? "is-active" : ""}
-              onClick={() => setTab("box")}
-            >
-              Box score
-            </button>
+          {/* ── Tab bar ────────────────────────────────────────── */}
+          <div className="mgp-tabs" role="tablist" aria-label="Game detail tabs">
+            {TABS.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                className={`mgp-tab${tab === id ? " mgp-tab--active" : ""}`}
+                onClick={() => setTab(id)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
+          {/* ── Play-by-play ────────────────────────────────────── */}
           {tab === "pbp" ? (
             <div className="market-game-tab-panel" role="tabpanel">
               {feedError && !remotePlays.length ? (
@@ -190,9 +200,19 @@ export default function MarketGamePanel({ market, game }) {
             </div>
           ) : null}
 
+          {/* ── Box score ───────────────────────────────────────── */}
           {tab === "box" ? (
             <div className="market-game-tab-panel" role="tabpanel">
               <LiveBoxScore game={game} playerBox={playerBox} />
+            </div>
+          ) : null}
+
+          {/* ── Betting ─────────────────────────────────────────── */}
+          {tab === "bet" ? (
+            <div className="market-game-tab-panel market-game-tab-panel--betting" role="tabpanel">
+              {bettingPanel ?? (
+                <p className="market-game-pbp-note">No prediction market linked to this game.</p>
+              )}
             </div>
           ) : null}
         </>

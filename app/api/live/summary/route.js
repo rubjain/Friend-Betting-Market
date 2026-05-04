@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   extractTennisBoardFromSummary,
   normalizeEspnSummaryPlays,
-  normalizeNbaPlayerBoxFromSummary,
+  normalizePlayerBoxFromSummary,
 } from "../../../../lib/espnSummaryNormalize.js";
 
 const LEAGUE_PATH = {
@@ -52,7 +52,10 @@ export async function GET(request) {
               ? "NHL"
               : "MLB";
     const plays = normalizeEspnSummaryPlays(json, leagueUpper);
-    const playerBox = leagueUpper === "NBA" ? normalizeNbaPlayerBoxFromSummary(json) : null;
+    const TEAM_SPORTS = ["NBA", "NFL", "MLB", "NHL"];
+    const playerBox = TEAM_SPORTS.includes(leagueUpper)
+      ? normalizePlayerBoxFromSummary(json, leagueUpper)
+      : null;
     const tennisBoard = leagueUpper === "TENNIS" ? extractTennisBoardFromSummary(json) : null;
     return NextResponse.json(
       {

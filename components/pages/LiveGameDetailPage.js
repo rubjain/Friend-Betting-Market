@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import MarketGamePanel from "../MarketGamePanel";
+import BettingPanel from "../BettingPanel";
 import { useFriendMarket } from "../../context/FriendMarketContext";
 import { EmptyState } from "../ui";
 
@@ -93,13 +94,19 @@ export default function LiveGameDetailPage({ gameId: gameIdProp }) {
         </Link>
       </div>
 
-      {linkedMarket ? (
-        <p className="caption live-game-detail-market-link">
-          <Link href={`/markets/${linkedMarket.id}`}>Open prediction market for this game →</Link>
-        </p>
-      ) : null}
-
-      <MarketGamePanel game={game} />
+      <MarketGamePanel
+        game={game}
+        bettingPanel={
+          linkedMarket ? (
+            <div className="live-game-betting-slot">
+              <p className="live-game-betting-market-link caption">
+                <Link href={`/markets/${linkedMarket.id}`}>View full market page →</Link>
+              </p>
+              <BettingPanel market={linkedMarket} linkedGame={game} />
+            </div>
+          ) : null
+        }
+      />
     </section>
   );
 }

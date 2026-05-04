@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import BettingPanel from "../BettingPanel";
 import MarketGamePanel from "../MarketGamePanel";
 import MarketPriceChart from "../MarketPriceChart";
+import TennisPremiumMarketPage from "../TennisPremiumMarketPage";
 import { useFriendMarket } from "../../context/FriendMarketContext";
 import { formatMarketDate, formatPercent, money } from "../../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock, getMarketAlgorithmSnapshot } from "../../lib/marketAlgorithms";
@@ -20,17 +21,28 @@ function cents(price) {
   return `${Math.round(Number(price) * 100)}¢`;
 }
 
+// Route tennis ATP markets to the premium layout; everything else uses the default.
 export default function MarketDetailPage({ marketId }) {
+  const isAtp =
+    typeof marketId === "string" && marketId.startsWith("espn_tennis_atp");
+
+  if (isAtp) {
+    return <TennisPremiumMarketPage marketId={marketId} />;
+  }
+  return <DefaultMarketDetailPage marketId={marketId} />;
+}
+
+function DefaultMarketDetailPage({ marketId }) {
   const { state, actions, selectors } = useFriendMarket();
   const market = selectors.getSelectedMarket(marketId);
   const linkedGame = useMemo(
     () => (market ? getLinkedLiveGame(market, state.liveGames) : null),
     [market, state.liveGames],
   );
-  const sides = useMemo(() => (market ? getContractSideLabels(market, linkedGame) : { yesLabel: "Yes", noLabel: "No" }), [
-    market,
-    linkedGame,
-  ]);
+  const sides = useMemo(
+    () => (market ? getContractSideLabels(market, linkedGame) : { yesLabel: "Yes", noLabel: "No" }),
+    [market, linkedGame],
+  );
 
   useEffect(() => {
     if (market?.id && state.selectedMarketId !== market.id) {
