@@ -8,6 +8,7 @@ import { formatMarketDate, formatPercent, money } from "../../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock, getMarketAlgorithmSnapshot } from "../../lib/marketAlgorithms";
 import { getMultiplier } from "../../lib/marketMath";
 import { getResolutionTemplate } from "../../lib/marketTaxonomy";
+import LiveBoxScore from "../LiveBoxScore";
 import { EmptyState, InfoRow } from "../ui";
 
 export default function MarketDetailPage({ marketId }) {
@@ -142,7 +143,14 @@ export default function MarketDetailPage({ marketId }) {
           {linkedGame ? (
             <div className="detail-panel live-detail-panel">
               <h3>Live game feed</h3>
+              {linkedGame.status === "live" ? (
+                <p className="live-pill" role="status">
+                  LIVE · {linkedGame.league}
+                </p>
+              ) : null}
               <p>{linkedGame.feedStatus}</p>
+              {linkedGame.broadcast ? <p className="caption">{linkedGame.broadcast}</p> : null}
+              {linkedGame.venue ? <p className="caption">{linkedGame.venue}</p> : null}
               <div className="game-scoreboard">
                 <div>
                   <span>{linkedGame.awayTeam}</span>
@@ -156,7 +164,11 @@ export default function MarketDetailPage({ marketId }) {
               <div className="info-list">
                 <InfoRow label="League" value={linkedGame.league} />
                 <InfoRow label="Clock" value={getLiveGameClock(linkedGame)} />
+                {linkedGame.lastUpdated ? (
+                  <InfoRow label="Feed tick" value={new Date(linkedGame.lastUpdated).toLocaleTimeString()} />
+                ) : null}
               </div>
+              <LiveBoxScore game={linkedGame} />
             </div>
           ) : null}
 

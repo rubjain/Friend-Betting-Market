@@ -485,15 +485,17 @@ test("request auth helper recognizes dev admin shortcut header when enabled", as
   }
 });
 
-test("default market seeds include sport-specific markets only", async () => {
+test("default market seeds include sports and non-sports verticals", async () => {
   const { defaultState } = await import("../lib/defaultState.js");
   const categories = new Set(defaultState.markets.map((market) => market.category));
 
   assert.equal(categories.has("NBA"), true);
   assert.equal(categories.has("NFL"), true);
   assert.equal(categories.has("MLB"), true);
-  assert.equal(categories.has("Crypto"), false);
-  assert.equal(categories.has("Finance"), false);
+  assert.equal(categories.has("Crypto"), true);
+  assert.equal(categories.has("Finance"), true);
+  assert.equal(categories.has("Weather"), true);
+  assert.equal(categories.has("Politics"), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionTemplate), true);
   assert.equal(defaultState.markets.every((market) => market.closeTime), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionRule), true);
@@ -506,13 +508,14 @@ test("default market seeds include sport-specific markets only", async () => {
 test("market algorithms expose live tracking and signal summaries", async () => {
   const { defaultState } = await import("../lib/defaultState.js");
   const knicks = defaultState.markets.find((market) => market.id === "market_1");
-  const snapshot = getMarketAlgorithmSnapshot(knicks, defaultState.liveGames);
+  const fixedNow = new Date("2026-04-29T19:00:00Z");
+  const snapshot = getMarketAlgorithmSnapshot(knicks, defaultState.liveGames, fixedNow);
   const summary = getMarketPipelineSummary(defaultState.markets, defaultState.liveGames);
   const linkedGame = getLinkedLiveGame(knicks, defaultState.liveGames);
-  const ranked = rankMarketsBySignal(defaultState.markets, defaultState.liveGames);
+  const ranked = rankMarketsBySignal(defaultState.markets, defaultState.liveGames, fixedNow);
 
   assert.equal(linkedGame.id, "game_knicks_celtics");
-  assert.equal(getLiveGameClock(linkedGame), "Q3 - 6:42");
+  assert.equal(getLiveGameClock(linkedGame, fixedNow), "Q3 - 6:42");
   assert.equal(snapshot.model, "Live sports tracker");
   assert.equal(snapshot.movementScore > 0, true);
   assert.equal(summary.liveLinked >= 3, true);

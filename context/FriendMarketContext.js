@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   createAdminAdjustmentEntry,
   createBetLedgerEntries,
@@ -195,6 +196,33 @@ function mergeIncomingState(nextState) {
   return mergeStoredState(nextState || {});
 }
 
+const PUBLIC_AUTH_ROUTES = new Set([
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/account-recovery",
+  "/verify-email",
+]);
+
+function isPublicAuthRoute(pathname) {
+  return !pathname || PUBLIC_AUTH_ROUTES.has(pathname);
+}
+
+function buildStateFromSessionPayload(payload, previousTheme, previousFlash = "") {
+  const merged = mergeIncomingState(payload.state);
+  const sessionEnded = Boolean(payload.sessionExpired);
+  return {
+    ...merged,
+    auth: {
+      authenticated: Boolean(payload.session?.authenticated),
+      devAdminShortcut: Boolean(payload.devAdminShortcut),
+    },
+    theme: previousTheme ?? merged.theme ?? defaultState.theme,
+    flashMessage: sessionEnded ? "Your session ended. Please sign in again." : previousFlash,
+    mobileNavOpen: false,
+  };
+}
+
 async function requestJson(url, options) {
   const { headers = {}, ...rest } = options || {};
   const response = await fetch(url, {
@@ -369,6 +397,11 @@ function getRiskLabel(score) {
 export function FriendMarketProvider({ children }) {
   const [state, setState] = useState(createInitialState);
   const [hydrated, setHydrated] = useState(false);
+  const pathname = usePathname() || "";
+  const router = useRouter();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+  const visibilityRefreshAt = useRef(0);
 
   useEffect(() => {
     let canceled = false;
@@ -391,16 +424,8 @@ export function FriendMarketProvider({ children }) {
         }
 
         if (!canceled) {
-          setState({
-            ...mergeIncomingState(payload.state),
-            auth: {
-              authenticated: Boolean(payload.session?.authenticated),
-              devAdminShortcut: Boolean(payload.devAdminShortcut),
-            },
-            theme: savedState?.theme || payload.state.theme,
-            flashMessage: "",
-            mobileNavOpen: false,
-          });
+          const theme = savedState?.theme || mergeIncomingState(payload.state).theme;
+          setState(buildStateFromSessionPayload(payload, theme, ""));
         }
       } catch {
         if (!canceled) {
@@ -419,6 +444,43 @@ export function FriendMarketProvider({ children }) {
       canceled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || typeof document === "undefined") {
+      return undefined;
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      const now = Date.now();
+      if (now - visibilityRefreshAt.current < 25_000) {
+        return;
+      }
+      visibilityRefreshAt.current = now;
+
+      void (async () => {
+        try {
+          const { response, payload } = await requestJson("/api/session");
+          if (!response.ok || !payload.state) {
+            return;
+          }
+          setState((prev) =>
+            buildStateFromSessionPayload(payload, prev.theme, prev.flashMessage),
+          );
+          if (payload.sessionExpired && !isPublicAuthRoute(pathnameRef.current)) {
+            router.push("/login?reason=session");
+          }
+        } catch {
+          /* offline or API error */
+        }
+      })();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [hydrated, router]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -570,6 +632,30 @@ export function FriendMarketProvider({ children }) {
             mobileNavOpen: false,
           });
         }
+      },
+      async refreshSessionFromServer() {
+        try {
+          const { response, payload } = await requestJson("/api/session");
+          if (!response.ok || !payload.state) {
+            return false;
+          }
+          setState((prev) =>
+            buildStateFromSessionPayload(payload, prev.theme, prev.flashMessage),
+          );
+          if (payload.sessionExpired && !isPublicAuthRoute(pathnameRef.current)) {
+            router.push("/login?reason=session");
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      setLiveGames(liveGames) {
+        updateState((next) => {
+          if (Array.isArray(liveGames)) {
+            next.liveGames = liveGames;
+          }
+        });
       },
       setFilters(partial) {
         updateState((next) => {

@@ -5,6 +5,30 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { money } from "../lib/formatters";
+import LiveGamesPoller from "./LiveGamesPoller";
+import { HydrateLoading } from "./ui";
+
+const STANDALONE_AUTH_ROUTES = new Set([
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/account-recovery",
+  "/verify-email",
+]);
+
+function isStandaloneAuthRoute(pathname) {
+  return Boolean(pathname && STANDALONE_AUTH_ROUTES.has(pathname));
+}
+
+/** Landing stays interactive; auth pages avoid blocking the forms. */
+function shouldShowHydratePlaceholder(hydrated, pathname) {
+  if (hydrated) return false;
+  const path = pathname || "";
+  if (!path || path === "/" || isStandaloneAuthRoute(path)) {
+    return false;
+  }
+  return true;
+}
 
 const routes = [
   ["/markets", "Markets"],
@@ -28,7 +52,8 @@ const settingsRoutes = [
 export default function AppShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { state, actions } = useFriendMarket();
+  const { state, hydrated, actions } = useFriendMarket();
+  const showHydratePlaceholder = shouldShowHydratePlaceholder(hydrated, pathname);
   const [sessionPending, setSessionPending] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(true);
   const navCloseTimerRef = useRef(null);
@@ -233,8 +258,9 @@ export default function AppShell({ children }) {
             </div>
           </div>
         ) : null}
-        {children}
+        {showHydratePlaceholder ? <HydrateLoading /> : children}
       </main>
+      <LiveGamesPoller />
       <footer className="footer-wrap">
         <p>Agora keeps market prices, balances, boosts, and audit state in one workspace.</p>
       </footer>

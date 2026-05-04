@@ -13,7 +13,7 @@ async function postJson(url, body, method = "POST") {
   return { response, payload };
 }
 
-export default function ForgotPasswordPage() {
+export default function AccountRecoveryPage() {
   const [identifier, setIdentifier] = useState("");
   const [token, setToken] = useState("");
   const [password, setPassword] = useState("");
@@ -21,21 +21,21 @@ export default function ForgotPasswordPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  async function requestReset(event) {
+  async function requestRecovery(event) {
     event.preventDefault();
     if (pending) return;
     setPending("request");
     setMessage("");
     setError("");
     try {
-      const { response, payload } = await postJson("/api/auth/password-reset", { identifier });
+      const { response, payload } = await postJson("/api/auth/account-recovery", { identifier });
       if (!response.ok) {
-        setError(payload.message || "Could not start password reset.");
+        setError(payload.message || "Could not start account recovery.");
         return;
       }
-      setMessage(payload.message || "If the account exists, a reset link is ready.");
-      if (payload.passwordResetToken) {
-        setToken(payload.passwordResetToken);
+      setMessage(payload.message || "If the account exists, recovery can proceed.");
+      if (payload.accountRecoveryToken) {
+        setToken(payload.accountRecoveryToken);
       }
     } catch {
       setError("Something went wrong. Try again.");
@@ -44,19 +44,23 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  async function completeReset(event) {
+  async function completeRecovery(event) {
     event.preventDefault();
     if (pending) return;
-    setPending("reset");
+    setPending("recover");
     setMessage("");
     setError("");
     try {
-      const { response, payload } = await postJson("/api/auth/password-reset", { token, password }, "PATCH");
+      const { response, payload } = await postJson(
+        "/api/auth/account-recovery",
+        { token, password },
+        "PATCH",
+      );
       if (!response.ok) {
-        setError(payload.message || "Could not reset password.");
+        setError(payload.message || "Could not complete recovery.");
         return;
       }
-      setMessage(payload.message || "Password updated.");
+      setMessage(payload.message || "Account updated.");
       setPassword("");
     } catch {
       setError("Something went wrong. Try again.");
@@ -72,21 +76,21 @@ export default function ForgotPasswordPage() {
           <Link className="brand" href="/">
             <div className="brand-mark">AG</div>
           </Link>
-          <h2>Reset password</h2>
-          <p>Request a reset token, then set a new password. Development responses can show the token for testing.</p>
-          <p className="auth-muted">
-            If you were frozen out or need sessions cleared and unlock together, use{" "}
-            <Link href="/account-recovery">account recovery</Link> instead.
+          <h2>Account recovery</h2>
+          <p>
+            Use this flow if you lost access or your account was frozen after risk review. It issues a
+            fresh token, sets a new password, clears other sign-in sessions, and unlocks a frozen
+            account once the token is used. In production, the token is sent by email only.
           </p>
         </div>
 
-        <form className="form-grid" onSubmit={requestReset}>
+        <form className="form-grid" onSubmit={requestRecovery}>
           <div className="field full">
-            <label className="label" htmlFor="reset-identifier">
+            <label className="label" htmlFor="recovery-identifier">
               Email or username
             </label>
             <input
-              id="reset-identifier"
+              id="recovery-identifier"
               type="text"
               autoComplete="username email"
               value={identifier}
@@ -95,18 +99,18 @@ export default function ForgotPasswordPage() {
           </div>
           <div className="field full">
             <button className="btn btn-primary" type="submit" disabled={!!pending} style={{ width: "100%" }}>
-              {pending === "request" ? "Creating reset..." : "Send reset link"}
+              {pending === "request" ? "Creating token..." : "Request recovery link"}
             </button>
           </div>
         </form>
 
-        <form className="form-grid" onSubmit={completeReset}>
+        <form className="form-grid" onSubmit={completeRecovery}>
           <div className="field full">
-            <label className="label" htmlFor="reset-token">
-              Reset token
+            <label className="label" htmlFor="recovery-token">
+              Recovery token
             </label>
             <input
-              id="reset-token"
+              id="recovery-token"
               type="text"
               autoComplete="one-time-code"
               value={token}
@@ -114,11 +118,11 @@ export default function ForgotPasswordPage() {
             />
           </div>
           <div className="field full">
-            <label className="label" htmlFor="new-password">
+            <label className="label" htmlFor="recovery-password">
               New password
             </label>
             <input
-              id="new-password"
+              id="recovery-password"
               type="password"
               autoComplete="new-password"
               value={password}
@@ -129,13 +133,13 @@ export default function ForgotPasswordPage() {
           {error ? <p className="field full auth-error">{error}</p> : null}
           <div className="field full">
             <button className="btn btn-secondary" type="submit" disabled={!!pending} style={{ width: "100%" }}>
-              {pending === "reset" ? "Updating..." : "Update password"}
+              {pending === "recover" ? "Saving..." : "Complete recovery"}
             </button>
           </div>
         </form>
 
         <div className="auth-foot">
-          <Link href="/account-recovery">Account recovery</Link>
+          <Link href="/forgot-password">Forgot password only</Link>
           <span aria-hidden="true"> · </span>
           <Link href="/login">Back to sign in</Link>
         </div>

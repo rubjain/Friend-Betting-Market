@@ -20,15 +20,21 @@ export default function MarketCard({ market, compact = false }) {
     <article className={`market-card${compact ? " market-card--compact" : ""}`}>
       <div className="market-card-header">
         <span className="market-category-kicker">{market.category}</span>
+        {linkedGame?.status === "live" ? <span className="market-live-badge">LIVE</span> : null}
         {market.status && market.status !== "active" ? (
           <span className="market-status-badge">{market.status}</span>
         ) : null}
       </div>
       <h4 className="market-card-title">{market.title}</h4>
-      {linkedGame && !compact ? (
-        <div className="mini-live-card">
-          <span>{linkedGame.league} - {getLiveGameClock(linkedGame)}</span>
-          <strong>{linkedGame.awayTeam} {linkedGame.awayScore} - {linkedGame.homeTeam} {linkedGame.homeScore}</strong>
+      {linkedGame ? (
+        <div className={`mini-live-card${compact ? " mini-live-card--compact" : ""}`}>
+          <span>
+            {linkedGame.status === "live" ? "LIVE · " : ""}
+            {linkedGame.league} — {getLiveGameClock(linkedGame)}
+          </span>
+          <strong>
+            {linkedGame.awayTeam} {linkedGame.awayScore} · {linkedGame.homeTeam} {linkedGame.homeScore}
+          </strong>
         </div>
       ) : null}
       <div className="market-price-grid" aria-label={`${market.title} prices`}>

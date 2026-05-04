@@ -43,4 +43,5 @@ test("auth security exports production rate-limit policies", () => {
   assert.equal(RATE_LIMITS.login.max, 5);
   assert.equal(RATE_LIMITS.signup.max, 3);
   assert.equal(RATE_LIMITS.passwordReset.max, 3);
+  assert.equal(RATE_LIMITS.accountRecovery.max, 3);
 });

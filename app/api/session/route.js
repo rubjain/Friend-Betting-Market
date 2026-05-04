@@ -11,7 +11,9 @@ import {
 import {
   SESSION_COOKIE_NAME,
   createSessionCookieValue,
+  getSessionFromCookieRequest,
   sessionCookieOptions,
+  shouldClearStaleDatabaseSessionCookie,
 } from "../../../lib/server/session.js";
 import { hasDatabaseUrl } from "../../../lib/server/prisma.js";
 
@@ -44,12 +46,26 @@ function getRequestRateLimitKey(request) {
 }
 
 export async function GET(request) {
+  const cookieSession = getSessionFromCookieRequest(request);
   const session = await getSessionFromRequest(request);
-  return NextResponse.json({
+  const clearStaleCookie = shouldClearStaleDatabaseSessionCookie(
+    hasDatabaseUrl(),
+    cookieSession,
+    session,
+  );
+  const response = NextResponse.json({
     session,
     devAdminShortcut: isDevAdminShortcutEnabled(),
     state: await stateForSession(session),
+    sessionExpired: clearStaleCookie,
   });
+  if (clearStaleCookie) {
+    response.cookies.set(SESSION_COOKIE_NAME, "", {
+      ...sessionCookieOptions(),
+      maxAge: 0,
+    });
+  }
+  return response;
 }
 
 export async function PATCH(request) {
