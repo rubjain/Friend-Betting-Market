@@ -58,6 +58,7 @@ This is a responsive Next.js MVP for a social prediction market product: a sport
 - Login, logout, signup, persisted user sessions, and a dev-only admin shortcut provide the first real auth foundation
 - Signup and database seeding store `scrypt`-hashed passwords (Node built-in `crypto`, no extra deps); login verifies them with constant-time comparison
 - PostgreSQL-backed auth security now covers durable login/signup/password-reset rate limits, expiring email-verification tokens, password-reset tokens, session revocation after reset, and audit trails for completed resets
+- User deposit and withdrawal actions now have persisted payment transaction records, ledger entries, and audit events when `DATABASE_URL` is configured; withdrawals are held in `PENDING_REVIEW`
 - Category source-adapter contracts now define required settlement fields by sport
 - `prisma/schema.prisma` sketches the production data model for users, markets, bets, balances, ledger entries, friendships, boosts, admin config, risk reviews, resolutions, evidence links, audit trails, odds snapshots, orders, and AMM liquidity pools
 - `docs/real-money-compliance-plan.md` captures the compliance gates that must be complete before withdrawable play funds become real money
@@ -108,6 +109,11 @@ Auth endpoints for production hardening:
 - `/verify-email` and `/forgot-password` expose those flows in the app UI for demo and QA.
 
 Production still needs a real email provider before these tokens are user-facing. Set `FRIENDMARKET_APP_URL` and `FRIENDMARKET_EMAIL_FROM` now so links can be generated consistently when delivery is connected.
+
+Funding endpoints for payment-infrastructure hardening:
+
+- `POST /api/funds/deposit` accepts `{ "amount": 25, "method": "bank" }`, creates a completed demo-ledger payment transaction, credits withdrawable balance, writes a ledger entry, and records an audit event.
+- `POST /api/funds/withdraw` accepts `{ "amount": 25, "method": "bank" }`, creates a pending-review withdrawal transaction, holds withdrawable funds with a debit ledger entry, and records an audit event for admin review.
 
 Set `FRIENDMARKET_SESSION_SECRET` to a long random value before sharing any environment. To expose the temporary admin toggle locally, set `FRIENDMARKET_DEV_ADMIN_SHORTCUT=1`; keep it disabled outside local development.
 

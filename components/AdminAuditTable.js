@@ -15,6 +15,8 @@ const auditActionOptions = [
   ["friend.invited", "Friend invites"],
   ["friend.request.updated", "Friend requests"],
   ["funds.credit", "Funds credits"],
+  ["payment.deposit.completed", "Deposit completed"],
+  ["payment.withdrawal.requested", "Withdrawal requested"],
   ["market.approved", "Market approvals"],
   ["market.lifecycle.updated", "Market lifecycle"],
   ["market.rejected", "Market rejections"],

@@ -49,7 +49,7 @@ export default function DepositPage() {
     if (pendingAction) return;
     setPendingAction("deposit");
     try {
-      await actions.addDeposit();
+      await actions.addDeposit(depositAmount, depositMethod);
     } finally {
       setPendingAction("");
     }

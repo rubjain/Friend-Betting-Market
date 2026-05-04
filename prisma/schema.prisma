@@ -24,6 +24,7 @@ enum LedgerTransactionType {
 
 enum LedgerSource {
   DEPOSIT
+  WITHDRAWAL
   BET_PLACED
   MARKET_PAYOUT
   SOCIAL_BOOST
@@ -137,6 +138,23 @@ enum AuthTokenType {
   ACCOUNT_RECOVERY
 }
 
+enum PaymentTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  REFUND
+  CHARGEBACK
+}
+
+enum PaymentTransactionStatus {
+  PENDING_REVIEW
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  CANCELED
+  FAILED
+}
+
 model User {
   id                 String              @id @default(cuid())
   name               String
@@ -164,6 +182,7 @@ model User {
   sessions           UserSession[]
   authTokens         AuthToken[]
   rateLimitBuckets   RateLimitBucket[]
+  paymentTransactions PaymentTransaction[]
 }
 
 model UserSession {
@@ -464,4 +483,27 @@ model RateLimitBucket {
 
   @@index([scope, resetAt])
   @@index([userId, scope])
+}
+
+model PaymentTransaction {
+  id           String                   @id @default(cuid())
+  userId       String
+  type         PaymentTransactionType
+  status       PaymentTransactionStatus @default(PENDING_REVIEW)
+  amount       Decimal                  @db.Decimal(14, 2)
+  currency     BalanceCurrency          @default(WITHDRAWABLE)
+  provider     String                   @default("demo-ledger")
+  providerRef  String?
+  method       String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  metadata     Json?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([type, status, createdAt])
+  @@index([provider, providerRef])
 }

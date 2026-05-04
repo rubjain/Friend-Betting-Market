@@ -1061,11 +1061,32 @@ export function FriendMarketProvider({ children }) {
           next.flashMessage = "Added a $25 play-money deposit to withdrawable balance.";
         });
       },
-      async addDeposit(amount = state.fundingDrafts.depositAmount) {
+      async addDeposit(amount = state.fundingDrafts.depositAmount, method = "bank") {
+        try {
+          const { payload } = await requestJson("/api/funds/deposit", {
+            method: "POST",
+            body: JSON.stringify({ amount, method }),
+          });
+          if (payload.state) {
+            setState({
+              ...payload.state,
+              auth: state.auth,
+              theme: state.theme,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            });
+            return payload.ok;
+          }
+        } catch {
+          // Fall through to the local demo reducer when the API is unavailable.
+        }
+
+        let ok = true;
         updateState((next) => {
           const depositAmount = Math.max(0, Number(amount) || 0);
           if (!depositAmount) {
             next.flashMessage = "Enter a deposit amount above zero.";
+            ok = false;
             return;
           }
           addFunds(next, {
@@ -1076,16 +1097,39 @@ export function FriendMarketProvider({ children }) {
           });
           next.flashMessage = `Added ${money(depositAmount)} to withdrawable balance.`;
         });
+        return ok;
       },
-      async requestWithdrawal(amount = state.fundingDrafts.withdrawAmount) {
+      async requestWithdrawal(amount = state.fundingDrafts.withdrawAmount, method = "bank") {
+        try {
+          const { payload } = await requestJson("/api/funds/withdraw", {
+            method: "POST",
+            body: JSON.stringify({ amount, method }),
+          });
+          if (payload.state) {
+            setState({
+              ...payload.state,
+              auth: state.auth,
+              theme: state.theme,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            });
+            return payload.ok;
+          }
+        } catch {
+          // Fall through to the local demo reducer when the API is unavailable.
+        }
+
+        let ok = true;
         updateState((next) => {
           const withdrawalAmount = Math.max(0, Number(amount) || 0);
           if (!withdrawalAmount) {
             next.flashMessage = "Enter a withdrawal amount above zero.";
+            ok = false;
             return;
           }
           if (withdrawalAmount > next.currentUser.withdrawable_balance) {
             next.flashMessage = "Withdrawal exceeds withdrawable balance.";
+            ok = false;
             return;
           }
           next.currentUser.withdrawable_balance -= withdrawalAmount;
@@ -1102,6 +1146,7 @@ export function FriendMarketProvider({ children }) {
           refreshDerivedBalances(next);
           next.flashMessage = `Created a demo withdrawal for ${money(withdrawalAmount)}.`;
         });
+        return ok;
       },
       async applyReferral(code = state.fundingDrafts.referralCode) {
         updateState((next) => {

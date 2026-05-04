@@ -36,7 +36,7 @@ export default function WithdrawPage() {
     if (pendingAction) return;
     setPendingAction("withdraw");
     try {
-      await actions.requestWithdrawal();
+      await actions.requestWithdrawal(withdrawAmount, withdrawMethod);
     } finally {
       setPendingAction("");
     }
