@@ -98,6 +98,7 @@ export default function LoginPage() {
         <div className="auth-foot">
           <span>Password for demo accounts: password123.</span>
           <Link href="/signup">Create one</Link>
+          <Link href="/forgot-password">Reset password</Link>
         </div>
       </div>
     </div>

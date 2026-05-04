@@ -3550,6 +3550,10 @@ textarea { min-height: 130px; resize: vertical; }
   box-shadow: var(--shadow);
 }
 
+.auth-card-wide {
+  max-width: 480px;
+}
+
 .auth-head { display: flex; flex-direction: column; gap: 6px; }
 .auth-head .brand { margin-bottom: 8px; }
 .auth-head h2 {
@@ -3561,6 +3565,7 @@ textarea { min-height: 130px; resize: vertical; }
 }
 .auth-head p { font-size: 0.84rem; color: var(--muted); margin: 0; }
 .auth-error { font-size: 0.8rem; color: var(--danger); margin: 0; padding: 0; }
+.auth-success { font-size: 0.8rem; color: #15803d; margin: 0; padding: 0; }
 .demo-login-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3607,6 +3612,7 @@ textarea { min-height: 130px; resize: vertical; }
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
   font-size: 0.82rem;
   color: var(--muted);
   border-top: 1px solid var(--border);

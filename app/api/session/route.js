@@ -89,7 +89,7 @@ export async function POST(request) {
   const payload = await request.json();
   const result =
     payload.mode === "signup"
-      ? await signupUser(payload)
+      ? await signupUser({ ...payload, rateLimitKey: getRequestRateLimitKey(request) })
       : await loginUser({
           identifier: payload.identifier || payload.email || payload.username,
           password: payload.password,
@@ -105,8 +105,10 @@ export async function POST(request) {
     session: result.session,
     devAdminShortcut: isDevAdminShortcutEnabled(),
     user: result.user,
+    emailVerificationToken:
+      process.env.NODE_ENV === "production" ? undefined : result.emailVerificationToken,
     state: await stateForSession(result.session),
-    message: payload.mode === "signup" ? "Account created and signed in." : "Signed in.",
+    message: result.message || (payload.mode === "signup" ? "Account created and signed in." : "Signed in."),
   });
   response.cookies.set(
     SESSION_COOKIE_NAME,

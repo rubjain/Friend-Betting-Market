@@ -56,7 +56,8 @@ This is a responsive Next.js MVP for a social prediction market product: a sport
 - Admins can pause and resume active markets; paused markets reject new bets in both the UI and API
 - Friend boost actions now feed a reusable risk engine for repeat boosts, dense clusters, and boost-pattern review signals
 - Login, logout, signup, persisted user sessions, and a dev-only admin shortcut provide the first real auth foundation
-- Signup and database seeding store `scrypt`-hashed passwords (Node built-in `crypto`, no extra deps); login verifies them with constant-time comparison and rate-limits repeated failures
+- Signup and database seeding store `scrypt`-hashed passwords (Node built-in `crypto`, no extra deps); login verifies them with constant-time comparison
+- PostgreSQL-backed auth security now covers durable login/signup/password-reset rate limits, expiring email-verification tokens, password-reset tokens, session revocation after reset, and audit trails for completed resets
 - Category source-adapter contracts now define required settlement fields by sport
 - `prisma/schema.prisma` sketches the production data model for users, markets, bets, balances, ledger entries, friendships, boosts, admin config, risk reviews, resolutions, evidence links, audit trails, odds snapshots, orders, and AMM liquidity pools
 - `docs/real-money-compliance-plan.md` captures the compliance gates that must be complete before withdrawable play funds become real money
@@ -98,6 +99,15 @@ npm run db:verify
 4. Run `npm run prisma:migrate` to apply the schema.
 
 When `DATABASE_URL` is present, `/api/session` hydrates from persisted users and sessions, while `/api/demo-state` remains available for reset/fallback workflows. The seed flow now creates persisted demo users with hashed passwords, balance accounts, markets, friendships, a friend activity bet, ledger entries, and a seed session. Bet placement, market submission, admin approval/rejection, lifecycle changes, resolution, void/refund handling, admin funds, admin config, profile edits, verification status updates, friend invites, friend request actions, social boosts, risk actions, and admin CSV exports all use Prisma-backed services. Without `DATABASE_URL`, the existing in-memory demo store remains the fallback.
+
+Auth endpoints for production hardening:
+
+- `POST /api/auth/verify-email` accepts `{ "token": "..." }` and marks the user's email verification check as verified.
+- `POST /api/auth/password-reset` accepts `{ "identifier": "email-or-username" }` and creates a reset token. In development only, the token is returned in the response so the flow can be tested before an email provider is connected.
+- `PATCH /api/auth/password-reset` accepts `{ "token": "...", "password": "new-password" }`, updates the password, revokes existing sessions, and writes an audit entry.
+- `/verify-email` and `/forgot-password` expose those flows in the app UI for demo and QA.
+
+Production still needs a real email provider before these tokens are user-facing. Set `FRIENDMARKET_APP_URL` and `FRIENDMARKET_EMAIL_FROM` now so links can be generated consistently when delivery is connected.
 
 Set `FRIENDMARKET_SESSION_SECRET` to a long random value before sharing any environment. To expose the temporary admin toggle locally, set `FRIENDMARKET_DEV_ADMIN_SHORTCUT=1`; keep it disabled outside local development.
 

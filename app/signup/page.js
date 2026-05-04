@@ -43,7 +43,7 @@ export default function SignupPage() {
             <div className="brand-mark">AG</div>
           </Link>
           <h2>Create account</h2>
-          <p>Demo mode uses test accounts. Use the sign-in page to enter the basic user sandbox.</p>
+          <p>Create a demo account, then verify email before any production-money features are enabled.</p>
         </div>
         <div className="note-banner auth-note">
           Use test@example.com or taylor@example.com with password123 to test friend invites from clean $100 accounts.
@@ -110,6 +110,7 @@ export default function SignupPage() {
         <div className="auth-foot">
           <span>Already have an account?</span>
           <Link href="/login">Sign in</Link>
+          <Link href="/verify-email">Verify email</Link>
         </div>
       </div>
     </div>
