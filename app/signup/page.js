@@ -9,6 +9,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { actions } = useFriendMarket();
   const [draft, setDraft] = useState({ name: "", email: "", username: "", password: "" });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -19,6 +20,10 @@ export default function SignupPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     if (pending) return;
+    if (!acceptedTerms) {
+      setError("You must accept the Terms of Use and Privacy Policy to create an account.");
+      return;
+    }
     setError("");
     setPending(true);
     try {
@@ -37,7 +42,7 @@ export default function SignupPage() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-card">
+      <div className="auth-card auth-card-wide">
         <div className="auth-head">
           <Link className="brand" href="/">
             <div className="brand-mark">AG</div>
@@ -102,7 +107,28 @@ export default function SignupPage() {
           </div>
           {error ? <p className="field full auth-error">{error}</p> : null}
           <div className="field full">
-            <button className="btn btn-primary" type="submit" disabled={pending} style={{ width: "100%" }}>
+            <label className="auth-terms">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.currentTarget.checked)}
+                aria-describedby="signup-terms-desc"
+              />
+              <span id="signup-terms-desc">
+                I agree to the{" "}
+                <Link href="/legal">Terms of Use</Link> and{" "}
+                <Link href="/privacy">Privacy Policy</Link>, and I understand how demo balances and play credits work as described in the{" "}
+                <Link href="/faq">FAQ</Link>.
+              </span>
+            </label>
+          </div>
+          <div className="field full">
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={pending || !acceptedTerms}
+              style={{ width: "100%" }}
+            >
               {pending ? "Creating account..." : "Create account"}
             </button>
           </div>

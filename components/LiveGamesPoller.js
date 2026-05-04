@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFriendMarket } from "../context/FriendMarketContext";
 
 const STANDALONE_AUTH_ROUTES = new Set([
@@ -12,14 +12,21 @@ const STANDALONE_AUTH_ROUTES = new Set([
   "/verify-email",
 ]);
 
+const IDLE_POLL_MS = 60_000;
+
 /**
- * Polls `/api/live/games` (ESPN-backed when available) about every 5s to refresh the live scoreboard.
+ * Polls `/api/live/games` every 5s while at least one game is live; otherwise on a slower cadence.
  */
 export default function LiveGamesPoller() {
-  const { hydrated, actions } = useFriendMarket();
+  const { hydrated, actions, state } = useFriendMarket();
   const pathname = usePathname() || "";
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
+
+  const hasLiveGame = useMemo(
+    () => (state.liveGames || []).some((g) => g.status === "live"),
+    [state.liveGames],
+  );
 
   useEffect(() => {
     if (!hydrated || STANDALONE_AUTH_ROUTES.has(pathname)) {
@@ -41,12 +48,13 @@ export default function LiveGamesPoller() {
       }
     }
     void pull();
-    const id = window.setInterval(pull, 5_000);
+    const intervalMs = hasLiveGame ? 5_000 : IDLE_POLL_MS;
+    const id = window.setInterval(pull, intervalMs);
     return () => {
       canceled = true;
       window.clearInterval(id);
     };
-  }, [hydrated, pathname]);
+  }, [hydrated, pathname, hasLiveGame]);
 
   return null;
 }

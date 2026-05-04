@@ -364,6 +364,22 @@ a { color: inherit; text-decoration: none; }
   font-size: 0.78rem;
 }
 
+.footer-legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-top: 12px;
+}
+.footer-legal-nav a {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+}
+.footer-legal-nav a:hover {
+  color: var(--accent);
+}
+
 .page { display: none; }
 .page.active { display: block; }
 
@@ -819,11 +835,29 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Market card (Kalshi-style) ───────────────────────────── */
 .market-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 14px;
   padding: 20px;
   transition: box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.market-card-stretched-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.market-card-stretched-link:focus-visible {
+  outline: 2px solid var(--ring, #3b82f6);
+  outline-offset: 2px;
+}
+
+.market-card-interactive {
+  position: relative;
+  z-index: 2;
 }
 
 .market-card:hover {
@@ -1001,6 +1035,133 @@ a { color: inherit; text-decoration: none; }
   color: var(--text);
   font-size: 1rem;
   font-weight: 700;
+}
+
+/* ── Live games rail (scoreboard) ──────────────────────────── */
+.live-games-rail {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.live-games-rail--empty {
+  padding: 10px 14px;
+}
+
+.live-games-rail--empty .caption {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.live-games-rail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.live-games-rail-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.live-games-rail-meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.live-games-rail-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.live-games-card {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  width: min(200px, 72vw);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+
+.live-games-card--link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.live-games-card--link:hover {
+  border-color: color-mix(in srgb, var(--border) 70%, var(--foreground));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.live-games-card--link:focus-visible {
+  outline: 2px solid var(--ring, #3b82f6);
+  outline-offset: 2px;
+}
+
+.live-game-detail-market-link {
+  margin: 0 0 12px;
+}
+
+.live-games-card--live {
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 1px 0 rgba(239, 68, 68, 0.06);
+}
+
+.live-games-card-league {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-games-card-match {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 6px 0 4px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.live-games-card-score {
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
+.live-games-card-team {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-games-card-status {
+  font-size: 0.68rem;
+  color: var(--muted);
 }
 
 /* ── Mini live card ───────────────────────────────────────── */
@@ -2253,6 +2414,283 @@ a { color: inherit; text-decoration: none; }
   color: var(--muted);
 }
 
+/* ── Tennis live board (Kalshi-style) ─────────────────────── */
+.tennis-board {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+
+.tennis-board-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin-bottom: 10px;
+}
+
+.tennis-board-chip {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.tennis-board-chip--muted {
+  opacity: 0.85;
+}
+
+.tennis-board-sets-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tennis-board-sets-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.tennis-board-sets-score {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.tennis-board-status {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.tennis-board-lower {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.tennis-board-current-game {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.tennis-board-current-game-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.tennis-board-current-game-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tennis-board-current-player {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tennis-board-current-player--home {
+  flex-direction: row-reverse;
+  text-align: right;
+  justify-content: flex-start;
+}
+
+.tennis-board-current-abbr {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tennis-board-current-pt {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.tennis-board-current-vs {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tennis-point-history {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.tennis-point-history-title {
+  margin: 0 0 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tennis-point-history-note {
+  margin: 0 0 8px;
+}
+
+.tennis-point-history-empty {
+  margin: 0;
+}
+
+.tennis-point-history-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: min(280px, 36vh);
+  overflow: auto;
+}
+
+.tennis-point-history-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.tennis-point-history-item:last-child {
+  border-bottom: none;
+}
+
+.tennis-point-history-meta {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.tennis-point-history-text {
+  color: var(--text);
+}
+
+.tennis-board-scroll {
+  overflow-x: auto;
+  margin: 0 -4px;
+}
+
+.tennis-board-table {
+  width: 100%;
+  min-width: 320px;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.tennis-board-table th {
+  padding: 6px 8px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tennis-board-col-player {
+  text-align: left !important;
+  min-width: 120px;
+}
+
+.tennis-board-col-set {
+  min-width: 36px;
+}
+
+.tennis-board-col-pts {
+  min-width: 44px;
+}
+
+.tennis-board-table td {
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.tennis-board-player {
+  text-align: left !important;
+}
+
+.tennis-board-name {
+  font-weight: 700;
+}
+
+.tennis-board-serve {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--yes, #2563eb);
+  vertical-align: middle;
+}
+
+[data-theme="dark"] .tennis-board-serve {
+  background: rgba(96, 165, 250, 0.16);
+  color: #93c5fd;
+}
+
+.tennis-racket-icon {
+  display: block;
+}
+
+.tennis-board-cell-pts {
+  font-weight: 800;
+  font-size: 0.92rem;
+}
+
+.tennis-board-last-play {
+  margin: 0 0 10px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.tennis-board-last-play .label {
+  font-weight: 700;
+  margin-right: 6px;
+  color: var(--text);
+}
+
+.tennis-board--empty {
+  background: var(--surface-alt);
+}
+
+.market-game-tab-panel--tennis {
+  border-top: none;
+}
+
 .market-game-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2361,24 +2799,9 @@ a { color: inherit; text-decoration: none; }
   align-items: flex-end;
 }
 
-.market-price-chart-legend-a {
+.market-price-chart-legend-line {
   font-size: 0.72rem;
   font-weight: 700;
-  color: #15803d;
-}
-
-.market-price-chart-legend-b {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #b91c1c;
-}
-
-[data-theme="dark"] .market-price-chart-legend-a {
-  color: #4ade80;
-}
-
-[data-theme="dark"] .market-price-chart-legend-b {
-  color: #f87171;
 }
 
 .market-chart-tooltip-row {
@@ -2393,14 +2816,6 @@ a { color: inherit; text-decoration: none; }
   height: 8px;
   border-radius: 999px;
   flex-shrink: 0;
-}
-
-.market-chart-tooltip-dot--a {
-  background: #15803d;
-}
-
-.market-chart-tooltip-dot--b {
-  background: #b91c1c;
 }
 
 .market-detail-price-row {
@@ -4616,6 +5031,398 @@ textarea { min-height: 130px; resize: vertical; }
 }
 .auth-foot a { color: var(--accent); text-decoration: none; font-weight: 600; }
 .auth-foot a:hover { color: var(--accent-strong); }
+
+.auth-terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text);
+  cursor: pointer;
+}
+.auth-terms input {
+  margin: 3px 0 0;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.auth-terms span { cursor: pointer; }
+.auth-terms a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.auth-terms a:hover { color: var(--accent-strong); }
+
+/* FAQ & legal pages */
+.legal-summary {
+  margin: 0 0 16px;
+  font-size: 0.88rem;
+  color: var(--muted);
+  max-width: 52rem;
+}
+.legal-summary a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.legal-summary a:hover { color: var(--accent-strong); }
+
+.faq-list { padding: 16px 18px; }
+.faq-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  background: var(--surface-alt);
+}
+.faq-item + .faq-item { margin-top: 10px; }
+.faq-item summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 14px 0;
+  list-style: none;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: "";
+  float: right;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.35rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 120ms ease;
+}
+.faq-item[open] summary::after { transform: rotate(225deg); margin-top: 0.5rem; }
+.faq-item p {
+  margin: 0 0 14px;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Terms & Privacy — document layout */
+.legal-page {
+  --legal-content-max: 44rem;
+  padding-bottom: 48px;
+}
+.legal-hero-section-head { margin-bottom: 12px; }
+.legal-page-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+  color: var(--text);
+}
+.legal-hero-section-head p {
+  max-width: 40rem;
+  line-height: 1.55;
+}
+.legal-hero-section-head a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.legal-hero-section-head a:hover { color: var(--accent-strong); }
+
+.legal-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 28px;
+  padding: 12px 16px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.legal-hero-meta strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.legal-meta-dot { opacity: 0.45; }
+.legal-hero-privacy-link {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+.legal-hero-privacy-link:hover { color: var(--accent-strong); }
+
+.legal-toc-mobile {
+  display: block;
+  margin: 0 0 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.legal-toc-mobile-summary {
+  cursor: pointer;
+  padding: 14px 18px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  list-style: none;
+  color: var(--text);
+}
+.legal-toc-mobile-summary::-webkit-details-marker { display: none; }
+.legal-toc-mobile[open] .legal-toc-mobile-summary {
+  border-bottom: 1px solid var(--border);
+}
+.legal-toc-mobile nav {
+  padding: 12px 10px 16px;
+}
+
+.legal-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.legal-sidebar {
+  display: none;
+}
+.legal-sidebar-sticky {
+  position: sticky;
+  top: 84px;
+  padding: 18px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+  max-height: calc(100vh - 100px);
+  overflow: auto;
+}
+.legal-sidebar-kicker {
+  margin: 0 0 12px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.legal-sidebar-note {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.legal-toc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: legaltoc;
+}
+.legal-toc-list > li {
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+}
+.legal-toc-list > li:last-child { border-bottom: 0; }
+.legal-toc-list a {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 4px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.12s ease;
+}
+.legal-toc-list a:hover,
+.legal-toc-list a:focus-visible {
+  background: rgba(245, 93, 0, 0.08);
+  outline: none;
+}
+.legal-toc-num {
+  flex-shrink: 0;
+  width: 1.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--muted);
+  padding-top: 1px;
+}
+.legal-toc-label { font-weight: 600; color: var(--muted); }
+.legal-toc-list a:hover .legal-toc-label { color: var(--text); }
+
+.legal-main {
+  min-width: 0;
+}
+.legal-article {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: clamp(20px, 4vw, 36px);
+}
+
+.legal-section {
+  scroll-margin-top: 96px;
+  padding-bottom: 28px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+.legal-section:last-of-type {
+  border-bottom: 0;
+  margin-bottom: 20px;
+  padding-bottom: 0;
+}
+.legal-section-title {
+  margin: 0 0 16px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1.25;
+}
+.legal-section-body {
+  max-width: var(--legal-content-max);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--muted);
+}
+.legal-section-body > p {
+  margin: 0 0 14px;
+}
+.legal-section-body > p:last-child { margin-bottom: 0; }
+
+.legal-subheading {
+  margin: 22px 0 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.legal-subheading:first-child { margin-top: 0; }
+
+.legal-list {
+  margin: 0 0 16px;
+  padding-left: 1.15rem;
+}
+.legal-list li {
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+.legal-list li:last-child { margin-bottom: 0; }
+.legal-list--ordered { list-style: decimal; }
+
+.legal-definition-list {
+  margin: 8px 0 0;
+}
+.legal-definition-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.legal-definition-row:last-child { border-bottom: 0; }
+.legal-definition-list dt {
+  margin: 0 0 4px;
+  font-weight: 800;
+  font-size: 0.84rem;
+  color: var(--text);
+}
+.legal-definition-list dd {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.legal-callout {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--border);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+.legal-callout p { margin: 0; }
+.legal-callout--important {
+  border-left-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--text);
+}
+.legal-callout--risk {
+  border-left-color: #dc2626;
+  background: rgba(220, 38, 38, 0.07);
+  color: var(--text);
+}
+.legal-callout--note {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.legal-doc-footer-card {
+  margin-top: 8px;
+  padding: 20px 22px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+  background: var(--surface-alt);
+}
+.legal-doc-footer-title {
+  margin: 0 0 10px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.legal-doc-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.legal-doc-footer-links a {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+}
+.legal-doc-footer-links a:hover { color: var(--accent-strong); }
+
+@media (min-width: 960px) {
+  .legal-toc-mobile { display: none; }
+  .legal-layout {
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+    gap: 36px;
+    align-items: start;
+  }
+  .legal-sidebar {
+    display: block;
+  }
+}
+
+@media print {
+  .legal-sidebar,
+  .legal-toc-mobile,
+  .site-header,
+  .footer-wrap,
+  .legal-doc-footer-card {
+    display: none !important;
+  }
+  .legal-article {
+    box-shadow: none;
+    border: 0;
+  }
+  .legal-section {
+    break-inside: avoid;
+  }
+}
 
 /* ── Utilities ────────────────────────────────────────────── */
 .hide { display: none !important; }

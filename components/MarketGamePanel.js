@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getLiveGameClock } from "../lib/marketAlgorithms";
+import { getGameMarketCategory } from "../lib/gameMarkets";
 import { sortPlaysNewestFirst } from "../lib/espnSummaryNormalize";
+import { mergeTennisSnapshots } from "../lib/tennisScoreboard";
 import LiveBoxScore from "./LiveBoxScore";
+import TennisMatchBoard from "./TennisMatchBoard";
 
 function leagueToApiParam(league) {
   const L = String(league || "").toUpperCase();
@@ -15,9 +18,12 @@ function leagueToApiParam(league) {
 }
 
 export default function MarketGamePanel({ market, game }) {
+  const headline = market?.title ?? `${game.awayTeam} at ${game.homeTeam}`;
+  const category = market?.category ?? getGameMarketCategory(game);
   const [tab, setTab] = useState("pbp");
   const [remotePlays, setRemotePlays] = useState([]);
   const [playerBox, setPlayerBox] = useState(null);
+  const [tennisBoard, setTennisBoard] = useState(null);
   const [feedError, setFeedError] = useState(false);
 
   const leagueParam = useMemo(() => leagueToApiParam(game.league), [game.league]);
@@ -27,6 +33,7 @@ export default function MarketGamePanel({ market, game }) {
     if (!eventId) {
       setRemotePlays([]);
       setPlayerBox(null);
+      setTennisBoard(null);
       return undefined;
     }
     let canceled = false;
@@ -45,11 +52,13 @@ export default function MarketGamePanel({ market, game }) {
         setFeedError(!!data.feedError);
         setRemotePlays(Array.isArray(data.plays) ? data.plays : []);
         setPlayerBox(data.playerBox ?? null);
+        setTennisBoard(data.tennisBoard ?? null);
       } catch {
         if (!canceled) {
           setFeedError(true);
           setRemotePlays([]);
           setPlayerBox(null);
+          setTennisBoard(null);
         }
       }
     }
@@ -78,13 +87,22 @@ export default function MarketGamePanel({ market, game }) {
     return sortPlaysNewestFirst(fallback);
   }, [remotePlays, game]);
 
+  const isTennis =
+    typeof game.id === "string" &&
+    (game.id.startsWith("espn_tennis_") || String(game.espnSummaryPath || "").startsWith("tennis/"));
+
+  const mergedTennis = useMemo(
+    () => mergeTennisSnapshots(game.tennis ?? null, tennisBoard),
+    [game.tennis, tennisBoard],
+  );
+
   const isLive = game.status === "live";
   const clock = getLiveGameClock(game);
 
   return (
     <div className={`market-game-panel ${isLive ? "market-game-panel--live" : ""}`}>
       <div className="market-game-panel-head">
-        <h2 className="market-game-panel-title">{market.title}</h2>
+        <h2 className="market-game-panel-title">{headline}</h2>
         <div className="market-game-panel-meta">
           <span>{game.league}</span>
           <span className="market-game-panel-clock">{clock}</span>
@@ -111,62 +129,74 @@ export default function MarketGamePanel({ market, game }) {
       {game.feedStatus ? <p className="market-game-feed-line">{game.feedStatus}</p> : null}
       {game.broadcast ? <p className="market-game-broadcast">{game.broadcast}</p> : null}
 
-      <div className="market-game-tabs" role="tablist" aria-label="Game detail tabs">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "pbp"}
-          className={tab === "pbp" ? "is-active" : ""}
-          onClick={() => setTab("pbp")}
-        >
-          Play-by-play
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "box"}
-          className={tab === "box" ? "is-active" : ""}
-          onClick={() => setTab("box")}
-        >
-          Box score
-        </button>
-      </div>
+      {isTennis ? (
+        <TennisMatchBoard
+          snapshot={mergedTennis}
+          game={game}
+          plays={playRows}
+          feedError={feedError}
+          hasRemotePlays={remotePlays.length > 0}
+        />
+      ) : (
+        <>
+          <div className="market-game-tabs" role="tablist" aria-label="Game detail tabs">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "pbp"}
+              className={tab === "pbp" ? "is-active" : ""}
+              onClick={() => setTab("pbp")}
+            >
+              Play-by-play
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "box"}
+              className={tab === "box" ? "is-active" : ""}
+              onClick={() => setTab("box")}
+            >
+              Box score
+            </button>
+          </div>
 
-      {tab === "pbp" ? (
-        <div className="market-game-tab-panel" role="tabpanel">
-          {feedError && !remotePlays.length ? (
-            <p className="market-game-pbp-note">Live play-by-play feed unavailable; showing desk updates.</p>
+          {tab === "pbp" ? (
+            <div className="market-game-tab-panel" role="tabpanel">
+              {feedError && !remotePlays.length ? (
+                <p className="market-game-pbp-note">Live play-by-play feed unavailable; showing desk updates.</p>
+              ) : null}
+              {!remotePlays.length && playRows.length && category === "MLB" ? (
+                <p className="market-game-pbp-note">
+                  MLB play-by-play loads from the desk until a pitch-by-pitch feed is wired; scores still refresh with the game.
+                </p>
+              ) : null}
+              <ul className="market-game-pbp-list">
+                {playRows.map((row) => (
+                  <li key={row.id} className="market-game-pbp-item">
+                    <div className="market-game-pbp-scores">
+                      <span>{row.awayScore ?? game.awayScore}</span>
+                      <span className="market-game-pbp-dash">–</span>
+                      <span>{row.homeScore ?? game.homeScore}</span>
+                    </div>
+                    <div className="market-game-pbp-main">
+                      <div className="market-game-pbp-meta">
+                        {[row.periodLabel, row.clockLabel].filter(Boolean).join(" · ") || "—"}
+                      </div>
+                      <div className="market-game-pbp-text">{row.text}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
-          {!remotePlays.length && playRows.length && market.category === "MLB" ? (
-            <p className="market-game-pbp-note">
-              MLB play-by-play loads from the desk until a pitch-by-pitch feed is wired; scores still refresh with the game.
-            </p>
-          ) : null}
-          <ul className="market-game-pbp-list">
-            {playRows.map((row) => (
-              <li key={row.id} className="market-game-pbp-item">
-                <div className="market-game-pbp-scores">
-                  <span>{row.awayScore ?? game.awayScore}</span>
-                  <span className="market-game-pbp-dash">–</span>
-                  <span>{row.homeScore ?? game.homeScore}</span>
-                </div>
-                <div className="market-game-pbp-main">
-                  <div className="market-game-pbp-meta">
-                    {[row.periodLabel, row.clockLabel].filter(Boolean).join(" · ") || "—"}
-                  </div>
-                  <div className="market-game-pbp-text">{row.text}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
-      {tab === "box" ? (
-        <div className="market-game-tab-panel" role="tabpanel">
-          <LiveBoxScore game={game} playerBox={playerBox} />
-        </div>
-      ) : null}
+          {tab === "box" ? (
+            <div className="market-game-tab-panel" role="tabpanel">
+              <LiveBoxScore game={game} playerBox={playerBox} />
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

@@ -8,20 +8,20 @@ import { getMarketPipelineSummary } from "../../lib/marketAlgorithms";
 import MarketCard from "../MarketCard";
 
 export default function LandingPage() {
-  const { state } = useFriendMarket();
+  const { state, selectors } = useFriendMarket();
   const landingData = useMemo(() => {
-    const featuredMarkets = [...state.markets]
-      .sort((left, right) => Number(right.volume || 0) - Number(left.volume || 0))
-      .slice(0, 12);
-    const totalVolume = state.markets.reduce((sum, market) => sum + Number(market.volume || 0), 0);
-    const pipeline = getMarketPipelineSummary(state.markets, state.liveGames);
+    const catalog = selectors.getMergedMarkets();
+    const featuredMarkets = [...catalog].sort((left, right) => Number(right.volume || 0) - Number(left.volume || 0)).slice(0, 12);
+    const totalVolume = catalog.reduce((sum, market) => sum + Number(market.volume || 0), 0);
+    const pipeline = getMarketPipelineSummary(catalog, state.liveGames);
 
     return {
       featuredMarkets,
       totalVolume,
       pipeline,
+      catalogCount: catalog.length,
     };
-  }, [state.liveGames, state.markets]);
+  }, [state.liveGames, selectors]);
 
   return (
     <section className="page active">
@@ -29,7 +29,7 @@ export default function LandingPage() {
         <p className="hero-eyebrow">Social prediction markets</p>
         <h2 className="hero-headline">Trade what you know. Boost with friends.</h2>
         <p className="hero-sub">
-          Binary YES/NO markets on the sports you follow. Social boosts amplify your winnings.
+          Binary YES/NO markets on live sports you follow. Social boosts amplify your winnings.
         </p>
         <div className="hero-ctas">
           <Link className="btn btn-primary" href="/markets">Browse Markets</Link>
@@ -40,7 +40,7 @@ export default function LandingPage() {
       <div className="landing-stats">
         <div className="landing-stat">
           <span className="landing-stat-label">Markets</span>
-          <strong className="landing-stat-value">{state.markets.length}</strong>
+          <strong className="landing-stat-value">{landingData.catalogCount}</strong>
         </div>
         <div className="landing-stat">
           <span className="landing-stat-label">Total volume</span>

@@ -20,6 +20,12 @@ export default function MarketCard({ market, compact = false }) {
 
   return (
     <article className={`market-card${compact ? " market-card--compact" : ""}`}>
+      <Link
+        href={`/markets/${market.id}`}
+        className="market-card-stretched-link"
+        aria-label={`View market: ${market.title}`}
+        prefetch
+      />
       <div className="market-card-header">
         <span className="market-category-kicker">{market.category}</span>
         {linkedGame?.status === "live" ? <span className="market-live-badge">LIVE</span> : null}
@@ -39,7 +45,7 @@ export default function MarketCard({ market, compact = false }) {
           </strong>
         </div>
       ) : null}
-      <div className="market-price-grid" aria-label={`${market.title} prices`}>
+      <div className="market-price-grid market-card-interactive" aria-label={`${market.title} prices`}>
         <button className="price-button yes-price" type="button" onClick={() => prepare("YES")}>
           <span>{yesLabel}</span>
           <strong>{formatPercent(market.yesPrice)}</strong>
@@ -55,16 +61,13 @@ export default function MarketCard({ market, compact = false }) {
           <span className="market-meta-item">Closes {formatMarketDate(market.endDate)}</span>
           {compact ? null : <span className="market-meta-item">{market.friendsBoosting} boosts</span>}
         </div>
-        <div className="market-card-actions">
-          <Link className="btn btn-secondary btn-sm" href={`/markets/${market.id}`}>
-            Details
-          </Link>
-          {compact ? null : (
+        {!compact ? (
+          <div className="market-card-actions market-card-interactive">
             <Link className="btn btn-ghost btn-sm" href="/friends" onClick={() => actions.setSelectedMarket(market.id)}>
               Boost
             </Link>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </article>
   );

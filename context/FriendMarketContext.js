@@ -11,14 +11,15 @@ import {
   createSettlementLedgerEntries,
 } from "../lib/accounting";
 import { defaultState, STORAGE_KEY } from "../lib/defaultState";
+import { mergeGameMarkets } from "../lib/gameMarkets.js";
 import { money } from "../lib/formatters";
 import { calculatePayout } from "../lib/marketMath";
-import { getResolutionTemplate, marketCategories } from "../lib/marketTaxonomy";
+import { getResolutionTemplate, sportMarketCategories } from "../lib/marketTaxonomy";
 import { applyRiskSignalsToUser, getBoostRiskSignals } from "../lib/riskEngine";
 
 const FriendMarketContext = createContext(null);
 
-const sportCategoryLabels = new Set(marketCategories.map((category) => category.label));
+const sportCategoryLabels = new Set(sportMarketCategories.map((category) => category.label));
 
 const numericAdminFields = new Set([
   "maxGroupSize",
@@ -96,7 +97,7 @@ function filterSportMarkets(markets = []) {
 }
 
 function filterQueueBySport(queue = []) {
-  return queue.filter((market) => !market.category || sportCategoryLabels.has(market.category));
+  return queue.filter((market) => sportCategoryLabels.has(market.category));
 }
 
 function filterActiveMarketsByIds(markets = [], marketById) {
@@ -245,7 +246,8 @@ function createInitialState() {
 }
 
 function getSelectedMarketFromState(state, marketId = state.selectedMarketId) {
-  return state.markets.find((market) => market.id === marketId) ?? state.markets[0];
+  const merged = mergeGameMarkets(state.markets || [], state.liveGames || []);
+  return merged.find((market) => market.id === marketId) ?? merged[0];
 }
 
 function addLedgerEntry(state, entry) {
@@ -1717,6 +1719,9 @@ export function FriendMarketProvider({ children }) {
 
   const selectors = useMemo(
     () => ({
+      getMergedMarkets() {
+        return mergeGameMarkets(state.markets || [], state.liveGames || []);
+      },
       getSelectedMarket(marketId = state.selectedMarketId) {
         return getSelectedMarketFromState(state, marketId);
       },

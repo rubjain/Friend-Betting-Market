@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { normalizeEspnSummaryPlays, normalizeNbaPlayerBoxFromSummary } from "../../../../lib/espnSummaryNormalize.js";
+import {
+  extractTennisBoardFromSummary,
+  normalizeEspnSummaryPlays,
+  normalizeNbaPlayerBoxFromSummary,
+} from "../../../../lib/espnSummaryNormalize.js";
 
 const LEAGUE_PATH = {
   nba: "basketball/nba",
@@ -35,21 +39,26 @@ export async function GET(request) {
       );
     }
     const json = await res.json();
-    const leagueUpper = pathOverride
-      ? "SOCCER"
-      : leagueKey === "nba"
-        ? "NBA"
-        : leagueKey === "nfl"
-          ? "NFL"
-          : leagueKey === "nhl"
-            ? "NHL"
-            : "MLB";
+    const isTennis = /(^|\/)tennis\//i.test(String(pathOverride || ""));
+    const leagueUpper = isTennis
+      ? "TENNIS"
+      : pathOverride
+        ? "SOCCER"
+        : leagueKey === "nba"
+          ? "NBA"
+          : leagueKey === "nfl"
+            ? "NFL"
+            : leagueKey === "nhl"
+              ? "NHL"
+              : "MLB";
     const plays = normalizeEspnSummaryPlays(json, leagueUpper);
     const playerBox = leagueUpper === "NBA" ? normalizeNbaPlayerBoxFromSummary(json) : null;
+    const tennisBoard = leagueUpper === "TENNIS" ? extractTennisBoardFromSummary(json) : null;
     return NextResponse.json(
       {
         plays,
         playerBox,
+        tennisBoard,
         generatedAt: new Date().toISOString(),
         league: leagueKey,
       },

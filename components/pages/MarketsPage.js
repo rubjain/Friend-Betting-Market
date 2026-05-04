@@ -1,26 +1,28 @@
 "use client";
 
 import { useFriendMarket } from "../../context/FriendMarketContext";
-import { marketCategories } from "../../lib/marketTaxonomy";
+import { sportMarketCategories } from "../../lib/marketTaxonomy";
 import { getMarketPipelineSummary } from "../../lib/marketAlgorithms";
+import LiveGamesRail from "../LiveGamesRail";
 import MarketCard from "../MarketCard";
 import { EmptyState, SectionHead } from "../ui";
 
 export default function MarketsPage() {
-  const { state, actions } = useFriendMarket();
-  const filteredMarkets = state.markets.filter((market) => {
+  const { state, actions, selectors } = useFriendMarket();
+  const catalogMarkets = selectors.getMergedMarkets();
+  const filteredMarkets = catalogMarkets.filter((market) => {
     const matchesQuery = market.title.toLowerCase().includes(state.filters.query.toLowerCase());
     const matchesCategory = state.filters.category === "all" || market.category === state.filters.category;
     return matchesQuery && matchesCategory;
   });
-  const pipeline = getMarketPipelineSummary(state.markets, state.liveGames);
+  const pipeline = getMarketPipelineSummary(catalogMarkets, state.liveGames);
 
   return (
     <section className="page active">
       <div className="markets-overview">
         <SectionHead
           title="Markets"
-          body="Browse sports, crypto, finance, weather, and politics-style markets with clear settlement rules and optional social boosts."
+          body="Sports prediction markets only — browse by league and link into live score feeds where available."
         />
         <div className="market-discovery-panel">
           <div className="category-scroll" aria-label="Market categories">
@@ -31,7 +33,7 @@ export default function MarketsPage() {
             >
               All
             </button>
-            {marketCategories.map((category) => (
+            {sportMarketCategories.map((category) => (
               <button
                 className={`category-chip${state.filters.category === category.label ? " active" : ""}`}
                 type="button"
@@ -54,11 +56,18 @@ export default function MarketsPage() {
           </label>
         </div>
       </div>
+
+      <LiveGamesRail
+        games={state.liveGames}
+        markets={catalogMarkets}
+        categoryFilter={state.filters.category}
+      />
+
       <div className="market-command-row">
         <div>
           <span className="label">Expansion map</span>
           <strong>
-            {pipeline.categories} categories · {state.markets.length} seeded markets
+            {pipeline.categories} categories · {catalogMarkets.length} markets
           </strong>
         </div>
         <div>

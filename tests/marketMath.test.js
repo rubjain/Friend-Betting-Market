@@ -485,17 +485,15 @@ test("request auth helper recognizes dev admin shortcut header when enabled", as
   }
 });
 
-test("default market seeds include sports and non-sports verticals", async () => {
+test("default market seeds are sports-only", async () => {
   const { defaultState } = await import("../lib/defaultState.js");
+  const { NON_SPORT_MARKET_CATEGORY_LABELS } = await import("../lib/marketTaxonomy.js");
   const categories = new Set(defaultState.markets.map((market) => market.category));
 
   assert.equal(categories.has("NBA"), true);
   assert.equal(categories.has("NFL"), true);
   assert.equal(categories.has("MLB"), true);
-  assert.equal(categories.has("Crypto"), true);
-  assert.equal(categories.has("Finance"), true);
-  assert.equal(categories.has("Weather"), true);
-  assert.equal(categories.has("Politics"), true);
+  assert.equal(defaultState.markets.every((m) => !NON_SPORT_MARKET_CATEGORY_LABELS.has(m.category)), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionTemplate), true);
   assert.equal(defaultState.markets.every((market) => market.closeTime), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionRule), true);

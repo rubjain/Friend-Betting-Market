@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { buildMarketDualPriceSeries } from "../lib/marketPriceSeries";
 import { getContractSideLabels } from "../lib/marketLabels";
+import { getDualOutcomeChartColors } from "../lib/marketChartColors";
 
 function formatAxisTime(ms, compact) {
   return new Intl.DateTimeFormat(undefined, {
@@ -14,7 +15,7 @@ function formatAxisTime(ms, compact) {
   }).format(new Date(ms));
 }
 
-function ChartTooltip({ active, payload, labelA, labelB }) {
+function ChartTooltip({ active, payload, labelA, labelB, colorA, colorB }) {
   if (!active || !payload?.length) {
     return null;
   }
@@ -28,11 +29,11 @@ function ChartTooltip({ active, payload, labelA, labelB }) {
     <div className="market-chart-tooltip">
       <div className="market-chart-tooltip-time">{formatAxisTime(row.time, false)}</div>
       <div className="market-chart-tooltip-row">
-        <span className="market-chart-tooltip-dot market-chart-tooltip-dot--a" />
+        <span className="market-chart-tooltip-dot" style={{ background: colorA }} />
         {labelA} <strong>{Math.round((a?.value ?? row.a) * 100)}¢</strong>
       </div>
       <div className="market-chart-tooltip-row">
-        <span className="market-chart-tooltip-dot market-chart-tooltip-dot--b" />
+        <span className="market-chart-tooltip-dot" style={{ background: colorB }} />
         {labelB} <strong>{Math.round((b?.value ?? row.b) * 100)}¢</strong>
       </div>
     </div>
@@ -60,6 +61,11 @@ export default function MarketPriceChart({ market, linkedGame }) {
 
   const labels = useMemo(() => getContractSideLabels(market, linkedGame), [market, linkedGame]);
 
+  const lineColors = useMemo(
+    () => getDualOutcomeChartColors(market, linkedGame, labels.yesLabel, labels.noLabel),
+    [market, linkedGame, labels.yesLabel, labels.noLabel],
+  );
+
   const series = useMemo(() => buildMarketDualPriceSeries(market, linkedGame, now), [market, linkedGame, now]);
 
   const gridStroke = dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)";
@@ -79,11 +85,15 @@ export default function MarketPriceChart({ market, linkedGame }) {
         </div>
         <div className="market-price-chart-stats market-price-chart-stats--dual">
           <div>
-            <span className="market-price-chart-legend-a">{labels.yesLabel}</span>
+            <span className="market-price-chart-legend-line" style={{ color: lineColors.colorA }}>
+              {labels.yesLabel}
+            </span>
             <span className={`market-price-chart-delta ${series.changeA >= 0 ? "up" : "down"}`}>{deltaA}</span>
           </div>
           <div>
-            <span className="market-price-chart-legend-b">{labels.noLabel}</span>
+            <span className="market-price-chart-legend-line" style={{ color: lineColors.colorB }}>
+              {labels.noLabel}
+            </span>
             <span className={`market-price-chart-delta ${series.changeB >= 0 ? "up" : "down"}`}>{deltaB}</span>
           </div>
         </div>
@@ -113,28 +123,35 @@ export default function MarketPriceChart({ market, linkedGame }) {
               width={44}
             />
             <Tooltip
-              content={<ChartTooltip labelA={labels.yesLabel} labelB={labels.noLabel} />}
+              content={
+                <ChartTooltip
+                  labelA={labels.yesLabel}
+                  labelB={labels.noLabel}
+                  colorA={lineColors.colorA}
+                  colorB={lineColors.colorB}
+                />
+              }
               cursor={{ stroke: "rgba(128,128,128,0.35)" }}
             />
             <Line
               type="monotone"
               dataKey="a"
               name="a"
-              stroke="#15803d"
+              stroke={lineColors.colorA}
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}
-              activeDot={{ r: 5 }}
+              activeDot={{ r: 5, fill: lineColors.colorA, stroke: lineColors.colorA }}
             />
             <Line
               type="monotone"
               dataKey="b"
               name="b"
-              stroke="#b91c1c"
+              stroke={lineColors.colorB}
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}
-              activeDot={{ r: 5 }}
+              activeDot={{ r: 5, fill: lineColors.colorB, stroke: lineColors.colorB }}
             />
           </LineChart>
         </ResponsiveContainer>

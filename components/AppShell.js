@@ -37,6 +37,9 @@ const routes = [
   ["/withdraw", "Withdraw"],
   ["/friends", "Friends"],
   ["/leaderboard", "Leaderboard"],
+  ["/faq", "FAQ"],
+  ["/legal", "Terms"],
+  ["/privacy", "Privacy"],
   ["/create", "Create"],
   ["/profile", "Profile"],
 ];
@@ -263,6 +266,11 @@ export default function AppShell({ children }) {
       <LiveGamesPoller />
       <footer className="footer-wrap">
         <p>Agora keeps market prices, balances, boosts, and audit state in one workspace.</p>
+        <nav className="footer-legal-nav" aria-label="Legal and help">
+          <Link href="/faq">FAQ</Link>
+          <Link href="/legal">Terms</Link>
+          <Link href="/privacy">Privacy</Link>
+        </nav>
       </footer>
     </div>
   );
