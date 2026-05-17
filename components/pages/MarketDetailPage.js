@@ -40,7 +40,8 @@ function DefaultMarketDetailPage({ marketId }) {
     [market, state.liveGames],
   );
   const sides = useMemo(
-    () => (market ? getContractSideLabels(market, linkedGame) : { yesLabel: "Yes", noLabel: "No" }),
+    () =>
+      market ? getContractSideLabels(market, linkedGame, { shortSides: true }) : { yesLabel: "Yes", noLabel: "No" },
     [market, linkedGame],
   );
 

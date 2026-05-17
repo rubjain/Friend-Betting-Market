@@ -14,6 +14,7 @@ import {
   validateCreateMarketDraft,
 } from "../lib/validation.js";
 import {
+  buildExportFilename,
   buildLedgerExportRows,
   buildRiskReviewExportRows,
   ledgerExportColumns,
@@ -34,9 +35,22 @@ import {
   getMarketPipelineSummary,
   rankMarketsBySignal,
 } from "../lib/marketAlgorithms.js";
-import { applyRiskSignalsToUser, getBoostRiskSignals } from "../lib/riskEngine.js";
+import {
+  applyRiskSignalsToUser,
+  getBoostRiskSignals,
+  getRiskBand,
+  getRiskExplanation,
+} from "../lib/riskEngine.js";
 import { getSourceAdapter, validateSourceAdapterConfig } from "../lib/sourceAdapters.js";
-import { getSessionFromRequest, requireAdmin } from "../lib/server/auth.js";
+import { buildAdminAuditWhere } from "../lib/server/adminDataService.js";
+import { buildLedgerExportWhere } from "../lib/server/exportService.js";
+import {
+  getSessionFromRequest,
+  requireAdmin,
+  requireAdminPermission,
+  requireAuthenticated,
+} from "../lib/server/auth.js";
+import { ADMIN_PERMISSIONS } from "../lib/server/adminPermissions.js";
 
 const baseAdminConfig = {
   socialBoostsEnabled: true,
@@ -317,6 +331,19 @@ test("CSV exporter quotes commas, quotes, and newlines", () => {
   assert.equal(csv, 'Name,Metadata\n"Maya ""Ace""","Line one\nLine two, with comma"');
 });
 
+test("export filenames include date and active filters", () => {
+  const filename = buildExportFilename(
+    "FriendMarket Ledger Export",
+    { filter: "withdrawable", sort: "amount_desc", action: "all" },
+    new Date("2026-05-12T10:15:00Z"),
+  );
+
+  assert.equal(
+    filename,
+    "friendmarket-ledger-export_2026-05-12_filter-withdrawable_sort-amount-desc.csv",
+  );
+});
+
 test("ledger and risk exports map operational fields", () => {
   const ledgerRows = buildLedgerExportRows([
     {
@@ -348,6 +375,12 @@ test("ledger and risk exports map operational fields", () => {
   assert.equal(ledgerRows[0].market_id, "");
   assert.equal(riskRows[0].risk_signals, "High bonus velocity; Dense friend boosting");
   assert.equal(toCsv(riskRows, riskReviewExportColumns).includes("Theo Nguyen"), true);
+});
+
+test("database ledger export filters map UI filters to Prisma where clauses", () => {
+  assert.deepEqual(buildLedgerExportWhere("withdrawable"), { currency: "WITHDRAWABLE" });
+  assert.deepEqual(buildLedgerExportWhere("deposit"), { source: "DEPOSIT" });
+  assert.deepEqual(buildLedgerExportWhere("all"), {});
 });
 
 test("ledger view filters, sorts, and paginates audit rows", () => {
@@ -398,6 +431,35 @@ test("ledger view filters, sorts, and paginates audit rows", () => {
   assert.equal(userView.entries[0].source, "deposit");
 });
 
+test("admin audit filters combine action actor market and date bounds", () => {
+  const where = buildAdminAuditWhere({
+    action: "market.resolved",
+    actorId: "admin_1",
+    marketId: "market_1",
+    dateFrom: "2026-05-01",
+    dateTo: "2026-05-12",
+  });
+
+  assert.equal(where.action, "market.resolved");
+  assert.equal(where.actorId, "admin_1");
+  assert.equal(where.marketId, "market_1");
+  assert.equal(where.createdAt.gte.toISOString(), "2026-05-01T00:00:00.000Z");
+  assert.equal(where.createdAt.lte.toISOString(), "2026-05-12T23:59:59.999Z");
+});
+
+test("admin audit filters ignore empty defaults and invalid dates", () => {
+  assert.deepEqual(
+    buildAdminAuditWhere({
+      action: "all",
+      actorId: " ",
+      marketId: "",
+      dateFrom: "soon",
+      dateTo: "2026-13-40",
+    }),
+    {},
+  );
+});
+
 test("risk engine flags repeated and dense friend boosts", () => {
   const friend = { name: "Maya Patel", username: "@maya", boostCount: 6 };
   const market = { friendGroup: ["Maya", "Jordan", "Theo", "Ava"] };
@@ -423,6 +485,22 @@ test("risk engine flags repeated and dense friend boosts", () => {
 
   assert.equal(user.risk_status, "monitor");
   assert.equal(user.risk_signals.length, signals.length);
+});
+
+test("risk engine explains score bands and user signals", () => {
+  assert.equal(getRiskBand(12).label, "Clear");
+  assert.equal(getRiskBand(48).label, "Monitor");
+  assert.equal(getRiskBand(71).label, "High");
+
+  const explanation = getRiskExplanation({
+    risk_score: 71,
+    frozen: true,
+    risk_signals: ["High bonus velocity", "Dense friend boosting", "Repeat device"],
+  });
+
+  assert.equal(explanation.includes("High risk (70+)"), true);
+  assert.equal(explanation.includes("High bonus velocity; Dense friend boosting; Repeat device"), true);
+  assert.equal(explanation.includes("Account is frozen"), true);
 });
 
 test("market taxonomy covers sport-specific categories", () => {
@@ -482,6 +560,51 @@ test("request auth helper recognizes dev admin shortcut header when enabled", as
     delete process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
   } else {
     process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = previousShortcut;
+  }
+});
+
+test("authenticated guard rejects anonymous requests", async () => {
+  const request = new Request("http://friendmarket.test/api/funds/deposit");
+  const guarded = await requireAuthenticated(request);
+
+  assert.equal(guarded.session.authenticated, false);
+  assert.equal(guarded.response.status, 401);
+  assert.equal((await guarded.response.json()).message, "Sign in before continuing.");
+});
+
+test("admin permission guard rejects scoped-out admins", async () => {
+  const previousShortcut = process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
+  const previousDatabase = process.env.DATABASE_URL;
+  const previousLevels = process.env.FRIENDMARKET_ADMIN_LEVELS_JSON;
+  process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = "1";
+  process.env.DATABASE_URL = "postgresql://example/test";
+  process.env.FRIENDMARKET_ADMIN_LEVELS_JSON = JSON.stringify({ user_1: "viewer" });
+
+  const request = new Request("http://friendmarket.test/api/admin/config", {
+    headers: {
+      "x-friendmarket-role": "admin",
+    },
+  });
+  const guarded = await requireAdminPermission(request, ADMIN_PERMISSIONS.CONFIG);
+
+  assert.equal(guarded.session.isAdmin, true);
+  assert.equal(guarded.response.status, 403);
+  assert.equal((await guarded.response.json()).message, "Your admin role does not allow this action.");
+
+  if (previousShortcut === undefined) {
+    delete process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
+  } else {
+    process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = previousShortcut;
+  }
+  if (previousDatabase === undefined) {
+    delete process.env.DATABASE_URL;
+  } else {
+    process.env.DATABASE_URL = previousDatabase;
+  }
+  if (previousLevels === undefined) {
+    delete process.env.FRIENDMARKET_ADMIN_LEVELS_JSON;
+  } else {
+    process.env.FRIENDMARKET_ADMIN_LEVELS_JSON = previousLevels;
   }
 });
 

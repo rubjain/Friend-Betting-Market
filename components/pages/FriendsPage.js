@@ -38,6 +38,9 @@ export default function FriendsPage() {
   const [boostPanelFriend, setBoostPanelFriend] = useState(null);
   const [h2hPanelFriend, setH2hPanelFriend] = useState(null);
   const [pendingExpanded, setPendingExpanded] = useState(false);
+  const [discoveryQuery, setDiscoveryQuery] = useState("");
+  const [discoveryResults, setDiscoveryResults] = useState([]);
+  const [discoveryLoading, setDiscoveryLoading] = useState(false);
 
   // Feed state
   const [feedItems, setFeedItems] = useState([]);
@@ -61,6 +64,40 @@ export default function FriendsPage() {
     feedIntervalRef.current = setInterval(fetchFeed, FEED_POLL_MS);
     return () => clearInterval(feedIntervalRef.current);
   }, [fetchFeed]);
+
+  useEffect(() => {
+    const query = discoveryQuery.trim();
+    if (query.length < 2) {
+      setDiscoveryResults([]);
+      setDiscoveryLoading(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setDiscoveryLoading(true);
+      try {
+        const response = await fetch(`/api/friends/search?q=${encodeURIComponent(query)}`, {
+          signal: controller.signal,
+        });
+        const payload = await response.json();
+        setDiscoveryResults(Array.isArray(payload.results) ? payload.results : []);
+      } catch {
+        if (!controller.signal.aborted) {
+          setDiscoveryResults([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setDiscoveryLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [discoveryQuery]);
 
   const selectedMarket = selectors.getSelectedMarket();
   const boostSlotsRemaining = Math.max(
@@ -181,6 +218,45 @@ export default function FriendsPage() {
 
             <div className="friends-demo-note">
               Test accounts: test@example.com / password123 and taylor@example.com / password123.
+            </div>
+
+            <div className="friends-discovery-card">
+              <div>
+                <h3>Find friends</h3>
+                <p className="caption">Search by name or username, then invite directly from the results.</p>
+              </div>
+              <label className="visually-hidden" htmlFor="friend-discovery-input">
+                Search people
+              </label>
+              <input
+                id="friend-discovery-input"
+                type="search"
+                placeholder="Search @username or name"
+                value={discoveryQuery}
+                onChange={(event) => setDiscoveryQuery(event.currentTarget.value)}
+              />
+              <div className="friends-discovery-results" aria-live="polite">
+                {discoveryLoading ? (
+                  <div className="empty-note empty-note--sm">Searching...</div>
+                ) : discoveryQuery.trim().length < 2 ? (
+                  <div className="empty-note empty-note--sm">Type at least 2 characters.</div>
+                ) : discoveryResults.length ? (
+                  discoveryResults.map((person) => (
+                    <FriendDiscoveryRow
+                      key={person.id}
+                      person={person}
+                      pendingAction={pendingAction}
+                      onInvite={() =>
+                        runFriendAction(`invite-${person.username}`, async () => {
+                          await actions.sendFriendInvite(person.username);
+                        })
+                      }
+                    />
+                  ))
+                ) : (
+                  <div className="empty-note empty-note--sm">No matching accounts found.</div>
+                )}
+              </div>
             </div>
 
             <div className="friends-stat-bar">
@@ -323,6 +399,38 @@ export default function FriendsPage() {
         />
       )}
     </section>
+  );
+}
+
+function labelForDiscoveryStatus(status) {
+  if (status === "friends") return "Friend";
+  if (status === "pending_outgoing") return "Invite sent";
+  if (status === "pending_incoming") return "Respond in pending";
+  return "Invite";
+}
+
+function FriendDiscoveryRow({ person, pendingAction, onInvite }) {
+  const inviteKey = `invite-${person.username}`;
+  const canInvite = person.status === "not_connected";
+
+  return (
+    <div className="friend-discovery-row">
+      <div className="friend-avatar" aria-hidden="true">
+        {getInitials(person.name)}
+      </div>
+      <div className="friend-card-body">
+        <strong className="friend-card-name">{person.name}</strong>
+        <div className="friend-card-username caption">{person.username}</div>
+      </div>
+      <button
+        className={canInvite ? "btn btn-secondary" : "btn btn-ghost"}
+        type="button"
+        disabled={!canInvite || pendingAction === inviteKey}
+        onClick={onInvite}
+      >
+        {pendingAction === inviteKey ? "Sending..." : labelForDiscoveryStatus(person.status)}
+      </button>
+    </div>
   );
 }
 

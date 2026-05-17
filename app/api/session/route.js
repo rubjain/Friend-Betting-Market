@@ -8,6 +8,7 @@ import {
   logoutUser,
   signupUser,
 } from "../../../lib/server/auth.js";
+import { getAdminLevel, getAdminPermissions } from "../../../lib/server/adminPermissions.js";
 import {
   SESSION_COOKIE_NAME,
   createSessionCookieValue,
@@ -45,6 +46,14 @@ function getRequestRateLimitKey(request) {
   return clientIp || request.headers.get("x-real-ip") || "local";
 }
 
+function sessionPayload(session) {
+  return {
+    ...session,
+    adminLevel: getAdminLevel(session),
+    adminPermissions: Array.from(getAdminPermissions(session)),
+  };
+}
+
 export async function GET(request) {
   const cookieSession = getSessionFromCookieRequest(request);
   const session = await getSessionFromRequest(request);
@@ -54,7 +63,7 @@ export async function GET(request) {
     session,
   );
   const response = NextResponse.json({
-    session,
+    session: sessionPayload(session),
     devAdminShortcut: isDevAdminShortcutEnabled(),
     state: await stateForSession(session),
     sessionExpired: clearStaleCookie,
@@ -85,10 +94,11 @@ export async function PATCH(request) {
     role: nextSession.role,
     isAdmin: nextSession.role === "admin",
     userId: nextSession.userId,
+    authenticated: true,
   };
   const response = NextResponse.json({
     ok: true,
-    session: normalized,
+    session: sessionPayload(normalized),
     devAdminShortcut: isDevAdminShortcutEnabled(),
     state: await stateForSession(normalized),
     message: normalized.isAdmin ? "Demo admin session enabled." : "Demo admin session disabled.",
@@ -118,7 +128,7 @@ export async function POST(request) {
 
   const response = NextResponse.json({
     ok: true,
-    session: result.session,
+    session: sessionPayload(result.session),
     devAdminShortcut: isDevAdminShortcutEnabled(),
     user: result.user,
     emailVerificationToken:
@@ -142,10 +152,11 @@ export async function DELETE(request) {
     role: "user",
     isAdmin: false,
     userId: "user_1",
+    authenticated: false,
   };
   const response = NextResponse.json({
     ok: true,
-    session: nextSession,
+    session: sessionPayload(nextSession),
     devAdminShortcut: isDevAdminShortcutEnabled(),
     state: await stateForSession(nextSession),
     message: "Signed out.",

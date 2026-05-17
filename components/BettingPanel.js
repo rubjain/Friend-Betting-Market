@@ -25,7 +25,10 @@ export default function BettingPanel({ market, linkedGame = null }) {
     () => validateBetDraft({ payout, currentUser: state.currentUser }),
     [payout, state.currentUser],
   );
-  const { yesLabel, noLabel } = useMemo(() => getContractSideLabels(market, linkedGame), [market, linkedGame]);
+  const { yesLabel, noLabel } = useMemo(
+    () => getContractSideLabels(market, linkedGame, { shortSides: true }),
+    [market, linkedGame],
+  );
   const marketAcceptsBets = !market.status || market.status === "active";
 
   async function submitBet() {

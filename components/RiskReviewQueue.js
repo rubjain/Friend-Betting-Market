@@ -2,6 +2,7 @@
 
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { titleCase } from "../lib/formatters";
+import { getRiskExplanation } from "../lib/riskEngine";
 
 export default function RiskReviewQueue({ users, pendingAction, runAction, onConfirmAction }) {
   const { actions, selectors } = useFriendMarket();
@@ -30,6 +31,7 @@ export default function RiskReviewQueue({ users, pendingAction, runAction, onCon
                   <span key={signal}>{signal}</span>
                 ))}
               </div>
+              <p className="caption">{getRiskExplanation(user)}</p>
               <div className="inline-actions">
                 <button
                   className="btn btn-secondary"

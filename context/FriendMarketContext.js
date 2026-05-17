@@ -15,7 +15,7 @@ import { mergeGameMarkets } from "../lib/gameMarkets.js";
 import { money } from "../lib/formatters";
 import { calculatePayout } from "../lib/marketMath";
 import { getResolutionTemplate, sportMarketCategories } from "../lib/marketTaxonomy";
-import { applyRiskSignalsToUser, getBoostRiskSignals } from "../lib/riskEngine";
+import { applyRiskSignalsToUser, getBoostRiskSignals, getRiskBand } from "../lib/riskEngine";
 
 const FriendMarketContext = createContext(null);
 
@@ -212,15 +212,32 @@ function isPublicAuthRoute(pathname) {
 function buildStateFromSessionPayload(payload, previousTheme, previousFlash = "") {
   const merged = mergeIncomingState(payload.state);
   const sessionEnded = Boolean(payload.sessionExpired);
+  const sessionExpiresSoon = Boolean(payload.session?.expiresSoon);
+  const sessionNotice = sessionEnded
+    ? "Your session ended. Please sign in again."
+    : sessionExpiresSoon && !previousFlash
+      ? "Your session expires soon. Save your work or sign in again to continue."
+      : previousFlash;
   return {
     ...merged,
-    auth: {
-      authenticated: Boolean(payload.session?.authenticated),
-      devAdminShortcut: Boolean(payload.devAdminShortcut),
-    },
+    auth: buildAuthFromSessionPayload(payload, merged.auth),
     theme: previousTheme ?? merged.theme ?? defaultState.theme,
-    flashMessage: sessionEnded ? "Your session ended. Please sign in again." : previousFlash,
+    flashMessage: sessionNotice,
     mobileNavOpen: false,
+  };
+}
+
+function buildAuthFromSessionPayload(payload, fallbackAuth = defaultState.auth) {
+  return {
+    authenticated: Boolean(payload.session?.authenticated),
+    devAdminShortcut: Boolean(payload.devAdminShortcut ?? fallbackAuth.devAdminShortcut),
+    expiresAt: payload.session?.expiresAt || "",
+    expiresSoon: Boolean(payload.session?.expiresSoon),
+    secondsUntilExpiry: payload.session?.secondsUntilExpiry ?? null,
+    adminLevel: payload.session?.adminLevel || "",
+    adminPermissions: Array.isArray(payload.session?.adminPermissions)
+      ? payload.session.adminPermissions
+      : [],
   };
 }
 
@@ -387,13 +404,7 @@ function addFunds(state, { amount, currencyType, source, metadata }) {
 }
 
 function getRiskLabel(score) {
-  if (score >= 70) {
-    return "High";
-  }
-  if (score >= 40) {
-    return "Monitor";
-  }
-  return "Clear";
+  return getRiskBand(score).label;
 }
 
 export function FriendMarketProvider({ children }) {
@@ -555,10 +566,7 @@ export function FriendMarketProvider({ children }) {
           if (payload.state) {
             setState({
               ...payload.state,
-              auth: {
-                authenticated: Boolean(payload.session?.authenticated),
-                devAdminShortcut: Boolean(payload.devAdminShortcut ?? state.auth.devAdminShortcut),
-              },
+              auth: buildAuthFromSessionPayload(payload, state.auth),
               theme: state.theme,
               flashMessage: payload.message,
               mobileNavOpen: false,
@@ -582,10 +590,7 @@ export function FriendMarketProvider({ children }) {
         if (payload.state) {
           setState({
             ...payload.state,
-            auth: {
-              authenticated: Boolean(payload.session?.authenticated),
-              devAdminShortcut: Boolean(payload.devAdminShortcut ?? state.auth.devAdminShortcut),
-            },
+            auth: buildAuthFromSessionPayload(payload, state.auth),
             theme: state.theme,
             flashMessage: payload.message,
             mobileNavOpen: false,
@@ -605,10 +610,7 @@ export function FriendMarketProvider({ children }) {
         if (payload.state) {
           setState({
             ...payload.state,
-            auth: {
-              authenticated: Boolean(payload.session?.authenticated),
-              devAdminShortcut: Boolean(payload.devAdminShortcut ?? state.auth.devAdminShortcut),
-            },
+            auth: buildAuthFromSessionPayload(payload, state.auth),
             theme: state.theme,
             flashMessage: payload.message,
             mobileNavOpen: false,
@@ -625,10 +627,13 @@ export function FriendMarketProvider({ children }) {
         if (payload.state) {
           setState({
             ...payload.state,
-            auth: {
+            auth: buildAuthFromSessionPayload(payload, {
+              ...state.auth,
               authenticated: false,
-              devAdminShortcut: Boolean(payload.devAdminShortcut ?? state.auth.devAdminShortcut),
-            },
+              expiresAt: "",
+              expiresSoon: false,
+              secondsUntilExpiry: null,
+            }),
             theme: state.theme,
             flashMessage: payload.message,
             mobileNavOpen: false,
@@ -948,11 +953,12 @@ export function FriendMarketProvider({ children }) {
           next.friendInviteDraft = value;
         });
       },
-      async sendFriendInvite() {
+      async sendFriendInvite(usernameOverride) {
+        const inviteUsername = usernameOverride ?? state.friendInviteDraft;
         try {
           const { payload } = await requestJson("/api/friends/invites", {
             method: "POST",
-            body: JSON.stringify({ username: state.friendInviteDraft }),
+            body: JSON.stringify({ username: inviteUsername }),
           });
 
           if (payload.state) {
@@ -970,7 +976,7 @@ export function FriendMarketProvider({ children }) {
         }
 
         updateState((next) => {
-          const username = normalizeUsername(next.friendInviteDraft);
+          const username = normalizeUsername(inviteUsername);
 
           if (!username) {
             next.flashMessage = "Enter a username to send an invite.";
@@ -1151,10 +1157,16 @@ export function FriendMarketProvider({ children }) {
       },
       async addDeposit(amount = state.fundingDrafts.depositAmount, method = "bank") {
         try {
-          const { payload } = await requestJson("/api/funds/deposit", {
+          const { response, payload } = await requestJson("/api/funds/deposit", {
             method: "POST",
             body: JSON.stringify({ amount, method }),
           });
+          if (payload.ok === false && response.status !== 503) {
+            updateState((next) => {
+              next.flashMessage = payload.message || "Deposit could not be completed.";
+            });
+            return false;
+          }
           if (payload.state) {
             setState({
               ...payload.state,
@@ -1189,10 +1201,16 @@ export function FriendMarketProvider({ children }) {
       },
       async requestWithdrawal(amount = state.fundingDrafts.withdrawAmount, method = "bank") {
         try {
-          const { payload } = await requestJson("/api/funds/withdraw", {
+          const { response, payload } = await requestJson("/api/funds/withdraw", {
             method: "POST",
             body: JSON.stringify({ amount, method }),
           });
+          if (payload.ok === false && response.status !== 503) {
+            updateState((next) => {
+              next.flashMessage = payload.message || "Withdrawal could not be completed.";
+            });
+            return false;
+          }
           if (payload.state) {
             setState({
               ...payload.state,
@@ -1716,6 +1734,26 @@ export function FriendMarketProvider({ children }) {
     }),
     [state],
   );
+
+  useEffect(() => {
+    if (!hydrated || !state.auth.authenticated || !state.auth.expiresAt) {
+      return undefined;
+    }
+
+    const expiryMs = Date.parse(state.auth.expiresAt);
+    if (!Number.isFinite(expiryMs)) {
+      return undefined;
+    }
+
+    const warningAt = expiryMs - 15 * 60 * 1000;
+    const nextCheckAt = state.auth.expiresSoon ? expiryMs + 500 : Math.max(Date.now() + 1000, warningAt);
+    const delay = Math.max(1000, Math.min(nextCheckAt - Date.now(), 2_147_483_647));
+    const timer = window.setTimeout(() => {
+      void actions.refreshSessionFromServer();
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [actions, hydrated, state.auth.authenticated, state.auth.expiresAt, state.auth.expiresSoon]);
 
   const selectors = useMemo(
     () => ({

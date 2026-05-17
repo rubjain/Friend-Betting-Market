@@ -66,7 +66,7 @@ function TopMarketRow({ market, linkedGame, now, activityTick, rowIndex }) {
   return (
     <article className={`top-market-row${isChartRight ? " top-market-row--chart-right" : ""}`}>
       <div className="top-market-row-chart">
-        <ResponsiveContainer width="100%" height={170}>
+        <ResponsiveContainer width="100%" height={250}>
           <LineChart data={series.points} margin={{ top: 8, right: 8, left: 8, bottom: 6 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
@@ -112,7 +112,12 @@ function TopMarketRow({ market, linkedGame, now, activityTick, rowIndex }) {
             <div>
               <span>{linkedGame.awayTeam}</span>
               <strong>{linkedGame.awayScore}</strong>
-              <button type="button" className="top-market-side-bet" onClick={() => placeQuickBet("YES")}>
+              <button
+                type="button"
+                className="top-market-side-bet"
+                style={{ "--side-color": awayColor }}
+                onClick={() => placeQuickBet("YES")}
+              >
                 {formatPercent(market.yesPrice)}
               </button>
             </div>
@@ -120,7 +125,12 @@ function TopMarketRow({ market, linkedGame, now, activityTick, rowIndex }) {
             <div>
               <span>{linkedGame.homeTeam}</span>
               <strong>{linkedGame.homeScore}</strong>
-              <button type="button" className="top-market-side-bet" onClick={() => placeQuickBet("NO")}>
+              <button
+                type="button"
+                className="top-market-side-bet"
+                style={{ "--side-color": homeColor }}
+                onClick={() => placeQuickBet("NO")}
+              >
                 {formatPercent(market.noPrice)}
               </button>
             </div>

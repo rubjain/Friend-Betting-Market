@@ -693,8 +693,9 @@ a { color: inherit; text-decoration: none; }
 .top-market-row-chart {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface) 94%, var(--accent) 6%);
+  background: transparent;
   overflow: hidden;
+  min-height: 250px;
   align-self: center;
 }
 
@@ -765,14 +766,16 @@ a { color: inherit; text-decoration: none; }
 
 .top-market-side-bet {
   justify-self: start;
-  border: 1px solid var(--border-strong);
+  --side-color: var(--accent);
+  border: 1px solid var(--side-color);
   border-radius: 999px;
   padding: 5px 12px;
   font-weight: 800;
   font-size: 0.92rem;
   line-height: 1;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--side-color) 24%, var(--surface) 76%);
   color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--side-color) 18%, transparent);
   cursor: pointer;
 }
 
@@ -781,8 +784,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 .top-market-side-bet:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--side-color);
+  background: color-mix(in srgb, var(--side-color) 36%, var(--surface) 64%);
+  color: var(--text);
 }
 
 .top-market-side-bet:focus-visible {
@@ -4130,6 +4134,48 @@ a { color: inherit; text-decoration: none; }
   font-size: 0.85rem;
 }
 
+.friends-discovery-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.friends-discovery-card h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.friends-discovery-card input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--text);
+  outline: none;
+}
+
+.friends-discovery-card input:focus { border-color: var(--accent); }
+
+.friends-discovery-results {
+  display: grid;
+  gap: 8px;
+}
+
+.friend-discovery-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
 /* Stat bar */
 .friends-stat-bar {
   display: flex;
@@ -4917,6 +4963,28 @@ textarea { min-height: 130px; resize: vertical; }
 .admin-head-actions { margin-top: 0; flex: 0 0 auto; }
 .admin-wide { grid-column: 1 / -1; }
 .admin-banner { margin-bottom: 16px; }
+.admin-access-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.admin-access-panel strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1rem;
+}
+.admin-permission-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .compact-section-head { margin-bottom: 16px; }
 .draft-market-list {
   display: grid;

@@ -18,7 +18,7 @@ export default function MarketsPage() {
   const pipeline = getMarketPipelineSummary(catalogMarkets, state.liveGames);
 
   return (
-    <section className="page active">
+    <section className="page active markets-page">
       <div className="markets-overview">
         <SectionHead
           title="Markets"

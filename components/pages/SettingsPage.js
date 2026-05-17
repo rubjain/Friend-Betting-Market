@@ -9,10 +9,17 @@ import { InfoRow, SectionHead } from "../ui";
 const settingsSections = [
   ["#account", "Account"],
   ["#balances", "Balances"],
+  ["#compliance", "Compliance"],
   ["#appearance", "Appearance"],
   ["#referrals", "Referrals"],
   ["#ledger", "Transaction history"],
 ];
+
+function statusText(value) {
+  return String(value || "not started")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
 
 export default function SettingsPage() {
   const { state, actions } = useFriendMarket();
@@ -136,6 +143,22 @@ export default function SettingsPage() {
             <InfoRow label="Withdrawable" value={money(state.currentUser.withdrawable_balance)} />
             <InfoRow label="Bonus" value={money(state.currentUser.bonus_balance)} />
             <InfoRow label="Total play credit" value={money(state.currentUser.play_credit_balance)} />
+          </div>
+        </div>
+
+        <div className="list-card settings-anchor" id="compliance">
+          <h3>Compliance gates</h3>
+          <div className="balance-mini-grid">
+            <InfoRow label="Email" value={statusText(state.currentUser.settings.emailVerificationStatus)} />
+            <InfoRow label="Age" value={statusText(state.currentUser.settings.ageVerificationStatus)} />
+            <InfoRow label="Identity" value={statusText(state.currentUser.settings.identityVerificationStatus)} />
+            <InfoRow label="Location" value={statusText(state.currentUser.settings.locationVerificationStatus)} />
+            <InfoRow label="Sanctions" value={statusText(state.currentUser.settings.sanctionsVerificationStatus)} />
+            <InfoRow label="Daily deposit limit" value={money(state.currentUser.settings.dailyDepositLimit)} />
+            <InfoRow
+              label="Self-exclusion"
+              value={state.currentUser.settings.selfExcludedUntil ? "Cooling off" : "Off"}
+            />
           </div>
         </div>
 

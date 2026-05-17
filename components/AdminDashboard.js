@@ -15,6 +15,7 @@ import AdminDraftMarkets from "./AdminDraftMarkets";
 import AdminInsights from "./AdminInsights";
 import AdminAuditTable from "./AdminAuditTable";
 import AdminLedgerTable from "./AdminLedgerTable";
+import AdminPaymentReviewQueue from "./AdminPaymentReviewQueue";
 import ConfirmDialog from "./ConfirmDialog";
 import RiskReviewQueue from "./RiskReviewQueue";
 import { InfoRow } from "./ui";
@@ -26,6 +27,10 @@ export default function AdminDashboard() {
   const riskUsers = state.users.filter((user) => user.risk_status !== "clear" || user.risk_score >= 40);
   const totalBonusBalances = state.users.reduce((sum, user) => sum + user.bonus_balance, 0);
   const frozenUsers = state.users.filter((user) => user.frozen).length;
+  const adminLevel = state.auth.adminLevel || "owner";
+  const adminPermissions = state.auth.adminPermissions?.length
+    ? state.auth.adminPermissions
+    : ["admin:owner"];
 
   if (!state.currentUser.isAdmin) {
     return (
@@ -131,6 +136,19 @@ export default function AdminDashboard() {
       <div className="note-banner admin-banner">
         The MVP keeps anti-fraud checks as placeholders, but the admin model already reserves room for
         freezes, reversals, and risk review workflows.
+      </div>
+      <div className="admin-access-panel" aria-label="Admin access level">
+        <div>
+          <span className="label">Admin level</span>
+          <strong>{titleCase(adminLevel)}</strong>
+        </div>
+        <div className="admin-permission-list">
+          {adminPermissions.map((permission) => (
+            <span className="status-badge" key={permission}>
+              {titleCase(permission.replace("admin:", "").replace(/_/g, " "))}
+            </span>
+          ))}
+        </div>
       </div>
       <div className="admin-summary">
         <div>
@@ -346,6 +364,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <RiskReviewQueue users={riskUsers} pendingAction={pendingAction} runAction={runAdminAction} onConfirmAction={confirmAction} />
+        <AdminPaymentReviewQueue onMessage={actions.setFlashMessage} />
         <AdminDisputeQueue onMessage={actions.setFlashMessage} />
         <AdminAuditTable />
         <AdminLedgerTable ledger={state.ledger} />
