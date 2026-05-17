@@ -14,6 +14,11 @@ function formatMoney(n) {
   return n < 0 ? "-" + formatted : "+" + formatted;
 }
 
+function formatAbsoluteMoney(n) {
+  const abs = Math.abs(n);
+  return abs >= 1000 ? "$" + (abs / 1000).toFixed(1) + "k" : "$" + abs.toFixed(2);
+}
+
 function timeAgo(isoString) {
   const diff = Date.now() - new Date(isoString).getTime();
   const minutes = Math.floor(diff / 60_000);
@@ -499,10 +504,11 @@ function H2HPanel({ friend, onClose }) {
     fetchH2H();
   }, [fetchH2H]);
 
-  const record = data?.record ?? { wins: 0, losses: 0, pushes: 0 };
+  const record = data?.record ?? { wins: 0, losses: 0, pushes: 0, open: 0 };
+  const summary = data?.summary ?? { total: 0, settled: 0, winRate: 0, open: 0, stakeAtRisk: 0 };
   const netAmount = data?.netAmount ?? 0;
   const recentMatchups = data?.recentMatchups ?? [];
-  const hasMatchups = record.wins + record.losses + record.pushes > 0;
+  const hasMatchups = summary.total > 0;
 
   return (
     <>
@@ -549,11 +555,34 @@ function H2HPanel({ friend, onClose }) {
                   </div>
                 </>
               )}
+              {record.open > 0 && (
+                <>
+                  <div className="h2h-stat-divider" aria-hidden="true">/</div>
+                  <div className="h2h-stat">
+                    <strong>{record.open}</strong>
+                    <span className="caption">Open</span>
+                  </div>
+                </>
+              )}
             </div>
             <div className={`h2h-net ${netAmount >= 0 ? "h2h-net--up" : "h2h-net--down"}`}>
               {netAmount >= 0
                 ? `You're up ${formatMoney(netAmount)} lifetime`
                 : `You're down ${formatMoney(netAmount)} lifetime`}
+            </div>
+            <div className="h2h-summary-grid">
+              <div>
+                <strong>{summary.settled ? `${summary.winRate}%` : "-"}</strong>
+                <span className="caption">Settled win rate</span>
+              </div>
+              <div>
+                <strong>{summary.open}</strong>
+                <span className="caption">Open overlaps</span>
+              </div>
+              <div>
+                <strong>{formatAbsoluteMoney(summary.stakeAtRisk)}</strong>
+                <span className="caption">Stake at risk</span>
+              </div>
             </div>
             {recentMatchups.length > 0 && (
               <div className="h2h-recent">
@@ -561,7 +590,7 @@ function H2HPanel({ friend, onClose }) {
                 {recentMatchups.map((m, i) => (
                   <div key={i} className="h2h-matchup-row">
                     <span className={`h2h-matchup-result h2h-matchup-result--${(m.myStatus || "open").toLowerCase()}`}>
-                      {m.myStatus === "WON" ? "W" : m.myStatus === "LOST" ? "L" : "P"}
+                      {m.myBadge || "O"}
                     </span>
                     <span className="h2h-matchup-title caption">{m.title}</span>
                     <span className="h2h-matchup-sides caption">{m.mySide} vs {m.friendSide}</span>

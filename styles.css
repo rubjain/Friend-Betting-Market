@@ -6725,6 +6725,33 @@ textarea { min-height: 130px; resize: vertical; }
   color: var(--no);
 }
 
+.h2h-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.h2h-summary-grid > div {
+  min-width: 0;
+  padding: 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  text-align: center;
+}
+
+.h2h-summary-grid strong {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.h2h-summary-grid span {
+  display: block;
+  margin-top: 3px;
+}
+
 .h2h-recent {
   border-top: 1px solid var(--border);
   padding-top: 12px;
