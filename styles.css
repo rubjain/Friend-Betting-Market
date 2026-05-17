@@ -2030,6 +2030,39 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: -0.02em;
 }
 
+.order-preview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.order-preview-row {
+  min-width: 0;
+}
+
+.order-preview-row span,
+.order-preview-row strong {
+  display: block;
+}
+
+.order-preview-row span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.order-preview-row strong {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
 .bet-submit-btn {
   width: 100%;
   min-height: 44px;

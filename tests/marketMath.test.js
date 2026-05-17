@@ -7,7 +7,12 @@ import {
   createRefundLedgerEntries,
   createSettlementLedgerEntries,
 } from "../lib/accounting.js";
-import { calculatePayout, getMultiplier, normalizeFunding } from "../lib/marketMath.js";
+import {
+  calculateOrderPreview,
+  calculatePayout,
+  getMultiplier,
+  normalizeFunding,
+} from "../lib/marketMath.js";
 import {
   hasValidationErrors,
   validateBetDraft,
@@ -164,6 +169,38 @@ test("social bonus payout respects admin and market caps", () => {
   assert.equal(payout.uncappedSocialBonus, 160);
   assert.equal(payout.socialBonus, 12);
   assert.equal(payout.boostedPayout, 212);
+});
+
+test("order preview estimates contracts entry spread and pool fees", () => {
+  const preview = calculateOrderPreview({
+    stake: 25,
+    side: "YES",
+    market: {
+      yesPrice: 0.58,
+      noPrice: 0.45,
+      liquidityPool: { feeBps: 50 },
+    },
+  });
+
+  assert.equal(preview.entryPrice, 0.58);
+  assert.equal(preview.feeAmount, 0.125);
+  assert.equal(preview.netStake, 24.875);
+  assert.equal(Math.round(preview.estimatedContracts * 100), 4289);
+  assert.equal(Math.round(preview.spread * 100), 3);
+  assert.equal(Math.round(preview.breakevenPrice * 1000), 583);
+});
+
+test("order preview falls back to sane prices and ignores negative fees", () => {
+  const preview = calculateOrderPreview({
+    stake: "10",
+    side: "NO",
+    market: { yesPrice: 0, noPrice: null, feeBps: -20 },
+  });
+
+  assert.equal(preview.entryPrice, 0.5);
+  assert.equal(preview.feeBps, 0);
+  assert.equal(preview.estimatedContracts, 20);
+  assert.equal(preview.spread, 0);
 });
 
 test("bet placement ledger entries debit each funding currency", () => {

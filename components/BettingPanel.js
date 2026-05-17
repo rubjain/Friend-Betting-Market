@@ -5,8 +5,12 @@ import { useMemo, useState } from "react";
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { money } from "../lib/formatters";
 import { getContractSideLabels } from "../lib/marketLabels";
-import { calculatePayout } from "../lib/marketMath";
+import { calculateOrderPreview, calculatePayout } from "../lib/marketMath";
 import { hasValidationErrors, validateBetDraft } from "../lib/validation";
+
+function cents(value) {
+  return `${Math.round(Number(value || 0) * 100)}c`;
+}
 
 export default function BettingPanel({ market, linkedGame = null }) {
   const { state, actions } = useFriendMarket();
@@ -28,6 +32,15 @@ export default function BettingPanel({ market, linkedGame = null }) {
   const { yesLabel, noLabel } = useMemo(
     () => getContractSideLabels(market, linkedGame, { shortSides: true }),
     [market, linkedGame],
+  );
+  const orderPreview = useMemo(
+    () =>
+      calculateOrderPreview({
+        stake: payout.totalStake,
+        side,
+        market,
+      }),
+    [payout.totalStake, side, market],
   );
   const marketAcceptsBets = !market.status || market.status === "active";
 
@@ -58,14 +71,14 @@ export default function BettingPanel({ market, linkedGame = null }) {
           className={`bet-side-btn ${side === "YES" ? "active-yes" : ""}`}
           onClick={() => actions.updateBetDraft("side", "YES")}
         >
-          {yesLabel} {market.yesPrice ? `${Math.round(market.yesPrice * 100)}¢` : ""}
+          {yesLabel} {market.yesPrice ? cents(market.yesPrice) : ""}
         </button>
         <button
           type="button"
           className={`bet-side-btn ${side === "NO" ? "active-no" : ""}`}
           onClick={() => actions.updateBetDraft("side", "NO")}
         >
-          {noLabel} {market.noPrice ? `${Math.round(market.noPrice * 100)}¢` : ""}
+          {noLabel} {market.noPrice ? cents(market.noPrice) : ""}
         </button>
       </div>
 
@@ -97,6 +110,27 @@ export default function BettingPanel({ market, linkedGame = null }) {
           <strong>+{money(payout.socialBonus)}</strong>
         </div>
       ) : null}
+
+      <div className="order-preview" aria-label="Execution estimate">
+        <div className="order-preview-row">
+          <span>Entry price</span>
+          <strong>{cents(orderPreview.entryPrice)}</strong>
+        </div>
+        <div className="order-preview-row">
+          <span>Contracts</span>
+          <strong>{orderPreview.estimatedContracts.toFixed(2)}</strong>
+        </div>
+        <div className="order-preview-row">
+          <span>Spread</span>
+          <strong>{cents(orderPreview.spread)}</strong>
+        </div>
+        {orderPreview.feeBps > 0 ? (
+          <div className="order-preview-row">
+            <span>Fee</span>
+            <strong>{money(orderPreview.feeAmount)}</strong>
+          </div>
+        ) : null}
+      </div>
 
       {!marketAcceptsBets ? (
         <div className="note-banner panel-note">Market is {market.status} - not accepting bets.</div>
