@@ -148,19 +148,14 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   const session = await getSessionFromRequest(request);
-  await logoutUser(session);
+  try {
+    await logoutUser(session);
+  } catch {
+    return NextResponse.json({ ok: false, message: "Sign out failed. Try again." }, { status: 500 });
+  }
 
-  const nextSession = {
-    role: "user",
-    isAdmin: false,
-    userId: "user_1",
-    authenticated: false,
-  };
   const response = NextResponse.json({
     ok: true,
-    session: sessionPayload(nextSession),
-    devAdminShortcut: isDevAdminShortcutEnabled(),
-    state: await stateForSession(nextSession),
     message: "Signed out.",
   });
   response.cookies.set(SESSION_COOKIE_NAME, "", {

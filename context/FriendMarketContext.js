@@ -626,22 +626,39 @@ export function FriendMarketProvider({ children }) {
         return response.ok ? { ok: true } : { ok: false, message: payload.message };
       },
       async logout() {
-        const { payload } = await requestJson("/api/session", { method: "DELETE" });
-        if (payload.state) {
-          setState({
-            ...payload.state,
-            auth: buildAuthFromSessionPayload(payload, {
-              ...state.auth,
-              authenticated: false,
-              expiresAt: "",
-              expiresSoon: false,
-              secondsUntilExpiry: null,
-            }),
-            theme: state.theme,
-            flashMessage: payload.message,
-            mobileNavOpen: false,
+        const { response, payload } = await requestJson("/api/session", { method: "DELETE" });
+        if (!response.ok) {
+          updateState((next) => {
+            next.flashMessage = payload?.message || "Sign out failed. Try again.";
           });
+          return;
         }
+        try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
+        setState((prev) => ({
+          ...defaultState,
+          markets: prev.markets,
+          liveGames: prev.liveGames,
+          adminConfig: prev.adminConfig,
+          theme: prev.theme,
+          auth: { ...defaultState.auth, authenticated: false },
+          currentUser: {
+            ...defaultState.currentUser,
+            id: "",
+            name: "",
+            email: "",
+            username: "",
+            withdrawable_balance: 0,
+            bonus_balance: 0,
+            play_credit_balance: 0,
+          },
+          friends: { list: [], pending: [] },
+          portfolio: { openBets: [], pastBets: [] },
+          ledger: [],
+          users: [],
+          pendingMarkets: [],
+          flashMessage: "Signed out.",
+          mobileNavOpen: false,
+        }));
       },
       async refreshSessionFromServer() {
         try {
