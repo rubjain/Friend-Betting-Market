@@ -191,6 +191,7 @@ function mergeStoredState(parsed) {
     resolvedMarkets: mergeById(defaultState.resolvedMarkets, parsed.resolvedMarkets || []),
     users: normalizeUsers(mergeById(defaultState.users, parsed.users || [])),
     ledger: normalizeLedger(parsed.ledger || defaultState.ledger),
+    openOrders: parsed.openOrders || [],
   };
 }
 
@@ -709,8 +710,9 @@ export function FriendMarketProvider({ children }) {
       },
       updateBetDraft(field, value) {
         updateState((next) => {
-          if (field === "side") {
-            next.betDraft.side = value;
+          const stringFields = new Set(["side", "inputMode", "orderType", "limitExpiry"]);
+          if (stringFields.has(field)) {
+            next.betDraft[field] = value;
             return;
           }
           next.betDraft[field] = Number(value);
@@ -752,6 +754,77 @@ export function FriendMarketProvider({ children }) {
           next.currentUser.paper_balance = 10000;
           next.portfolio.openBets = next.portfolio.openBets.filter((b) => !b.isPaper);
           next.flashMessage = "Paper balance reset to $10,000.";
+        });
+      },
+      async createLimitOrder({ marketId, side, quantity, limitPrice, limitExpiry }) {
+        const isPaper = state.paperMode;
+        try {
+          const { response, payload } = await requestJson("/api/orders", {
+            method: "POST",
+            body: JSON.stringify({ marketId, side, quantity, limitPrice, isPaper, limitExpiry }),
+          });
+          if (payload.state) {
+            setState((prev) => ({
+              ...payload.state,
+              auth: prev.auth,
+              theme: prev.theme,
+              paperMode: prev.paperMode,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            }));
+            return;
+          }
+          if (!response.ok) {
+            updateState((next) => { next.flashMessage = payload.message || "Could not place limit order."; });
+          }
+        } catch {
+          updateState((next) => {
+            const dollars = (Number(quantity) * Number(limitPrice)).toFixed(2);
+            next.openOrders = [
+              {
+                id: `order_${Date.now()}`,
+                marketId,
+                market: state.markets.find((m) => m.id === marketId)?.title ?? marketId,
+                side,
+                quantity: Number(quantity),
+                limitPrice: Number(limitPrice),
+                limitPriceCents: Math.round(Number(limitPrice) * 100),
+                currentPrice: side === "YES"
+                  ? (state.markets.find((m) => m.id === marketId)?.yesPrice ?? 0.5)
+                  : (state.markets.find((m) => m.id === marketId)?.noPrice ?? 0.5),
+                dollarCost: Number(dollars),
+                isPaper,
+                expiresAt: null,
+                createdAt: new Date().toISOString(),
+                status: "OPEN",
+              },
+              ...(next.openOrders || []),
+            ];
+            next.flashMessage = `Limit order placed: ${side} at ${Math.round(Number(limitPrice) * 100)}¢`;
+          });
+        }
+      },
+      async cancelOrder(orderId) {
+        try {
+          const { payload } = await requestJson("/api/orders", {
+            method: "DELETE",
+            body: JSON.stringify({ orderId }),
+          });
+          if (payload.state) {
+            setState((prev) => ({
+              ...payload.state,
+              auth: prev.auth,
+              theme: prev.theme,
+              paperMode: prev.paperMode,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            }));
+            return;
+          }
+        } catch {}
+        updateState((next) => {
+          next.openOrders = (next.openOrders || []).filter((o) => o.id !== orderId);
+          next.flashMessage = "Order cancelled.";
         });
       },
       async placeBet(marketId, side) {

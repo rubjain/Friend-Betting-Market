@@ -39,6 +39,8 @@ export default function PortfolioPage() {
   const paperOpenBets = state.portfolio.openBets.filter((b) => b.isPaper);
   const realPastBets = state.portfolio.pastBets.filter((b) => !b.isPaper);
   const paperPastBets = state.portfolio.pastBets.filter((b) => b.isPaper);
+  const realOpenOrders = (state.openOrders || []).filter((o) => !o.isPaper);
+  const paperOpenOrders = (state.openOrders || []).filter((o) => o.isPaper);
 
   const paperPnl = paperPastBets.reduce((sum, b) => sum + (b.payout ?? 0) - (b.stake ?? 0), 0);
   const paperWinRate = paperPastBets.length
@@ -61,7 +63,7 @@ export default function PortfolioPage() {
             onClick={() => setTab("real")}
           >
             Real trading
-            {realOpenBets.length > 0 && <span className="tab-badge">{realOpenBets.length}</span>}
+            {(realOpenBets.length + realOpenOrders.length) > 0 && <span className="tab-badge">{realOpenBets.length + realOpenOrders.length}</span>}
           </button>
           <button
             className={`portfolio-tab portfolio-tab--paper${tab === "paper" ? " active" : ""}`}
@@ -70,7 +72,7 @@ export default function PortfolioPage() {
           >
             <span className="paper-dot" aria-hidden="true" />
             Paper trading
-            {paperOpenBets.length > 0 && <span className="tab-badge tab-badge--paper">{paperOpenBets.length}</span>}
+            {(paperOpenBets.length + paperOpenOrders.length) > 0 && <span className="tab-badge tab-badge--paper">{paperOpenBets.length + paperOpenOrders.length}</span>}
           </button>
         </div>
 
@@ -113,6 +115,8 @@ export default function PortfolioPage() {
                 )}
               </div>
             </div>
+
+            <OpenOrdersList orders={realOpenOrders} onCancel={actions.cancelOrder} pendingAction={pendingAction} runAction={runPortfolioAction} />
 
             {realPastBets.length > 0 && (
               <div className="list-card">
@@ -205,6 +209,8 @@ export default function PortfolioPage() {
               </p>
             </div>
 
+            <OpenOrdersList orders={paperOpenOrders} onCancel={actions.cancelOrder} pendingAction={pendingAction} runAction={runPortfolioAction} isPaper />
+
             {/* Paper open bets */}
             <div className="list-card list-card--paper open-bets-hero">
               <h2 className="open-bets-heading">Open paper bets</h2>
@@ -260,6 +266,53 @@ function BalanceBox({ label, value, body, isPaper, highlight }) {
       <span className="label">{label}</span>
       <strong className={highlight === "positive" ? "pnl-positive" : highlight === "negative" ? "pnl-negative" : ""}>{value}</strong>
       <span className="caption">{body}</span>
+    </div>
+  );
+}
+
+function OpenOrdersList({ orders, onCancel, pendingAction, runAction, isPaper }) {
+  if (!orders.length) return null;
+  return (
+    <div className={`list-card${isPaper ? " list-card--paper" : ""} open-orders-card`}>
+      <div className="open-orders-header">
+        <h3>Open limit orders</h3>
+        <span className="open-orders-count">{orders.length}</span>
+      </div>
+      <div className="bet-list">
+        {orders.map((order) => {
+          const hitTarget = order.currentPrice <= order.limitPrice;
+          return (
+            <div className="order-row" key={order.id}>
+              <div className="order-row-main">
+                <div className="order-row-info">
+                  <strong>{order.market}</strong>
+                  <div className="caption">
+                    <span className={`order-side-badge order-side-badge--${order.side.toLowerCase()}`}>{order.side}</span>
+                    {" "}&middot; {order.quantity.toFixed(2)} shares &middot; limit {order.limitPriceCents}¢
+                    &nbsp;·&nbsp;cost {money(order.dollarCost)}
+                    {order.isPaper && <span className="order-paper-tag">PAPER</span>}
+                  </div>
+                  <div className="order-price-status">
+                    <span className="caption">Current: {Math.round(order.currentPrice * 100)}¢</span>
+                    {hitTarget
+                      ? <span className="order-status-badge order-status-badge--fill">At target — filling soon</span>
+                      : <span className="order-status-badge">Waiting for {order.limitPriceCents}¢</span>
+                    }
+                  </div>
+                </div>
+                <button
+                  className="btn btn-ghost btn-sm order-cancel-btn"
+                  type="button"
+                  disabled={!!pendingAction}
+                  onClick={() => runAction(`cancel-${order.id}`, () => onCancel(order.id))}
+                >
+                  {pendingAction === `cancel-${order.id}` ? "Cancelling..." : "Cancel"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

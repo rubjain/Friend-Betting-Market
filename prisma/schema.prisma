@@ -286,6 +286,8 @@ model Order {
   quantity   Decimal     @db.Decimal(14, 4)
   limitPrice Decimal     @db.Decimal(8, 4)
   filledQty  Decimal     @default(0) @db.Decimal(14, 4)
+  isPaper    Boolean     @default(false)
+  expiresAt  DateTime?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   user       User        @relation(fields: [userId], references: [id])

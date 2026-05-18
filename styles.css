@@ -8067,3 +8067,381 @@ textarea { min-height: 130px; resize: vertical; }
   font-size: 0.82rem;
   color: var(--text-secondary);
 }
+
+/* ============================================================
+   BETTING PANEL — ENHANCED
+   ============================================================ */
+
+/* Paper mode tint on the panel */
+.bet-panel--paper {
+  border-color: var(--paper-border);
+  background: linear-gradient(160deg, var(--surface) 70%, var(--paper-soft));
+}
+
+.bet-panel-paper-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  background: var(--paper-soft);
+  border: 1px solid var(--paper-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  color: var(--paper-strong);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+/* ── Order type toggle (Market / Limit) ── */
+.order-type-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.order-type-btn {
+  flex: 1;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s;
+}
+
+.order-type-btn + .order-type-btn {
+  border-left: 1px solid var(--border);
+}
+
+.order-type-btn.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── $ / Shares input mode toggle ── */
+.stake-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.input-mode-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  gap: 0;
+}
+
+.input-mode-btn {
+  padding: 3px 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.input-mode-btn + .input-mode-btn {
+  border-left: 1px solid var(--border);
+}
+
+.input-mode-btn.active {
+  background: var(--surface-alt);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.stake-conversion {
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ── Limit order fields ── */
+.limit-order-fields {
+  margin-bottom: 14px;
+  padding: 12px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.limit-price-row {
+  display: flex;
+  gap: 10px;
+}
+
+.limit-price-row .stake-field {
+  flex: 1;
+}
+
+.limit-price-wrap {
+  position: relative;
+}
+
+.stake-unit {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.82rem;
+  pointer-events: none;
+}
+
+.limit-expiry-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.limit-order-hint {
+  margin-top: 10px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.limit-order-warn {
+  color: #d97706;
+}
+
+/* ── Review screen ── */
+.bet-panel--review {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.review-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.review-back {
+  font-size: 0.78rem;
+}
+
+.review-market-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 14px;
+  line-height: 1.35;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 14px;
+}
+
+.review-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.84rem;
+}
+
+.review-row:last-child {
+  border-bottom: none;
+}
+
+.review-row span {
+  color: var(--muted);
+}
+
+.review-row strong {
+  font-weight: 600;
+}
+
+.review-row--boost span {
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+
+.review-row--boost strong {
+  color: var(--accent);
+}
+
+.review-side-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.review-side-badge--yes {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.review-side-badge--no {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.review-payout {
+  color: #16a34a;
+}
+
+.review-disclaimer {
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.45;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+}
+
+.bet-submit-btn--paper {
+  background: var(--paper) !important;
+}
+
+.bet-submit-btn--paper:hover:not(:disabled) {
+  background: var(--paper-strong) !important;
+}
+
+/* ── Open orders list in portfolio ── */
+.open-orders-card {
+  border-color: var(--border-strong);
+}
+
+.open-orders-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.open-orders-header h3 {
+  margin: 0;
+}
+
+.open-orders-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.order-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.order-row:last-child {
+  border-bottom: none;
+}
+
+.order-row-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.order-row-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.order-side-badge {
+  display: inline-flex;
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.order-side-badge--yes {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.order-side-badge--no {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.order-paper-tag {
+  display: inline-flex;
+  padding: 1px 6px;
+  border-radius: 20px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  background: var(--paper-soft);
+  color: var(--paper-strong);
+  margin-left: 6px;
+}
+
+.order-price-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.order-status-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: var(--surface-alt);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.order-status-badge--fill {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.25);
+  font-weight: 600;
+}
+
+.order-cancel-btn {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
