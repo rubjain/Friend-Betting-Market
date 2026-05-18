@@ -15,6 +15,7 @@ enum UserRole {
 enum BalanceCurrency {
   WITHDRAWABLE
   BONUS
+  PAPER
 }
 
 enum LedgerTransactionType {
@@ -254,6 +255,7 @@ model Bet {
   withdrawableStake  Decimal         @db.Decimal(14, 2)
   bonusStake         Decimal         @db.Decimal(14, 2)
   expectedMultiplier Decimal         @db.Decimal(8, 4)
+  isPaper            Boolean         @default(false)
   placedAt           DateTime        @default(now())
   settledAt          DateTime?
   user               User            @relation(fields: [userId], references: [id])

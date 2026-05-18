@@ -137,6 +137,35 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <div className="list-card settings-anchor" id="paper-trading">
+          <h3>Paper trading</h3>
+          <p className="settings-section-body">Practice prediction markets with $10,000 of virtual money. Your paper P&amp;L is tracked separately from your real account — no real funds at risk.</p>
+          <div className="paper-settings-row">
+            <div className="paper-settings-info">
+              <span className="label">Paper balance</span>
+              <strong className="paper-balance-value">{money(state.currentUser.paper_balance ?? 0)}</strong>
+            </div>
+            <div className="inline-actions">
+              <button
+                className={`btn ${state.paperMode ? "paper-mode-exit" : "btn-primary paper-start-btn"}`}
+                type="button"
+                onClick={actions.togglePaperMode}
+              >
+                {state.paperMode ? "Exit paper mode" : "Start paper trading"}
+              </button>
+              <button className="btn btn-ghost" type="button" onClick={actions.resetPaperBalance}>
+                Reset to $10,000
+              </button>
+            </div>
+          </div>
+          {state.paperMode && (
+            <p className="paper-mode-active-note">
+              <span className="paper-mode-pill" style={{ marginRight: 6 }}>ACTIVE</span>
+              Paper mode is on. All bets placed use your virtual balance.
+            </p>
+          )}
+        </div>
+
         <div className="list-card settings-anchor" id="balances">
           <h3>Balances</h3>
           <div className="balance-mini-grid">

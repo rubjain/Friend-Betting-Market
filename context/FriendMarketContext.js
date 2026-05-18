@@ -144,6 +144,7 @@ function mergeStoredState(parsed) {
     ...parsed,
     flashMessage: "",
     mobileNavOpen: false,
+    paperMode: Boolean(parsed.paperMode),
     theme: parsed.theme || defaultState.theme,
     auth: { ...defaultState.auth, ...(parsed.auth || {}) },
     friendInviteDraft: parsed.friendInviteDraft || "",
@@ -724,7 +725,37 @@ export function FriendMarketProvider({ children }) {
           }
         });
       },
+      togglePaperMode() {
+        updateState((next) => {
+          next.paperMode = !next.paperMode;
+          next.flashMessage = next.paperMode
+            ? "Paper trading mode on. Your bets use virtual money."
+            : "Back to real trading.";
+        });
+      },
+      async resetPaperBalance() {
+        try {
+          const { payload } = await requestJson("/api/paper/reset", { method: "POST" });
+          if (payload.state) {
+            setState((prev) => ({
+              ...payload.state,
+              auth: prev.auth,
+              theme: prev.theme,
+              paperMode: prev.paperMode,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            }));
+            return;
+          }
+        } catch {}
+        updateState((next) => {
+          next.currentUser.paper_balance = 10000;
+          next.portfolio.openBets = next.portfolio.openBets.filter((b) => !b.isPaper);
+          next.flashMessage = "Paper balance reset to $10,000.";
+        });
+      },
       async placeBet(marketId, side) {
+        const isPaper = state.paperMode;
         try {
           const { payload } = await requestJson("/api/bets", {
             method: "POST",
@@ -732,6 +763,7 @@ export function FriendMarketProvider({ children }) {
               marketId,
               side,
               betDraft: { ...state.betDraft, side },
+              isPaper,
             }),
           });
 
@@ -740,6 +772,7 @@ export function FriendMarketProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -757,6 +790,49 @@ export function FriendMarketProvider({ children }) {
             next.flashMessage = `This market is ${market.status} and is not accepting bets.`;
             return;
           }
+          const stake = Number(next.betDraft.stake) || 0;
+
+          if (isPaper) {
+            if (stake <= 0) {
+              next.flashMessage = "Enter a valid stake before placing a bet.";
+              return;
+            }
+            if (stake > (next.currentUser.paper_balance ?? 0)) {
+              next.flashMessage = "Insufficient paper balance for this bet.";
+              return;
+            }
+            const result = calculatePayout({
+              stake,
+              withdrawableShare: stake,
+              bonusShare: 0,
+              market,
+              adminConfig: next.adminConfig,
+            });
+            next.currentUser.paper_balance = (next.currentUser.paper_balance ?? 0) - result.totalStake;
+            const betId = `bet_paper_${Date.now()}`;
+            market.recentActivity?.unshift({
+              user: next.currentUser.name,
+              action: `Paper bet ${side}`,
+              amount: result.totalStake,
+              time: "Just now",
+            });
+            next.portfolio.openBets.unshift({
+              id: betId,
+              marketId: market.id,
+              market: market.title,
+              side,
+              stake: result.totalStake,
+              status: "Open",
+              funding: "Paper trade",
+              isPaper: true,
+              withdrawableStake: 0,
+              bonusStake: 0,
+              placedAt: new Date().toISOString().slice(0, 10),
+            });
+            next.flashMessage = `Paper trade: ${side} on "${market.title}" for ${money(result.totalStake)}.`;
+            return;
+          }
+
           const result = calculatePayout({
             stake: next.betDraft.stake,
             withdrawableShare: next.betDraft.withdrawableShare,
@@ -782,7 +858,7 @@ export function FriendMarketProvider({ children }) {
           next.currentUser.bonus_balance -= result.bonusStake;
           const betId = `bet_${Date.now()}`;
 
-          market.recentActivity.unshift({
+          market.recentActivity?.unshift({
             user: next.currentUser.name,
             action: `Bet ${side}`,
             amount: result.totalStake,
@@ -800,6 +876,7 @@ export function FriendMarketProvider({ children }) {
             )}% bonus`,
             withdrawableStake: result.withdrawableStake,
             bonusStake: result.bonusStake,
+            isPaper: false,
             placedAt: new Date().toISOString().slice(0, 10),
           });
           addLedgerEntries(

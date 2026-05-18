@@ -62,7 +62,8 @@ export default function AppShell({ children }) {
   const [navCollapsed, setNavCollapsed] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const navCloseTimerRef = useRef(null);
-  const openPositions = state.portfolio.openBets.length;
+  const openPositions = state.portfolio.openBets.filter((b) => !b.isPaper).length;
+  const paperPositions = state.portfolio.openBets.filter((b) => b.isPaper).length;
   const notifications = useMemo(() => buildNotifications(state), [state]);
   const actionableNotificationCount = useMemo(
     () => countActionableNotifications(notifications),
@@ -175,18 +176,26 @@ export default function AppShell({ children }) {
             </div>
           </Link>
           {state.auth.authenticated ? (
-          <div className="top-account-strip" aria-label="Account summary">
+          <div className={`top-account-strip${state.paperMode ? " top-account-strip--paper" : ""}`} aria-label="Account summary">
+            {state.paperMode ? (
+              <button className="paper-mode-badge" type="button" onClick={actions.togglePaperMode} title="Exit paper trading">
+                <span className="paper-mode-badge-dot" />
+                PAPER
+              </button>
+            ) : null}
             <Link className="top-account-metric" href="/portfolio">
-              <span>Balance</span>
-              <strong>{money(state.currentUser.play_credit_balance)}</strong>
+              <span>{state.paperMode ? "Paper balance" : "Balance"}</span>
+              <strong>{state.paperMode ? money(state.currentUser.paper_balance ?? 0) : money(state.currentUser.play_credit_balance)}</strong>
             </Link>
             <Link className="top-account-metric" href="/portfolio">
               <span>Positions</span>
-              <strong>{openPositions}</strong>
+              <strong>{state.paperMode ? paperPositions : openPositions}</strong>
             </Link>
-            <Link className="btn btn-primary top-deposit-button" href="/deposit">
-              Deposit
-            </Link>
+            {!state.paperMode ? (
+              <Link className="btn btn-primary top-deposit-button" href="/deposit">
+                Deposit
+              </Link>
+            ) : null}
             <div className="notification-center">
               <button
                 className="notification-button"
@@ -312,7 +321,28 @@ export default function AppShell({ children }) {
           </div>
         </div>
       </header>
-      <main className="page-wrap">
+      <main className={`page-wrap${state.paperMode ? " page-wrap--paper" : ""}`}>
+        {state.paperMode ? (
+          <div className="paper-mode-banner">
+            <div className="paper-mode-banner-inner">
+              <div className="paper-mode-banner-left">
+                <span className="paper-mode-banner-pill">PAPER TRADING</span>
+                <span className="paper-mode-banner-text">
+                  You&apos;re in paper trading mode — no real money is at stake.
+                  Practice strategies with <strong>{money(state.currentUser.paper_balance ?? 0)}</strong> virtual balance.
+                </span>
+              </div>
+              <div className="paper-mode-banner-actions">
+                <button className="btn btn-ghost paper-mode-reset" type="button" onClick={actions.resetPaperBalance}>
+                  Reset balance
+                </button>
+                <button className="btn paper-mode-exit" type="button" onClick={actions.togglePaperMode}>
+                  Exit paper mode
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {state.flashMessage ? (
           <div className="note-banner flash-banner">
             <div className="row-between">

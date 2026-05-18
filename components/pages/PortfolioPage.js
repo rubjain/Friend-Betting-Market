@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useFriendMarket } from "../../context/FriendMarketContext";
 import { money } from "../../lib/formatters";
 import PortfolioLedger from "../PortfolioLedger";
@@ -8,6 +9,7 @@ import { SectionHead } from "../ui";
 
 export default function PortfolioPage() {
   const { state, actions } = useFriendMarket();
+  const [tab, setTab] = useState("real");
   const [disputeDraft, setDisputeDraft] = useState({ betId: "", reason: "" });
   const [pendingAction, setPendingAction] = useState("");
   const [showTxHistory, setShowTxHistory] = useState(false);
@@ -30,158 +32,233 @@ export default function PortfolioPage() {
         reason: disputeDraft.reason,
       }),
     );
-    if (ok) {
-      setDisputeDraft({ betId: "", reason: "" });
-    }
+    if (ok) setDisputeDraft({ betId: "", reason: "" });
   }
 
-  const totalBalance =
-    (state.currentUser.withdrawable_balance ?? 0) +
-    (state.currentUser.bonus_balance ?? 0) +
-    (state.currentUser.play_credit_balance ?? 0);
+  const realOpenBets = state.portfolio.openBets.filter((b) => !b.isPaper);
+  const paperOpenBets = state.portfolio.openBets.filter((b) => b.isPaper);
+  const realPastBets = state.portfolio.pastBets.filter((b) => !b.isPaper);
+  const paperPastBets = state.portfolio.pastBets.filter((b) => b.isPaper);
+
+  const paperPnl = paperPastBets.reduce((sum, b) => sum + (b.payout ?? 0) - (b.stake ?? 0), 0);
+  const paperWinRate = paperPastBets.length
+    ? Math.round((paperPastBets.filter((b) => (b.payout ?? 0) > (b.stake ?? 0)).length / paperPastBets.length) * 100)
+    : null;
 
   return (
     <section className="page active">
       <SectionHead
         title="Portfolio"
-        body="Open bets, settled history, and separate play-money balances that mirror a real-money architecture."
+        body="Track your real and paper trading activity separately."
       />
       <div className="portfolio-stack">
-        {/* 1. Balance hero */}
-        <div className="balance-hero">
-          <div className="balance-hero-total">
-            <span className="label">Total balance</span>
-            <strong>{money(totalBalance)}</strong>
-          </div>
-          <div className="balance-hero-breakdown">
-            <BalanceBox
-              label="Withdrawable"
-              value={money(state.currentUser.withdrawable_balance)}
-              body="Deposits and normal winnings."
-            />
-            <BalanceBox
-              label="Bonus"
-              value={money(state.currentUser.bonus_balance)}
-              body="Social boosts, promos, referrals."
-            />
-            <BalanceBox
-              label="Play credit"
-              value={money(state.currentUser.play_credit_balance)}
-              body="Backed by separate ledger currencies."
-            />
-          </div>
-          <div className="inline-actions">
-            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("deposit", actions.addDemoDeposit)}>
-              {pendingAction === "deposit" ? "Adding..." : "Add $25 Deposit"}
-            </button>
-            <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("bonus", actions.grantDemoBonus)}>
-              {pendingAction === "bonus" ? "Granting..." : "Grant $10 Bonus"}
-            </button>
-          </div>
-        </div>
 
-        {/* 2. Open bets (visual hero) */}
-        <div className="list-card open-bets-hero">
-          <h2 className="open-bets-heading">Open bets</h2>
-          <div className="bet-list">
-            {state.portfolio.openBets.length ? (
-              state.portfolio.openBets.map((bet) => (
-                <div className="bet-row" key={bet.id}>
-                  <div>
-                    <strong>{bet.market}</strong>
-                    <div className="caption">
-                      {bet.side} &middot; {money(bet.stake)} &middot; {bet.funding}
-                    </div>
-                  </div>
-                  <span className="pill">{bet.status}</span>
-                </div>
-              ))
-            ) : (
-              <div className="empty-note">No open bets yet.</div>
-            )}
-          </div>
-        </div>
-
-        {/* 3. Past bets */}
-        <div className="list-card">
-          <h3>Past bets</h3>
-          <div className="bet-list">
-            {state.portfolio.pastBets.length ? (
-              state.portfolio.pastBets.map((bet, index) => (
-                <div className="bet-row" key={`${bet.market}-${index}`}>
-                  <div>
-                    <strong>{bet.market}</strong>
-                    <div className="caption">
-                      {bet.side} &middot; {bet.settlement}
-                    </div>
-                    {disputeDraft.betId === bet.id ? (
-                      <div className="dispute-box">
-                        <label className="label" htmlFor={`dispute-${bet.id}`}>
-                          Dispute reason
-                        </label>
-                        <textarea
-                          id={`dispute-${bet.id}`}
-                          rows="3"
-                          value={disputeDraft.reason}
-                          onChange={(event) =>
-                            setDisputeDraft((draft) => ({ ...draft, reason: event.currentTarget.value }))
-                          }
-                          placeholder="Explain what evidence or settlement detail should be reviewed."
-                        />
-                        <div className="inline-actions">
-                          <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => submitDispute(bet)}>
-                            {pendingAction === `dispute-${bet.id}` ? "Submitting..." : "Submit dispute"}
-                          </button>
-                          <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => setDisputeDraft({ betId: "", reason: "" })}>
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="bet-row-actions">
-                    <strong>{money(bet.payout + bet.boost)}</strong>
-                    {bet.marketId && bet.id ? (
-                      <button
-                        className="btn btn-ghost"
-                        type="button"
-                        onClick={() => setDisputeDraft({ betId: bet.id, reason: "" })}
-                      >
-                        Dispute
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="empty-note">No settled bets yet.</div>
-            )}
-          </div>
-        </div>
-
-        {/* 4. Transaction history (collapsed by default) */}
-        <div className="txn-collapse-wrap">
+        {/* Tab switcher */}
+        <div className="portfolio-tabs">
           <button
-            className="txn-toggle"
+            className={`portfolio-tab${tab === "real" ? " active" : ""}`}
             type="button"
-            onClick={() => setShowTxHistory((v) => !v)}
-            aria-expanded={showTxHistory}
+            onClick={() => setTab("real")}
           >
-            <span>{showTxHistory ? "Hide transaction history" : "Show transaction history"}</span>
-            <span className="txn-toggle-chevron" aria-hidden="true">{showTxHistory ? "^" : "v"}</span>
+            Real trading
+            {realOpenBets.length > 0 && <span className="tab-badge">{realOpenBets.length}</span>}
           </button>
-          {showTxHistory && <PortfolioLedger />}
+          <button
+            className={`portfolio-tab portfolio-tab--paper${tab === "paper" ? " active" : ""}`}
+            type="button"
+            onClick={() => setTab("paper")}
+          >
+            <span className="paper-dot" aria-hidden="true" />
+            Paper trading
+            {paperOpenBets.length > 0 && <span className="tab-badge tab-badge--paper">{paperOpenBets.length}</span>}
+          </button>
         </div>
+
+        {tab === "real" ? (
+          <>
+            <div className="balance-hero">
+              <div className="balance-hero-total">
+                <span className="label">Total real balance</span>
+                <strong>{money((state.currentUser.withdrawable_balance ?? 0) + (state.currentUser.bonus_balance ?? 0))}</strong>
+              </div>
+              <div className="balance-hero-breakdown">
+                <BalanceBox label="Withdrawable" value={money(state.currentUser.withdrawable_balance)} body="Deposits and normal winnings." />
+                <BalanceBox label="Bonus" value={money(state.currentUser.bonus_balance)} body="Social boosts, promos, referrals." />
+              </div>
+              <div className="inline-actions">
+                <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("deposit", actions.addDemoDeposit)}>
+                  {pendingAction === "deposit" ? "Adding..." : "Add $25 Deposit"}
+                </button>
+                <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("bonus", actions.grantDemoBonus)}>
+                  {pendingAction === "bonus" ? "Granting..." : "Grant $10 Bonus"}
+                </button>
+              </div>
+            </div>
+
+            <div className="list-card open-bets-hero">
+              <h2 className="open-bets-heading">Open bets</h2>
+              <div className="bet-list">
+                {realOpenBets.length ? (
+                  realOpenBets.map((bet) => (
+                    <div className="bet-row" key={bet.id}>
+                      <div>
+                        <strong>{bet.market}</strong>
+                        <div className="caption">{bet.side} &middot; {money(bet.stake)} &middot; {bet.funding}</div>
+                      </div>
+                      <span className="pill">{bet.status}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="empty-note">No open real bets yet.</div>
+                )}
+              </div>
+            </div>
+
+            {realPastBets.length > 0 && (
+              <div className="list-card">
+                <h3>Past bets</h3>
+                <div className="bet-list">
+                  {realPastBets.map((bet, index) => (
+                    <div className="bet-row" key={`${bet.market}-${index}`}>
+                      <div>
+                        <strong>{bet.market}</strong>
+                        <div className="caption">{bet.side} &middot; {bet.settlement}</div>
+                        {disputeDraft.betId === bet.id ? (
+                          <div className="dispute-box">
+                            <label className="label" htmlFor={`dispute-${bet.id}`}>Dispute reason</label>
+                            <textarea
+                              id={`dispute-${bet.id}`}
+                              rows="3"
+                              value={disputeDraft.reason}
+                              onChange={(e) => setDisputeDraft((d) => ({ ...d, reason: e.currentTarget.value }))}
+                              placeholder="Explain what evidence or settlement detail should be reviewed."
+                            />
+                            <div className="inline-actions">
+                              <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => submitDispute(bet)}>
+                                {pendingAction === `dispute-${bet.id}` ? "Submitting..." : "Submit dispute"}
+                              </button>
+                              <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => setDisputeDraft({ betId: "", reason: "" })}>
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="bet-row-actions">
+                        <strong>{money((bet.payout ?? 0) + (bet.boost ?? 0))}</strong>
+                        {bet.marketId && bet.id ? (
+                          <button className="btn btn-ghost" type="button" onClick={() => setDisputeDraft({ betId: bet.id, reason: "" })}>
+                            Dispute
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="txn-collapse-wrap">
+              <button className="txn-toggle" type="button" onClick={() => setShowTxHistory((v) => !v)} aria-expanded={showTxHistory}>
+                <span>{showTxHistory ? "Hide transaction history" : "Show transaction history"}</span>
+                <span className="txn-toggle-chevron" aria-hidden="true">{showTxHistory ? "^" : "v"}</span>
+              </button>
+              {showTxHistory && <PortfolioLedger />}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Paper balance hero */}
+            <div className="balance-hero balance-hero--paper">
+              <div className="balance-hero-paper-header">
+                <span className="paper-mode-pill">PAPER</span>
+                <span className="balance-hero-paper-tagline">Practice with virtual money. No real funds at risk.</span>
+              </div>
+              <div className="balance-hero-total">
+                <span className="label">Paper balance</span>
+                <strong className="paper-balance-value">{money(state.currentUser.paper_balance ?? 0)}</strong>
+              </div>
+              <div className="balance-hero-breakdown">
+                <BalanceBox label="Starting balance" value="$10,000.00" body="Virtual starting funds." isPaper />
+                <BalanceBox label="Open positions" value={String(paperOpenBets.length)} body="Active paper bets." isPaper />
+                {paperPastBets.length > 0 && (
+                  <BalanceBox
+                    label="Settled P&L"
+                    value={`${paperPnl >= 0 ? "+" : ""}${money(paperPnl)}`}
+                    body={paperWinRate !== null ? `${paperWinRate}% win rate` : "From settled bets."}
+                    isPaper
+                    highlight={paperPnl >= 0 ? "positive" : "negative"}
+                  />
+                )}
+              </div>
+              <div className="paper-actions">
+                <button className="btn btn-primary paper-start-btn" type="button" onClick={actions.togglePaperMode}>
+                  {state.paperMode ? "Exit paper mode" : "Start paper trading"}
+                </button>
+                <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("paperReset", actions.resetPaperBalance)}>
+                  {pendingAction === "paperReset" ? "Resetting..." : "Reset to $10,000"}
+                </button>
+              </div>
+              <p className="paper-explainer">
+                Paper trading uses the same markets, odds, and payouts as real trading — the only difference is no real money changes hands.
+                Use it to test strategies before committing real funds.
+              </p>
+            </div>
+
+            {/* Paper open bets */}
+            <div className="list-card list-card--paper open-bets-hero">
+              <h2 className="open-bets-heading">Open paper bets</h2>
+              <div className="bet-list">
+                {paperOpenBets.length ? (
+                  paperOpenBets.map((bet) => (
+                    <div className="bet-row" key={bet.id}>
+                      <div>
+                        <strong>{bet.market}</strong>
+                        <div className="caption">{bet.side} &middot; {money(bet.stake)} &middot; Paper trade</div>
+                      </div>
+                      <span className="pill pill--paper">{bet.status}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="empty-note">
+                    No open paper bets.{" "}
+                    <Link href="/markets">Browse markets</Link> to place your first paper trade.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Paper past bets */}
+            {paperPastBets.length > 0 && (
+              <div className="list-card list-card--paper">
+                <h3>Settled paper bets</h3>
+                <div className="bet-list">
+                  {paperPastBets.map((bet, index) => (
+                    <div className="bet-row" key={`${bet.market}-${index}`}>
+                      <div>
+                        <strong>{bet.market}</strong>
+                        <div className="caption">{bet.side} &middot; {bet.settlement}</div>
+                      </div>
+                      <strong className={(bet.payout ?? 0) > (bet.stake ?? 0) ? "pnl-positive" : "pnl-negative"}>
+                        {(bet.payout ?? 0) > (bet.stake ?? 0) ? "+" : ""}{money((bet.payout ?? 0) - (bet.stake ?? 0))}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </section>
   );
 }
 
-function BalanceBox({ label, value, body }) {
+function BalanceBox({ label, value, body, isPaper, highlight }) {
   return (
-    <div className="balance-box">
+    <div className={`balance-box${isPaper ? " balance-box--paper" : ""}`}>
       <span className="label">{label}</span>
-      <strong>{value}</strong>
+      <strong className={highlight === "positive" ? "pnl-positive" : highlight === "negative" ? "pnl-negative" : ""}>{value}</strong>
       <span className="caption">{body}</span>
     </div>
   );
