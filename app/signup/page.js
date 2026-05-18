@@ -8,18 +8,22 @@ import { useFriendMarket } from "../../context/FriendMarketContext";
 export default function SignupPage() {
   const router = useRouter();
   const { actions } = useFriendMarket();
-  const [draft, setDraft] = useState({ name: "", email: "", username: "", password: "" });
+  const [draft, setDraft] = useState({ name: "", email: "", username: "", password: "", confirmPassword: "" });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
   function set(key) {
-    return (e) => setDraft((d) => ({ ...d, [key]: e.currentTarget.value }));
+    return (e) => setDraft((d) => ({ ...d, [key]: e.target.value }));
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (pending) return;
+    if (draft.password !== draft.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     if (!acceptedTerms) {
       setError("You must accept the Terms of Use and Privacy Policy to create an account.");
       return;
@@ -27,11 +31,13 @@ export default function SignupPage() {
     setError("");
     setPending(true);
     try {
-      const ok = await actions.signup(draft);
-      if (ok) {
+      const result = await actions.signup(draft);
+      if (result?.pending) {
+        router.push(`/check-email?email=${encodeURIComponent(draft.email)}`);
+      } else if (result?.ok) {
         router.push("/");
       } else {
-        setError("Could not create account. Check all fields and try again.");
+        setError(result?.message || "Could not create account. Check all fields and try again.");
       }
     } catch {
       setError("Something went wrong. Try again.");
@@ -48,16 +54,11 @@ export default function SignupPage() {
             <div className="brand-mark">AG</div>
           </Link>
           <h2>Create account</h2>
-          <p>Create a demo account, then verify email before any production-money features are enabled.</p>
-        </div>
-        <div className="note-banner auth-note">
-          Use test@example.com or taylor@example.com with password123 to test friend invites from clean $100 accounts.
+          <p>Verify your email to activate your account.</p>
         </div>
         <form className="form-grid" onSubmit={handleSubmit}>
           <div className="field full">
-            <label className="label" htmlFor="signup-name">
-              Display name
-            </label>
+            <label className="label" htmlFor="signup-name">Display name</label>
             <input
               id="signup-name"
               type="text"
@@ -68,9 +69,7 @@ export default function SignupPage() {
             />
           </div>
           <div className="field full">
-            <label className="label" htmlFor="signup-email">
-              Email
-            </label>
+            <label className="label" htmlFor="signup-email">Email</label>
             <input
               id="signup-email"
               type="email"
@@ -80,9 +79,7 @@ export default function SignupPage() {
             />
           </div>
           <div className="field full">
-            <label className="label" htmlFor="signup-username">
-              Username
-            </label>
+            <label className="label" htmlFor="signup-username">Username</label>
             <input
               id="signup-username"
               type="text"
@@ -93,9 +90,7 @@ export default function SignupPage() {
             />
           </div>
           <div className="field full">
-            <label className="label" htmlFor="signup-password">
-              Password
-            </label>
+            <label className="label" htmlFor="signup-password">Password</label>
             <input
               id="signup-password"
               type="password"
@@ -105,20 +100,32 @@ export default function SignupPage() {
               onChange={set("password")}
             />
           </div>
+          <div className="field full">
+            <label className="label" htmlFor="signup-confirm-password">Confirm password</label>
+            <input
+              id="signup-confirm-password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Re-enter password"
+              value={draft.confirmPassword}
+              onChange={set("confirmPassword")}
+            />
+            {draft.confirmPassword && draft.password !== draft.confirmPassword && (
+              <p style={{ color: "#c62828", fontSize: "13px", margin: "4px 0 0" }}>Passwords do not match.</p>
+            )}
+          </div>
           {error ? <p className="field full auth-error">{error}</p> : null}
           <div className="field full">
             <label className="auth-terms">
               <input
                 type="checkbox"
                 checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.currentTarget.checked)}
-                aria-describedby="signup-terms-desc"
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
               />
-              <span id="signup-terms-desc">
+              <span>
                 I agree to the{" "}
                 <Link href="/legal">Terms of Use</Link> and{" "}
-                <Link href="/privacy">Privacy Policy</Link>, and I understand how demo balances and play credits work as described in the{" "}
-                <Link href="/faq">FAQ</Link>.
+                <Link href="/privacy">Privacy Policy</Link>.
               </span>
             </label>
           </div>
@@ -126,7 +133,7 @@ export default function SignupPage() {
             <button
               className="btn btn-primary"
               type="submit"
-              disabled={pending || !acceptedTerms}
+              disabled={pending || !acceptedTerms || (draft.confirmPassword !== "" && draft.password !== draft.confirmPassword)}
               style={{ width: "100%" }}
             >
               {pending ? "Creating account..." : "Create account"}
@@ -136,7 +143,6 @@ export default function SignupPage() {
         <div className="auth-foot">
           <span>Already have an account?</span>
           <Link href="/login">Sign in</Link>
-          <Link href="/verify-email">Verify email</Link>
         </div>
       </div>
     </div>

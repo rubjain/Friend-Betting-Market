@@ -11,11 +11,14 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setToken(params.get("token") || "");
+    const t = params.get("token") || "";
+    setToken(t);
+    if (t) {
+      handleVerify(t);
+    }
   }, []);
 
-  async function verify(event) {
-    event.preventDefault();
+  async function handleVerify(t) {
     if (pending) return;
     setPending(true);
     setMessage("");
@@ -24,19 +27,25 @@ export default function VerifyEmailPage() {
       const response = await fetch("/api/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token: t }),
       });
       const payload = await response.json();
       if (!response.ok) {
         setError(payload.message || "Could not verify email.");
         return;
       }
-      setMessage(payload.message || "Email verified.");
+      setMessage(payload.message || "Email verified! Taking you in...");
+      setTimeout(() => { window.location.href = "/"; }, 1200);
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
       setPending(false);
     }
+  }
+
+  async function verify(event) {
+    event.preventDefault();
+    handleVerify(token);
   }
 
   return (
@@ -47,7 +56,7 @@ export default function VerifyEmailPage() {
             <div className="brand-mark">AG</div>
           </Link>
           <h2>Verify email</h2>
-          <p>Paste the verification token from your signup flow or open the link from your email.</p>
+          <p>Click the link in your email or paste the token below.</p>
         </div>
         <form className="form-grid" onSubmit={verify}>
           <div className="field full">
@@ -59,7 +68,7 @@ export default function VerifyEmailPage() {
               type="text"
               autoComplete="one-time-code"
               value={token}
-              onChange={(e) => setToken(e.currentTarget.value)}
+              onChange={(e) => setToken(e.target.value)}
             />
           </div>
           {message ? <p className="field full auth-success">{message}</p> : null}

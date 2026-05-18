@@ -126,13 +126,15 @@ export async function POST(request) {
     return NextResponse.json(result, { status: 400 });
   }
 
+  if (result.pending) {
+    return NextResponse.json({ ok: true, pending: true, email: result.email, message: result.message });
+  }
+
   const response = NextResponse.json({
     ok: true,
     session: sessionPayload(result.session),
     devAdminShortcut: isDevAdminShortcutEnabled(),
     user: result.user,
-    emailVerificationToken:
-      process.env.NODE_ENV === "production" ? undefined : result.emailVerificationToken,
     state: await stateForSession(result.session),
     message: result.message || (payload.mode === "signup" ? "Account created and signed in." : "Signed in."),
   });

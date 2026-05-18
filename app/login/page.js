@@ -103,6 +103,9 @@ export default function LoginPage() {
             />
           </div>
           {error ? <p className="field full auth-error">{error}</p> : null}
+          <div className="field full" style={{ display: "flex", justifyContent: "flex-end", marginTop: "-8px" }}>
+            <Link href="/forgot-password" style={{ fontSize: "13px", color: "#e85d04" }}>Forgot password?</Link>
+          </div>
           <div className="field full">
             <button className="btn btn-primary" type="submit" disabled={pending} style={{ width: "100%" }}>
               {pending ? "Signing in..." : "Sign in"}
@@ -110,10 +113,8 @@ export default function LoginPage() {
           </div>
         </form>
         <div className="auth-foot">
-          <span>Password for demo accounts: password123.</span>
+          <span>Don&apos;t have an account?</span>
           <Link href="/signup">Create one</Link>
-          <Link href="/forgot-password">Reset password</Link>
-          <Link href="/account-recovery">Account recovery</Link>
         </div>
       </div>
     </div>

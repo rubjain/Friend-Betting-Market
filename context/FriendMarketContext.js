@@ -607,6 +607,9 @@ export function FriendMarketProvider({ children }) {
           method: "POST",
           body: JSON.stringify({ ...account, mode: "signup" }),
         });
+        if (payload.pending) {
+          return { ok: true, pending: true, email: payload.email };
+        }
         if (payload.state) {
           setState({
             ...payload.state,
@@ -620,7 +623,7 @@ export function FriendMarketProvider({ children }) {
             next.flashMessage = payload.message || "Unable to create that account.";
           });
         }
-        return response.ok;
+        return response.ok ? { ok: true } : { ok: false, message: payload.message };
       },
       async logout() {
         const { payload } = await requestJson("/api/session", { method: "DELETE" });
