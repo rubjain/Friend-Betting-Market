@@ -174,6 +174,7 @@ export default function AppShell({ children }) {
               <p>Social markets desk</p>
             </div>
           </Link>
+          {state.auth.authenticated ? (
           <div className="top-account-strip" aria-label="Account summary">
             <Link className="top-account-metric" href="/portfolio">
               <span>Balance</span>
@@ -236,6 +237,7 @@ export default function AppShell({ children }) {
               ) : null}
             </div>
           </div>
+          ) : null}
           <div className={`nav-actions ${navCollapsed ? "collapsed" : "expanded"}`}>
             <nav className={`nav-links ${state.mobileNavOpen ? "open" : ""}`} aria-label="Primary">
               <Link
