@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFriendMarket } from "../context/FriendMarketContext";
 import { money } from "../lib/formatters";
+import { buildNotifications, countActionableNotifications } from "../lib/notifications";
 import LiveGamesPoller from "./LiveGamesPoller";
 import { HydrateLoading } from "./ui";
 
@@ -59,8 +60,14 @@ export default function AppShell({ children }) {
   const showHydratePlaceholder = shouldShowHydratePlaceholder(hydrated, pathname);
   const [sessionPending, setSessionPending] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(true);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const navCloseTimerRef = useRef(null);
   const openPositions = state.portfolio.openBets.length;
+  const notifications = useMemo(() => buildNotifications(state), [state]);
+  const actionableNotificationCount = useMemo(
+    () => countActionableNotifications(notifications),
+    [notifications],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined" || window.location.hash.length <= 1) {
@@ -89,6 +96,10 @@ export default function AppShell({ children }) {
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
   }, [state.theme]);
+
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     return () => {
@@ -175,6 +186,55 @@ export default function AppShell({ children }) {
             <Link className="btn btn-primary top-deposit-button" href="/deposit">
               Deposit
             </Link>
+            <div className="notification-center">
+              <button
+                className="notification-button"
+                type="button"
+                aria-label={`${notifications.length} notifications`}
+                aria-expanded={notificationsOpen}
+                onClick={() => setNotificationsOpen((value) => !value)}
+              >
+                <span aria-hidden="true">!</span>
+                {actionableNotificationCount > 0 ? (
+                  <strong>{actionableNotificationCount}</strong>
+                ) : null}
+              </button>
+              {notificationsOpen ? (
+                <div className="notification-menu" role="dialog" aria-label="Notifications">
+                  <div className="notification-menu-head">
+                    <span>Notifications</span>
+                    <button
+                      className="notification-menu-close"
+                      type="button"
+                      onClick={() => setNotificationsOpen(false)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  {notifications.length ? (
+                    <div className="notification-list">
+                      {notifications.map((item) => (
+                        <Link
+                          key={item.id}
+                          className={`notification-item notification-item--${item.priority}`}
+                          href={item.href}
+                          onClick={() => setNotificationsOpen(false)}
+                        >
+                          <span className="notification-priority">{item.priority}</span>
+                          <strong>{item.title}</strong>
+                          <span>{item.body}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="notification-empty">
+                      <strong>All clear</strong>
+                      <span>No account, friend, or market alerts right now.</span>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
           </div>
           <div className={`nav-actions ${navCollapsed ? "collapsed" : "expanded"}`}>
             <nav className={`nav-links ${state.mobileNavOpen ? "open" : ""}`} aria-label="Primary">
