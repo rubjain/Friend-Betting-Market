@@ -366,6 +366,60 @@ a { color: inherit; text-decoration: none; }
   text-align: center;
 }
 
+/* ── Notification enhancements ───────────────────────────── */
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  pointer-events: none;
+}
+.notification-button {
+  position: relative;
+}
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.notification-item-link {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  padding: 10px 6px 10px 10px;
+  text-decoration: none;
+  color: inherit;
+}
+.notification-item-link:hover strong {
+  color: var(--accent);
+}
+.notification-item--unread {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-left: 3px solid var(--accent);
+}
+.notification-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 10px 8px 10px 4px;
+  font-size: 0.75rem;
+  opacity: 0.5;
+  align-self: flex-start;
+}
+.notification-dismiss:hover { opacity: 1; }
+
 @media (max-width: 520px) {
   .top-account-strip {
     margin-left: auto;
@@ -1624,6 +1678,123 @@ a { color: inherit; text-decoration: none; }
   font-weight: 700;
 }
 
+.market-count-clear {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Markets search row ──────────────────────────────────────────────────── */
+.markets-search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.market-search-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.market-search-icon {
+  position: absolute;
+  left: 10px;
+  font-size: 0.9rem;
+  pointer-events: none;
+  color: var(--muted);
+}
+
+.market-search-input {
+  width: 100%;
+  padding: 8px 36px 8px 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.market-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.market-search-input::placeholder {
+  color: var(--muted);
+}
+
+.market-search-clear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  font-size: 1.1rem;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.market-search-clear:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.markets-clear-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Sort controls ──────────────────────────────────────────────────────── */
+.markets-sort-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.markets-sort-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-right: 2px;
+}
+
+.markets-sort-btn {
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.markets-sort-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.markets-sort-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 /* ── Live games rail (scoreboard) ──────────────────────────── */
 .live-games-rail {
   margin: 0 0 12px;
@@ -2209,6 +2380,14 @@ a { color: inherit; text-decoration: none; }
   margin-top: 4px;
   font-size: 0.9rem;
   line-height: 1.2;
+}
+
+.order-preview-row--warn strong {
+  color: var(--color-warning, #c87b00);
+}
+
+[data-theme="dark"] .order-preview-row--warn strong {
+  color: #f5a623;
 }
 
 .bet-submit-btn {
@@ -3893,6 +4072,45 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.4;
 }
 
+/* ── Chart window selector ───────────────────────────────────────────────── */
+.market-chart-window-row {
+  display: flex;
+  gap: 4px;
+  padding: 0 18px 10px;
+}
+
+.market-chart-window-btn {
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.market-chart-window-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.market-chart-window-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.market-chart-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 260px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .market-chart-tooltip {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -5061,6 +5279,12 @@ textarea { min-height: 130px; resize: vertical; }
 .ledger-amount.debit { color: var(--danger); font-weight: 700; }
 
 .bet-row-actions { display: grid; justify-items: end; gap: 8px; }
+
+.bet-row-left { flex: 1; min-width: 0; }
+.bet-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.bet-row-market { font-weight: 600; font-size: 0.9rem; color: var(--text); text-decoration: none; }
+.bet-row-market:hover { text-decoration: underline; color: var(--primary); }
+.bet-potential-payout { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
 
 .dispute-box {
   margin-top: 10px;
@@ -8444,4 +8668,226 @@ textarea { min-height: 130px; resize: vertical; }
   font-size: 0.78rem;
   color: var(--muted);
 }
+
+/* ── Comments ────────────────────────────────────────────── */
+/* ── Comments panel ──────────────────────────────────────────────────────── */
+.comments-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.comments-panel-head {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.comments-panel-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comments-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--surface-2, rgba(0,0,0,0.07));
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.comment-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg, var(--surface));
+  color: var(--text);
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 64px;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.comment-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.comment-submit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.comment-char-count {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-right: auto;
+}
+
+.comment-char-count--warn {
+  color: var(--color-warning, #c87b00);
+  font-weight: 600;
+}
+
+.comment-error {
+  font-size: 0.78rem;
+  color: var(--color-danger, #c0392b);
+}
+
+.comment-sign-in-prompt {
+  padding: 14px 20px;
+  font-size: 0.88rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+}
+
+.comments-loading,
+.comments-empty {
+  padding: 20px;
+  font-size: 0.88rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.comment-row {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.comment-row:last-child {
+  border-bottom: none;
+}
+
+.comment-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-muted, rgba(99,102,241,0.15));
+  color: var(--primary, #6366f1);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comment-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.comment-author {
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.comment-time {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.comment-delete {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0 4px;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.comment-delete:hover {
+  opacity: 1;
+  color: var(--color-danger, #c0392b);
+}
+
+.comment-body {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin: 0;
+  color: var(--text);
+  word-break: break-word;
+}
+.btn-xs { padding: 2px 8px !important; font-size: 0.75rem !important; }
+
+/* ── Leaderboard ─────────────────────────────────────────── */
+.leaderboard-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.leaderboard-row:last-child { border-bottom: none; }
+.leaderboard-row--self { background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 8px; }
+.leaderboard-rank { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); min-width: 28px; text-align: center; }
+.leaderboard-identity { flex: 1; min-width: 0; }
+.leaderboard-identity strong { display: block; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leaderboard-identity .caption { color: var(--text-muted); }
+.leaderboard-stats { text-align: right; white-space: nowrap; }
+.leaderboard-stats > span { display: block; }
+.leaderboard-stats > span:first-child { font-weight: 600; font-size: 0.9rem; }
+.friends-leaderboard-section { margin-top: 4px; }
+
+/* ── Groups / Leagues ────────────────────────────────────── */
+.groups-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+.groups-join-form { display: flex; gap: 8px; flex: 1; min-width: 180px; }
+.groups-join-input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-size: 0.9rem; min-width: 0; }
+.groups-join-input:focus { outline: none; border-color: var(--accent); }
+.groups-create-card { padding: 16px; }
+.groups-card { padding: 0 !important; overflow: hidden; }
+.groups-card-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 14px 16px; cursor: pointer; gap: 12px; }
+.groups-card-header:hover { background: rgba(0,0,0,0.03); }
+.groups-card-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.groups-card-name { font-size: 0.95rem; }
+.groups-card-desc { color: var(--text-muted); font-size: 0.82rem; }
+.groups-card-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.groups-invite-row { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(0,0,0,0.025); border-top: 1px solid var(--border); flex-wrap: wrap; }
+.groups-invite-label { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
+.groups-invite-code { font-family: monospace; font-size: 0.78rem; background: var(--bg-card); padding: 3px 7px; border-radius: 4px; border: 1px solid var(--border); word-break: break-all; }
+.groups-leaderboard { padding: 12px 16px; border-top: 1px solid var(--border); }
+.groups-leaderboard-title { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px; }
+.groups-card-footer { padding: 8px 16px 12px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+.auth-nudge { padding: 40px 20px; text-align: center; color: var(--text-muted); }
+.flash-banner { background: var(--accent); color: #fff; padding: 10px 16px; border-radius: 8px; margin-bottom: 12px; cursor: pointer; font-size: 0.9rem; }
+
+/* ── Friends tab bar ─────────────────────────────────────── */
+.friends-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+.friends-tab-btn { background: none; border: none; padding: 8px 16px; font-size: 0.9rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.friends-tab-btn:hover { color: var(--text); }
+.friends-tab-btn--active { color: var(--accent); border-bottom-color: var(--accent); }
 

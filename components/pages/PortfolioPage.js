@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
 import PortfolioLedger from "../PortfolioLedger";
 import { SectionHead } from "../ui";
 
 export default function PortfolioPage() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [tab, setTab] = useState("real");
   const [disputeDraft, setDisputeDraft] = useState({ betId: "", reason: "" });
   const [pendingAction, setPendingAction] = useState("");
@@ -42,10 +42,15 @@ export default function PortfolioPage() {
   const realOpenOrders = (state.openOrders || []).filter((o) => !o.isPaper);
   const paperOpenOrders = (state.openOrders || []).filter((o) => o.isPaper);
 
-  const paperPnl = paperPastBets.reduce((sum, b) => sum + (b.payout ?? 0) - (b.stake ?? 0), 0);
+  const paperPnl = paperPastBets.reduce((sum, b) => sum + (b.pnl ?? (b.payout ?? 0) - (b.stake ?? 0)), 0);
   const paperWinRate = paperPastBets.length
-    ? Math.round((paperPastBets.filter((b) => (b.payout ?? 0) > (b.stake ?? 0)).length / paperPastBets.length) * 100)
+    ? Math.round((paperPastBets.filter((b) => (b.pnl ?? (b.payout ?? 0) - (b.stake ?? 0)) > 0).length / paperPastBets.length) * 100)
     : null;
+
+  const realPnl = realPastBets.reduce((sum, b) => sum + (b.pnl ?? 0), 0);
+  const realSettled = realPastBets.length;
+  const realWins = realPastBets.filter((b) => b.status === "WON").length;
+  const realWinRate = realSettled ? Math.round((realWins / realSettled) * 100) : null;
 
   return (
     <section className="page active">
@@ -86,6 +91,14 @@ export default function PortfolioPage() {
               <div className="balance-hero-breakdown">
                 <BalanceBox label="Withdrawable" value={money(state.currentUser.withdrawable_balance)} body="Deposits and normal winnings." />
                 <BalanceBox label="Bonus" value={money(state.currentUser.bonus_balance)} body="Social boosts, promos, referrals." />
+                {realSettled > 0 && (
+                  <BalanceBox
+                    label="Settled P&L"
+                    value={`${realPnl >= 0 ? "+" : ""}${money(realPnl)}`}
+                    body={realWinRate !== null ? `${realWinRate}% win rate · ${realSettled} settled` : `${realSettled} settled`}
+                    highlight={realPnl >= 0 ? "positive" : "negative"}
+                  />
+                )}
               </div>
               <div className="inline-actions">
                 <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("deposit", actions.addDemoDeposit)}>
@@ -102,16 +115,10 @@ export default function PortfolioPage() {
               <div className="bet-list">
                 {realOpenBets.length ? (
                   realOpenBets.map((bet) => (
-                    <div className="bet-row" key={bet.id}>
-                      <div>
-                        <strong>{bet.market}</strong>
-                        <div className="caption">{bet.side} &middot; {money(bet.stake)} &middot; {bet.funding}</div>
-                      </div>
-                      <span className="pill">{bet.status}</span>
-                    </div>
+                    <BetRow key={bet.id} bet={bet} />
                   ))
                 ) : (
-                  <div className="empty-note">No open real bets yet.</div>
+                  <div className="empty-note">No open real bets yet. <Link href="/markets">Browse markets</Link></div>
                 )}
               </div>
             </div>
@@ -120,13 +127,19 @@ export default function PortfolioPage() {
 
             {realPastBets.length > 0 && (
               <div className="list-card">
-                <h3>Past bets</h3>
+                <h3>Settled bets</h3>
                 <div className="bet-list">
                   {realPastBets.map((bet, index) => (
                     <div className="bet-row" key={`${bet.market}-${index}`}>
-                      <div>
-                        <strong>{bet.market}</strong>
-                        <div className="caption">{bet.side} &middot; {bet.settlement}</div>
+                      <div className="bet-row-left">
+                        <Link className="bet-row-market" href={`/markets/${bet.marketId}`}>
+                          {bet.market}
+                        </Link>
+                        <div className="caption">
+                          <span className={`order-side-badge order-side-badge--${bet.side.toLowerCase()}`}>{bet.side}</span>
+                          {" "}· {money(bet.stake)} staked · {bet.settlement}
+                          {bet.settledAt && <> · {bet.settledAt}</>}
+                        </div>
                         {disputeDraft.betId === bet.id ? (
                           <div className="dispute-box">
                             <label className="label" htmlFor={`dispute-${bet.id}`}>Dispute reason</label>
@@ -149,9 +162,11 @@ export default function PortfolioPage() {
                         ) : null}
                       </div>
                       <div className="bet-row-actions">
-                        <strong>{money((bet.payout ?? 0) + (bet.boost ?? 0))}</strong>
-                        {bet.marketId && bet.id ? (
-                          <button className="btn btn-ghost" type="button" onClick={() => setDisputeDraft({ betId: bet.id, reason: "" })}>
+                        <strong className={bet.pnl > 0 ? "pnl-positive" : bet.pnl < 0 ? "pnl-negative" : ""}>
+                          {bet.pnl > 0 ? "+" : ""}{money(bet.pnl ?? 0)}
+                        </strong>
+                        {bet.marketId && bet.id && disputeDraft.betId !== bet.id ? (
+                          <button className="btn btn-ghost btn-xs" type="button" onClick={() => setDisputeDraft({ betId: bet.id, reason: "" })}>
                             Dispute
                           </button>
                         ) : null}
@@ -217,13 +232,7 @@ export default function PortfolioPage() {
               <div className="bet-list">
                 {paperOpenBets.length ? (
                   paperOpenBets.map((bet) => (
-                    <div className="bet-row" key={bet.id}>
-                      <div>
-                        <strong>{bet.market}</strong>
-                        <div className="caption">{bet.side} &middot; {money(bet.stake)} &middot; Paper trade</div>
-                      </div>
-                      <span className="pill pill--paper">{bet.status}</span>
-                    </div>
+                    <BetRow key={bet.id} bet={bet} isPaper />
                   ))
                 ) : (
                   <div className="empty-note">
@@ -239,17 +248,23 @@ export default function PortfolioPage() {
               <div className="list-card list-card--paper">
                 <h3>Settled paper bets</h3>
                 <div className="bet-list">
-                  {paperPastBets.map((bet, index) => (
-                    <div className="bet-row" key={`${bet.market}-${index}`}>
-                      <div>
-                        <strong>{bet.market}</strong>
-                        <div className="caption">{bet.side} &middot; {bet.settlement}</div>
+                  {paperPastBets.map((bet, index) => {
+                    const pnl = bet.pnl ?? ((bet.payout ?? 0) - (bet.stake ?? 0));
+                    return (
+                      <div className="bet-row" key={`${bet.market}-${index}`}>
+                        <div className="bet-row-left">
+                          <Link className="bet-row-market" href={`/markets/${bet.marketId}`}>{bet.market}</Link>
+                          <div className="caption">
+                            <span className={`order-side-badge order-side-badge--${bet.side.toLowerCase()}`}>{bet.side}</span>
+                            {" "}· {money(bet.stake ?? 0)} staked · {bet.settlement}
+                          </div>
+                        </div>
+                        <strong className={pnl > 0 ? "pnl-positive" : pnl < 0 ? "pnl-negative" : ""}>
+                          {pnl > 0 ? "+" : ""}{money(pnl)}
+                        </strong>
                       </div>
-                      <strong className={(bet.payout ?? 0) > (bet.stake ?? 0) ? "pnl-positive" : "pnl-negative"}>
-                        {(bet.payout ?? 0) > (bet.stake ?? 0) ? "+" : ""}{money((bet.payout ?? 0) - (bet.stake ?? 0))}
-                      </strong>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -257,6 +272,30 @@ export default function PortfolioPage() {
         )}
       </div>
     </section>
+  );
+}
+
+function BetRow({ bet, isPaper }) {
+  return (
+    <div className="bet-row" key={bet.id}>
+      <div className="bet-row-left">
+        <Link className="bet-row-market" href={`/markets/${bet.marketId}`}>
+          {bet.market}
+        </Link>
+        <div className="caption">
+          <span className={`order-side-badge order-side-badge--${bet.side.toLowerCase()}`}>{bet.side}</span>
+          {" "}· {money(bet.stake)} staked
+          {isPaper && <span className="order-paper-tag">PAPER</span>}
+          {bet.placedAt && <> · {bet.placedAt}</>}
+        </div>
+      </div>
+      <div className="bet-row-right">
+        <span className="bet-potential-payout">
+          If wins: <strong>{money(bet.potentialPayout ?? bet.stake * (bet.oddsMultiplier ?? 2))}</strong>
+        </span>
+        <span className={`pill${isPaper ? " pill--paper" : ""}`}>{bet.status}</span>
+      </div>
+    </div>
   );
 }
 
@@ -288,7 +327,7 @@ function OpenOrdersList({ orders, onCancel, pendingAction, runAction, isPaper })
                   <strong>{order.market}</strong>
                   <div className="caption">
                     <span className={`order-side-badge order-side-badge--${order.side.toLowerCase()}`}>{order.side}</span>
-                    {" "}&middot; {order.quantity.toFixed(2)} shares &middot; limit {order.limitPriceCents}¢
+                    {" "}· {order.quantity.toFixed(2)} shares · limit {order.limitPriceCents}¢
                     &nbsp;·&nbsp;cost {money(order.dollarCost)}
                     {order.isPaper && <span className="order-paper-tag">PAPER</span>}
                   </div>

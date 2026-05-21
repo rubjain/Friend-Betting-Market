@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { buildMarketDualPriceSeries } from "../lib/marketPriceSeries";
 import { getContractSideLabels } from "../lib/marketLabels";
 import { getDualOutcomeChartColors } from "../lib/marketChartColors";
+
+const WINDOWS = [
+  { key: "1d", label: "1D" },
+  { key: "7d", label: "7D" },
+  { key: "30d", label: "30D" },
+  { key: "all", label: "All" },
+];
 
 function formatAxisTime(ms, compact) {
   return new Intl.DateTimeFormat(undefined, {
@@ -43,13 +50,22 @@ function ChartTooltip({ active, payload, labelA, labelB, colorA, colorB }) {
 export default function MarketPriceChart({ market, linkedGame }) {
   const [now, setNow] = useState(() => Date.now());
   const [dark, setDark] = useState(false);
+  const [selectedWindow, setSelectedWindow] = useState("7d");
+  const [realSnapshots, setRealSnapshots] = useState(null); // null = loading, [] = none
 
+  const labels = useMemo(() => getContractSideLabels(market, linkedGame), [market, linkedGame]);
+  const lineColors = useMemo(
+    () => getDualOutcomeChartColors(market, linkedGame, labels.yesLabel, labels.noLabel),
+    [market, linkedGame, labels.yesLabel, labels.noLabel],
+  );
+
+  // Tick every 30s so the "now" anchor stays fresh
   useEffect(() => {
-    const tick = () => setNow(Date.now());
-    const id = window.setInterval(tick, 30_000);
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(id);
   }, []);
 
+  // Track theme
   useEffect(() => {
     const el = document.documentElement;
     const sync = () => setDark(el.getAttribute("data-theme") === "dark");
@@ -59,14 +75,67 @@ export default function MarketPriceChart({ market, linkedGame }) {
     return () => obs.disconnect();
   }, []);
 
-  const labels = useMemo(() => getContractSideLabels(market, linkedGame), [market, linkedGame]);
+  // Fetch real price history from the API
+  const fetchHistory = useCallback(async (win) => {
+    if (!market?.id) return;
+    setRealSnapshots(null);
+    try {
+      const res = await fetch(`/api/markets/${market.id}/price-history?window=${win}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRealSnapshots(data.snapshots || []);
+      } else {
+        setRealSnapshots([]);
+      }
+    } catch {
+      setRealSnapshots([]);
+    }
+  }, [market?.id]);
 
-  const lineColors = useMemo(
-    () => getDualOutcomeChartColors(market, linkedGame, labels.yesLabel, labels.noLabel),
-    [market, linkedGame, labels.yesLabel, labels.noLabel],
-  );
+  useEffect(() => {
+    fetchHistory(selectedWindow);
+  }, [fetchHistory, selectedWindow]);
 
-  const series = useMemo(() => buildMarketDualPriceSeries(market, linkedGame, now), [market, linkedGame, now]);
+  // Build chart series from real snapshots when available (≥ 2 points),
+  // otherwise fall back to the simulated path.
+  const series = useMemo(() => {
+    if (realSnapshots && realSnapshots.length >= 2) {
+      // Ensure the final point always reflects the current live price
+      const last = realSnapshots[realSnapshots.length - 1];
+      const currentYes = Number(market.yesPrice) || last.y;
+      const currentNo = Number(market.noPrice) || last.n;
+
+      const points = [
+        ...realSnapshots.map((s) => ({ time: s.t, a: s.y, b: s.n })),
+      ];
+      // If the last snapshot price differs from current price, append a "now" point
+      if (Math.abs(last.y - currentYes) > 0.0001 || Math.abs(last.n - currentNo) > 0.0001) {
+        points.push({ time: now, a: currentYes, b: currentNo });
+      }
+
+      const firstA = points[0]?.a ?? 0.5;
+      const firstB = points[0]?.b ?? 0.5;
+      const startMs = points[0]?.time ?? now;
+      const windowLabels = { "1d": "Last 24 hours", "7d": "Last 7 days", "30d": "Last 30 days", all: "All time" };
+
+      return {
+        points,
+        startMs,
+        endMs: now,
+        changeA: currentYes - firstA,
+        changeB: currentNo - firstB,
+        peakA: Math.max(...points.map((p) => p.a)),
+        troughA: Math.min(...points.map((p) => p.a)),
+        peakB: Math.max(...points.map((p) => p.b)),
+        troughB: Math.min(...points.map((p) => p.b)),
+        windowLabel: windowLabels[selectedWindow] ?? "Price history",
+        isReal: true,
+      };
+    }
+    // Fall back to simulated series
+    const fallback = buildMarketDualPriceSeries(market, linkedGame, now);
+    return { ...fallback, isReal: false };
+  }, [realSnapshots, market, linkedGame, now, selectedWindow]);
 
   const gridStroke = dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)";
   const axisStroke = dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)";
@@ -98,68 +167,86 @@ export default function MarketPriceChart({ market, linkedGame }) {
           </div>
         </div>
       </div>
-      <div className="market-price-chart-frame">
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={series.points} margin={{ top: 12, right: 12, left: -6, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="4 4" stroke={gridStroke} vertical={false} />
-            <XAxis
-              dataKey="time"
-              type="number"
-              domain={["dataMin", "dataMax"]}
-              tickFormatter={(v) => formatAxisTime(v, true)}
-              stroke={axisStroke}
-              tick={{ fontSize: 11, fill: "var(--muted)" }}
-              tickLine={false}
-              axisLine={{ stroke: axisStroke }}
-            />
-            <YAxis
-              domain={[0, 1]}
-              ticks={[0, 0.25, 0.5, 0.75, 1]}
-              tickFormatter={(v) => `${Math.round(v * 100)}¢`}
-              stroke={axisStroke}
-              tick={{ fontSize: 11, fill: "var(--muted)" }}
-              tickLine={false}
-              axisLine={{ stroke: axisStroke }}
-              width={44}
-            />
-            <Tooltip
-              content={
-                <ChartTooltip
-                  labelA={labels.yesLabel}
-                  labelB={labels.noLabel}
-                  colorA={lineColors.colorA}
-                  colorB={lineColors.colorB}
-                />
-              }
-              cursor={{ stroke: "rgba(128,128,128,0.35)" }}
-            />
-            <Line
-              type="monotone"
-              dataKey="a"
-              name="a"
-              stroke={lineColors.colorA}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-              activeDot={{ r: 5, fill: lineColors.colorA, stroke: lineColors.colorA }}
-            />
-            <Line
-              type="monotone"
-              dataKey="b"
-              name="b"
-              stroke={lineColors.colorB}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-              activeDot={{ r: 5, fill: lineColors.colorB, stroke: lineColors.colorB }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      {/* Window selector */}
+      <div className="market-chart-window-row" role="group" aria-label="Chart time window">
+        {WINDOWS.map((w) => (
+          <button
+            key={w.key}
+            type="button"
+            className={`market-chart-window-btn${selectedWindow === w.key ? " active" : ""}`}
+            onClick={() => setSelectedWindow(w.key)}
+          >
+            {w.label}
+          </button>
+        ))}
       </div>
-      <p className="market-price-chart-footnote">
-        Both outcome prices on one axis (same contract). Illustrative paths ending at current YES and NO; wire trade tape for
-        production accuracy.
-      </p>
+      <div className="market-price-chart-frame">
+        {realSnapshots === null ? (
+          <div className="market-chart-loading" aria-label="Loading chart">Loading…</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={series.points} margin={{ top: 12, right: 12, left: -6, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="4 4" stroke={gridStroke} vertical={false} />
+              <XAxis
+                dataKey="time"
+                type="number"
+                domain={["dataMin", "dataMax"]}
+                tickFormatter={(v) => formatAxisTime(v, true)}
+                stroke={axisStroke}
+                tick={{ fontSize: 11, fill: "var(--muted)" }}
+                tickLine={false}
+                axisLine={{ stroke: axisStroke }}
+              />
+              <YAxis
+                domain={[0, 1]}
+                ticks={[0, 0.25, 0.5, 0.75, 1]}
+                tickFormatter={(v) => `${Math.round(v * 100)}¢`}
+                stroke={axisStroke}
+                tick={{ fontSize: 11, fill: "var(--muted)" }}
+                tickLine={false}
+                axisLine={{ stroke: axisStroke }}
+                width={44}
+              />
+              <Tooltip
+                content={
+                  <ChartTooltip
+                    labelA={labels.yesLabel}
+                    labelB={labels.noLabel}
+                    colorA={lineColors.colorA}
+                    colorB={lineColors.colorB}
+                  />
+                }
+                cursor={{ stroke: "rgba(128,128,128,0.35)" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="a"
+                name="a"
+                stroke={lineColors.colorA}
+                strokeWidth={2}
+                dot={series.isReal && series.points.length <= 30}
+                isAnimationActive={false}
+                activeDot={{ r: 5, fill: lineColors.colorA, stroke: lineColors.colorA }}
+              />
+              <Line
+                type="monotone"
+                dataKey="b"
+                name="b"
+                stroke={lineColors.colorB}
+                strokeWidth={2}
+                dot={series.isReal && series.points.length <= 30}
+                isAnimationActive={false}
+                activeDot={{ r: 5, fill: lineColors.colorB, stroke: lineColors.colorB }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+      {!series.isReal && (
+        <p className="market-price-chart-footnote">
+          No trades yet — showing an illustrative path. Prices will update as bets are placed.
+        </p>
+      )}
     </div>
   );
 }

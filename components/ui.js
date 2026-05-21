@@ -7,11 +7,16 @@ export function InfoRow({ label, value, mutedClass = "" }) {
   );
 }
 
-export function EmptyState({ title = "Nothing here yet", body }) {
+export function EmptyState({ title = "Nothing here yet", body, action }) {
   return (
     <div className="list-card">
       <h3>{title}</h3>
       {body ? <p>{body}</p> : null}
+      {action ? (
+        <button className="btn btn-secondary btn-sm" type="button" onClick={action.onClick}>
+          {action.label}
+        </button>
+      ) : null}
     </div>
   );
 }

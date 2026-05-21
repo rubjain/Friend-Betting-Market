@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BettingPanel from "../BettingPanel";
 import MarketGamePanel from "../MarketGamePanel";
 import MarketPriceChart from "../MarketPriceChart";
 import TennisPremiumMarketPage from "../TennisPremiumMarketPage";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { formatMarketDate, formatPercent, money } from "../../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock, getMarketAlgorithmSnapshot } from "../../lib/marketAlgorithms";
 import { getMultiplier } from "../../lib/marketMath";
@@ -21,6 +21,15 @@ function cents(price) {
   return `${Math.round(Number(price) * 100)}¢`;
 }
 
+function timeAgo(isoString) {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
+}
+
 // Route tennis ATP markets to the premium layout; everything else uses the default.
 export default function MarketDetailPage({ marketId }) {
   const isAtp =
@@ -33,8 +42,13 @@ export default function MarketDetailPage({ marketId }) {
 }
 
 function DefaultMarketDetailPage({ marketId }) {
-  const { state, actions, selectors } = useFriendMarket();
+  const { state, actions, selectors } = useAgora();
   const market = selectors.getSelectedMarket(marketId);
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentText, setCommentText] = useState("");
+  const [commentPending, setCommentPending] = useState(false);
+  const [commentError, setCommentError] = useState(null);
   const linkedGame = useMemo(
     () => (market ? getLinkedLiveGame(market, state.liveGames) : null),
     [market, state.liveGames],
@@ -50,6 +64,55 @@ function DefaultMarketDetailPage({ marketId }) {
       actions.setSelectedMarket(market.id);
     }
   }, [actions, market?.id, state.selectedMarketId]);
+
+  useEffect(() => {
+    if (!market?.id) return;
+    setCommentsLoading(true);
+    fetch(`/api/markets/${market.id}/comments`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setComments(d.comments); })
+      .finally(() => setCommentsLoading(false));
+  }, [market?.id]);
+
+  async function submitComment(e) {
+    e.preventDefault();
+    if (!commentText.trim() || commentPending) return;
+    setCommentPending(true);
+    setCommentError(null);
+    try {
+      const res = await fetch(`/api/markets/${market.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: commentText }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setComments(prev => [data.comment, ...prev]);
+        setCommentText("");
+      } else {
+        setCommentError(data.message || "Could not post comment.");
+      }
+    } catch {
+      setCommentError("Network error — please try again.");
+    } finally {
+      setCommentPending(false);
+    }
+  }
+
+  async function deleteComment(commentId) {
+    // Optimistic remove
+    setComments(prev => prev.filter(c => c.id !== commentId));
+    const res = await fetch(`/api/markets/${market.id}/comments`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      // Re-fetch if delete failed
+      fetch(`/api/markets/${market.id}/comments`).then(r => r.json()).then(d => { if (d.ok) setComments(d.comments); });
+    }
+  }
 
   if (!market) {
     return (
@@ -245,6 +308,87 @@ function DefaultMarketDetailPage({ marketId }) {
               </div>
             </div>
           </details>
+
+          <div className="detail-panel comments-panel">
+            <div className="comments-panel-head">
+              <h3 className="comments-panel-title">
+                Discussion
+                {comments.length > 0 && (
+                  <span className="comments-count-badge">{comments.length}</span>
+                )}
+              </h3>
+            </div>
+
+            {/* Comment form (logged-in users) */}
+            {state.auth.authenticated ? (
+              <form className="comment-form" onSubmit={submitComment}>
+                <textarea
+                  className="comment-textarea"
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Share your take on this market…"
+                  value={commentText}
+                  onChange={e => { setCommentText(e.currentTarget.value); setCommentError(null); }}
+                />
+                <div className="comment-submit-row">
+                  <span className={`comment-char-count${commentText.length > 450 ? " comment-char-count--warn" : ""}`}>
+                    {500 - commentText.length}
+                  </span>
+                  {commentError && <span className="comment-error">{commentError}</span>}
+                  <button
+                    className="btn btn-primary btn-sm"
+                    type="submit"
+                    disabled={!commentText.trim() || commentPending}
+                  >
+                    {commentPending ? "Posting…" : "Post"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <p className="comment-sign-in-prompt">
+                <a href="/login">Sign in</a> to join the discussion.
+              </p>
+            )}
+
+            {/* Comment list */}
+            {commentsLoading ? (
+              <div className="comments-loading">Loading…</div>
+            ) : comments.length > 0 ? (
+              <div className="comments-list">
+                {comments.map(comment => (
+                  <div className="comment-row" key={comment.id}>
+                    <div className="comment-avatar" aria-hidden="true">
+                      {(comment.userUsername || comment.userName || "?")[0].toUpperCase()}
+                    </div>
+                    <div className="comment-content">
+                      <div className="comment-meta">
+                        <strong className="comment-author">@{comment.userUsername || comment.userName}</strong>
+                        <span className="comment-time">{timeAgo(comment.createdAt)}</span>
+                        {state.auth.authenticated && state.currentUser.id === comment.userId && (
+                          <button
+                            className="comment-delete"
+                            type="button"
+                            aria-label="Delete comment"
+                            onClick={() => deleteComment(comment.id)}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                      <p className="comment-body">{comment.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="comments-empty">
+                <span>No comments yet.</span>
+                {!state.auth.authenticated && (
+                  <span> <a href="/login">Sign in</a> to be the first.</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <aside className="detail-stack detail-stack--aside">
