@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionFromRequest } from "../../../../lib/server/auth.js";
 import { hasDatabaseUrl, prisma } from "../../../../lib/server/prisma.js";
 import { getDatabaseState } from "../../../../lib/server/dbState.js";
+import { resetPaperBalanceForDemoUser } from "../../../../lib/server/demoStore.js";
 
 const PAPER_STARTING_BALANCE = 10000;
 
@@ -14,9 +15,11 @@ export async function POST(request) {
   const userId = session.userId;
 
   if (!hasDatabaseUrl()) {
+    const state = resetPaperBalanceForDemoUser(userId, PAPER_STARTING_BALANCE);
     return NextResponse.json({
       ok: true,
       message: `Paper balance reset to $${PAPER_STARTING_BALANCE.toLocaleString()}.`,
+      state,
     });
   }
 
@@ -30,6 +33,11 @@ export async function POST(request) {
     await tx.bet.updateMany({
       where: { userId, isPaper: true, status: "OPEN" },
       data: { status: "VOIDED" },
+    });
+
+    await tx.order.updateMany({
+      where: { userId, isPaper: true, status: { in: ["OPEN", "PARTIAL"] } },
+      data: { status: "CANCELED" },
     });
 
     await tx.ledgerEntry.create({

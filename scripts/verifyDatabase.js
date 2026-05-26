@@ -20,6 +20,9 @@ if (!hasDatabaseUrl()) {
     markets: await prisma.market.count(),
     bets: await prisma.bet.count(),
     ledgerEntries: await prisma.ledgerEntry.count(),
+    apiKeys: await prisma.apiKey.count(),
+    strategies: await prisma.strategy.count(),
+    strategyExecutions: await prisma.strategyExecution.count(),
   };
 
   assertMinimum("users", counts.users, 3);

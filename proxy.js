@@ -19,7 +19,7 @@ function sessionLooksAdmin(request) {
   }
 }
 
-export function proxy(request) {
+export default function proxy(request) {
   if (request.nextUrl.pathname === "/admin" && !sessionLooksAdmin(request)) {
     return NextResponse.redirect(new URL("/profile", request.url));
   }

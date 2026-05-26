@@ -115,6 +115,98 @@ Funding endpoints for payment-infrastructure hardening:
 - `POST /api/funds/deposit` accepts `{ "amount": 25, "method": "bank" }`, creates a completed demo-ledger payment transaction, credits withdrawable balance, writes a ledger entry, and records an audit event.
 - `POST /api/funds/withdraw` accepts `{ "amount": 25, "method": "bank" }`, creates a pending-review withdrawal transaction, holds withdrawable funds with a debit ledger entry, and records an audit event for admin review.
 
+## Public API v1 (paper-first model workflow)
+
+The v1 API supports cookie-session auth for first-party app calls and Bearer API keys for external clients.
+
+### API key management
+
+- `GET /api/v1/keys` lists keys for the signed-in user.
+- `POST /api/v1/keys` creates a key and returns `plaintextKey` once.
+- `DELETE /api/v1/keys` revokes a key by `apiKeyId`.
+
+Scopes:
+
+- `read:markets`
+- `read:portfolio`
+- `trade:paper`
+- `trade:real`
+- `manage:strategies`
+
+### Trading and portfolio endpoints
+
+- `GET /api/v1/markets`
+- `GET /api/v1/markets/:marketId`
+- `GET /api/v1/markets/:marketId/price-history`
+- `GET /api/v1/live/games`
+- `GET /api/v1/portfolio?mode=paper|real|all`
+- `GET/POST/DELETE /api/v1/orders`
+- `POST /api/v1/bets`
+- `POST /api/v1/paper/reset`
+
+`POST /api/v1/bets` accepts either a `betDraft` payload or a simplified stake payload:
+
+```json
+{
+  "marketId": "market_1",
+  "side": "YES",
+  "stake": 25,
+  "mode": "paper"
+}
+```
+
+### Strategy endpoints (paper practice → real promotion)
+
+- `GET/POST /api/v1/strategies`
+- `PATCH/DELETE /api/v1/strategies/:strategyId`
+- `GET /api/v1/strategies/executions`
+- `POST /api/v1/strategies/:strategyId/run` (ACTIVE strategies only)
+- `POST /api/v1/strategies/:strategyId/promote` (creates REAL draft)
+- `POST /api/v1/strategies/:strategyId/activate`
+- `POST /api/v1/strategies/:strategyId/pause`
+
+Scheduled automation for ACTIVE strategies:
+
+```bash
+npm run strategy:worker
+# one tick then exit:
+npm run strategy:worker:once
+```
+
+### View the site locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:3000/developer` and sign in with `test@example.com` / `password123`.
+
+Visual spacing checklist: `docs/visual-qa-checklist.md`.
+
+### Supabase setup for persistent API keys and strategies
+
+1. Create `.env` from `.env.example`.
+2. Set Supabase `DATABASE_URL` (Project Settings → Database → Connection string → URI).
+3. Run:
+
+```bash
+npm run supabase:turn-on
+```
+
+Or step by step:
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:seed
+npm run db:verify
+```
+
+Without `DATABASE_URL`, keys and strategies still work in demo mode but are in-memory and reset on restart.
+
+OpenAPI contract (including error `code` fields): `docs/openapi.yaml`.
+
 Set `FRIENDMARKET_SESSION_SECRET` to a long random value before sharing any environment. To expose the temporary admin toggle locally, set `FRIENDMARKET_DEV_ADMIN_SHORTCUT=1`; keep it disabled outside local development.
 
 For a production verification build:

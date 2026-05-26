@@ -42,6 +42,7 @@ const routes = [
   ["/legal", "Terms"],
   ["/privacy", "Privacy"],
   ["/create", "Create"],
+  ["/developer", "Developer"],
   ["/profile", "Profile"],
 ];
 
@@ -175,78 +176,96 @@ export default function AppShell({ children }) {
               <p>Social markets desk</p>
             </div>
           </Link>
-          {state.auth.authenticated ? (
           <div className={`top-account-strip${state.paperMode ? " top-account-strip--paper" : ""}`} aria-label="Account summary">
-            {state.paperMode ? (
-              <button className="paper-mode-badge" type="button" onClick={actions.togglePaperMode} title="Exit paper trading">
-                <span className="paper-mode-badge-dot" />
-                PAPER
-              </button>
-            ) : null}
-            <Link className="top-account-metric" href="/portfolio">
-              <span>{state.paperMode ? "Paper balance" : "Balance"}</span>
-              <strong>{state.paperMode ? money(state.currentUser.paper_balance ?? 0) : money(state.currentUser.play_credit_balance)}</strong>
-            </Link>
-            <Link className="top-account-metric" href="/portfolio">
-              <span>Positions</span>
-              <strong>{state.paperMode ? paperPositions : openPositions}</strong>
-            </Link>
-            {!state.paperMode ? (
-              <Link className="btn btn-primary top-deposit-button" href="/deposit">
-                Deposit
-              </Link>
-            ) : null}
-            <div className="notification-center">
+            <div className="trading-mode-toggle" role="group" aria-label="Trading mode">
               <button
-                className="notification-button"
+                className={`trading-mode-option${!state.paperMode ? " active" : ""}`}
                 type="button"
-                aria-label={`${notifications.length} notifications`}
-                aria-expanded={notificationsOpen}
-                onClick={() => setNotificationsOpen((value) => !value)}
+                aria-pressed={!state.paperMode}
+                onClick={() => {
+                  if (state.paperMode) actions.togglePaperMode();
+                }}
               >
-                <span aria-hidden="true">!</span>
-                {actionableNotificationCount > 0 ? (
-                  <strong>{actionableNotificationCount}</strong>
-                ) : null}
+                Real
               </button>
-              {notificationsOpen ? (
-                <div className="notification-menu" role="dialog" aria-label="Notifications">
-                  <div className="notification-menu-head">
-                    <span>Notifications</span>
-                    <button
-                      className="notification-menu-close"
-                      type="button"
-                      onClick={() => setNotificationsOpen(false)}
-                    >
-                      Close
-                    </button>
-                  </div>
-                  {notifications.length ? (
-                    <div className="notification-list">
-                      {notifications.map((item) => (
-                        <Link
-                          key={item.id}
-                          className={`notification-item notification-item--${item.priority}`}
-                          href={item.href}
+              <button
+                className={`trading-mode-option${state.paperMode ? " active" : ""}`}
+                type="button"
+                aria-pressed={state.paperMode}
+                onClick={() => {
+                  if (!state.paperMode) actions.togglePaperMode();
+                }}
+              >
+                Paper
+              </button>
+            </div>
+            {state.auth.authenticated ? (
+              <>
+                <Link className="top-account-metric" href="/portfolio">
+                  <span>{state.paperMode ? "Paper balance" : "Balance"}</span>
+                  <strong>{state.paperMode ? money(state.currentUser.paper_balance ?? 0) : money(state.currentUser.play_credit_balance)}</strong>
+                </Link>
+                <Link className="top-account-metric" href="/portfolio">
+                  <span>Positions</span>
+                  <strong>{state.paperMode ? paperPositions : openPositions}</strong>
+                </Link>
+                {!state.paperMode ? (
+                  <Link className="btn btn-primary top-deposit-button" href="/deposit">
+                    Deposit
+                  </Link>
+                ) : null}
+                <div className="notification-center">
+                  <button
+                    className="notification-button"
+                    type="button"
+                    aria-label={`${notifications.length} notifications`}
+                    aria-expanded={notificationsOpen}
+                    onClick={() => setNotificationsOpen((value) => !value)}
+                  >
+                    <span aria-hidden="true">!</span>
+                    {actionableNotificationCount > 0 ? (
+                      <strong>{actionableNotificationCount}</strong>
+                    ) : null}
+                  </button>
+                  {notificationsOpen ? (
+                    <div className="notification-menu" role="dialog" aria-label="Notifications">
+                      <div className="notification-menu-head">
+                        <span>Notifications</span>
+                        <button
+                          className="notification-menu-close"
+                          type="button"
                           onClick={() => setNotificationsOpen(false)}
                         >
-                          <span className="notification-priority">{item.priority}</span>
-                          <strong>{item.title}</strong>
-                          <span>{item.body}</span>
-                        </Link>
-                      ))}
+                          Close
+                        </button>
+                      </div>
+                      {notifications.length ? (
+                        <div className="notification-list">
+                          {notifications.map((item) => (
+                            <Link
+                              key={item.id}
+                              className={`notification-item notification-item--${item.priority}`}
+                              href={item.href}
+                              onClick={() => setNotificationsOpen(false)}
+                            >
+                              <span className="notification-priority">{item.priority}</span>
+                              <strong>{item.title}</strong>
+                              <span>{item.body}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="notification-empty">
+                          <strong>All clear</strong>
+                          <span>No account, friend, or market alerts right now.</span>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="notification-empty">
-                      <strong>All clear</strong>
-                      <span>No account, friend, or market alerts right now.</span>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
+              </>
+            ) : null}
           </div>
-          ) : null}
           <div className={`nav-actions ${navCollapsed ? "collapsed" : "expanded"}`}>
             <nav className={`nav-links ${state.mobileNavOpen ? "open" : ""}`} aria-label="Primary">
               <Link

@@ -1,0 +1,528 @@
+openapi: 3.0.3
+info:
+  title: Agora Public API
+  version: 0.1.0
+servers:
+  - url: http://127.0.0.1:3000
+
+components:
+  schemas:
+    ApiError:
+      type: object
+      required: [ok, message]
+      properties:
+        ok:
+          type: boolean
+          example: false
+        code:
+          type: string
+          nullable: true
+          example: BAD_REQUEST
+        message:
+          type: string
+          example: Missing required fields.
+
+    ApiKeysResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          example: true
+        keys:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              scopes:
+                type: array
+                items:
+                  type: string
+
+    BetPlaceRequest:
+      type: object
+      required: [marketId, side]
+      properties:
+        marketId:
+          type: string
+          example: market_1
+        side:
+          type: string
+          enum: [YES, NO]
+          example: YES
+        mode:
+          type: string
+          enum: [paper, real]
+          example: paper
+        stake:
+          type: number
+          example: 5
+        isPaper:
+          type: boolean
+          example: true
+        betDraft:
+          type: object
+          description: Optional advanced draft (stake + funding split).
+          additionalProperties: true
+
+    LimitOrderRequest:
+      type: object
+      required: [marketId, side, quantity, limitPrice]
+      properties:
+        marketId:
+          type: string
+          example: market_1
+        side:
+          type: string
+          enum: [YES, NO]
+          example: YES
+        quantity:
+          type: number
+          example: 10
+        limitPrice:
+          type: number
+          example: 0.53
+        limitExpiry:
+          type: string
+          example: 7d
+        mode:
+          type: string
+          enum: [paper, real]
+          example: paper
+        isPaper:
+          type: boolean
+          example: true
+
+    StrategyCreateRequest:
+      type: object
+      required: [name, mode, type, status, config]
+      properties:
+        name:
+          type: string
+          example: Paper rule strategy
+        mode:
+          type: string
+          enum: [PAPER, REAL]
+          example: PAPER
+        type:
+          type: string
+          enum: [RULES, ML]
+          example: RULES
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, PAUSED]
+          example: ACTIVE
+        config:
+          type: object
+          description: Strategy configuration payload (rules for RULES strategies).
+          additionalProperties: true
+
+paths:
+  /api/v1/keys:
+    get:
+      summary: List API keys (cookie session auth)
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+    post:
+      summary: Create API key (cookie session auth)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                scopes:
+                  type: array
+                  items: { type: string }
+            examples:
+              demo:
+                value:
+                  name: Practice key
+                  scopes: [read:markets, read:portfolio, trade:paper, manage:strategies]
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+    delete:
+      summary: Revoke API key (cookie session auth)
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/markets:
+    get:
+      summary: List markets (API key or session)
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/markets/{marketId}:
+    get:
+      summary: Get market by id (API key or session)
+      parameters:
+        - name: marketId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/markets/{marketId}/price-history:
+    get:
+      summary: Price history snapshots for a market
+      parameters:
+        - name: marketId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/live/games:
+    get:
+      summary: Live game feed
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/portfolio:
+    get:
+      summary: Get balances and portfolio (API key or session)
+      parameters:
+        - name: mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [paper, real, all]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/bets:
+    post:
+      summary: Place bet (API key or session)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BetPlaceRequest" }
+            examples:
+              placePaperBet:
+                value:
+                  marketId: market_1
+                  side: YES
+                  stake: 5
+                  mode: paper
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "403":
+          description: Forbidden (missing scope)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/orders:
+    get:
+      summary: List open orders (API key or session)
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create limit order with mode paper or real
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LimitOrderRequest" }
+            examples:
+              placePaperLimitOrder:
+                value:
+                  marketId: market_1
+                  side: YES
+                  quantity: 10
+                  limitPrice: 0.53
+                  limitExpiry: 7d
+                  mode: paper
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+    delete:
+      summary: Cancel limit order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderId]
+              properties:
+                orderId: { type: string }
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/paper/reset:
+    post:
+      summary: Reset paper balance (API key or session)
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "403":
+          description: Forbidden (missing scope)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/strategies:
+    get:
+      summary: List strategies
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create strategy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StrategyCreateRequest" }
+            examples:
+              paperRulesActive:
+                value:
+                  name: Paper rule strategy
+                  mode: PAPER
+                  type: RULES
+                  status: ACTIVE
+                  config:
+                    rules:
+                      - name: demo_rule
+                        when:
+                          marketStatus: ACTIVE
+                          yesPriceLt: 0.45
+                        action:
+                          side: YES
+                          stake: 10
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/strategies/executions:
+    get:
+      summary: List recent strategy execution logs
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/strategies/{strategyId}:
+    patch:
+      summary: Update strategy config/name/status
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                type: { type: string, enum: [RULES, ML] }
+                mode: { type: string, enum: [PAPER, REAL] }
+                status: { type: string, enum: [DRAFT, ACTIVE, PAUSED] }
+                config:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+    delete:
+      summary: Delete strategy
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/strategies/{strategyId}/run:
+    post:
+      summary: Run one strategy tick
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Strategy cannot run (e.g. not ACTIVE)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/strategies/{strategyId}/promote:
+    post:
+      summary: Promote paper strategy to real draft
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/strategies/{strategyId}/activate:
+    post:
+      summary: Activate strategy (runner will execute only ACTIVE)
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/v1/strategies/{strategyId}/pause:
+    post:
+      summary: Pause strategy
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+

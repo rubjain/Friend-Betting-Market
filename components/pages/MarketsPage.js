@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo } from "react";
-import { useAgora } from "../../context/AgoraContext";
+import { useFriendMarket } from "../../context/FriendMarketContext";
 import { sportMarketCategories } from "../../lib/marketTaxonomy";
 import { getMarketPipelineSummary } from "../../lib/marketAlgorithms";
 import LiveGamesRail from "../LiveGamesRail";
@@ -44,7 +44,7 @@ function sortMarkets(markets, sort) {
 }
 
 export default function MarketsPage() {
-  const { state, actions, selectors } = useAgora();
+  const { state, actions, selectors } = useFriendMarket();
   const searchRef = useRef(null);
   const catalogMarkets = selectors.getMergedMarkets();
 

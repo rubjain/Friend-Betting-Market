@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAgora } from "../../context/AgoraContext";
+import { useFriendMarket } from "../../context/FriendMarketContext";
 import { money } from "../../lib/formatters";
 import PortfolioLedger from "../PortfolioLedger";
 import { SectionHead } from "../ui";
 
 export default function PortfolioPage() {
-  const { state, actions } = useAgora();
+  const { state, actions } = useFriendMarket();
   const [tab, setTab] = useState("real");
   const [disputeDraft, setDisputeDraft] = useState({ betId: "", reason: "" });
   const [pendingAction, setPendingAction] = useState("");

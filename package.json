@@ -13,9 +13,12 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "node scripts/seedDatabase.js",
     "db:verify": "node scripts/verifyDatabase.js",
+    "supabase:turn-on": "node scripts/supabaseTurnOn.js",
     "check": "npm run test && next build --webpack",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "strategy:worker": "node scripts/strategyWorker.js",
+    "strategy:worker:once": "node scripts/strategyWorker.js --once"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

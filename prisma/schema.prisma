@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -21,6 +22,9 @@ model User {
   passwordHash        String?
   auditEntries        AuditTrail[]
   authTokens          AuthToken[]
+  apiKeys             ApiKey[]
+  strategies          Strategy[]
+  strategyExecutions  StrategyExecution[]
   balanceAccounts     BalanceAccount[]
   bets                Bet[]
   boostsGiven         FriendBoost[]        @relation("BoostActor")
@@ -38,6 +42,79 @@ model User {
   comments            MarketComment[]
   ownedGroups         Group[]              @relation("OwnedGroups")
   groupMemberships    GroupMember[]
+}
+
+model ApiKey {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String   @default("API key")
+  scopes     String[]
+  keyHash    String   @unique
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([revokedAt])
+}
+
+enum StrategyMode {
+  PAPER
+  REAL
+}
+
+enum StrategyStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+enum StrategyType {
+  RULES
+  ML
+}
+
+model Strategy {
+  id             String         @id @default(cuid())
+  userId         String
+  name           String
+  mode           StrategyMode   @default(PAPER)
+  status         StrategyStatus @default(DRAFT)
+  type           StrategyType   @default(RULES)
+  config         Json
+  promotedFromId String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promotedFrom Strategy?   @relation("StrategyPromotion", fields: [promotedFromId], references: [id])
+  promotedTo   Strategy[]  @relation("StrategyPromotion")
+  executions   StrategyExecution[]
+
+  @@index([userId, createdAt])
+  @@index([mode, status])
+}
+
+model StrategyExecution {
+  id         String   @id @default(cuid())
+  strategyId String
+  userId     String
+  marketId   String?
+  side       String?
+  stake      Decimal? @db.Decimal(14, 2)
+  isPaper    Boolean  @default(true)
+  status     String   @default("CREATED")
+  message    String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  strategy Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([strategyId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model UserSession {

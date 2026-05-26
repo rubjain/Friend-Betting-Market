@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAgora } from "../../context/AgoraContext";
+import { useFriendMarket } from "../../context/FriendMarketContext";
 import { SectionHead } from "../ui";
 
 export default function GroupsPage() {
-  const { state } = useAgora();
+  const { state } = useFriendMarket();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);

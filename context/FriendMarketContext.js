@@ -753,6 +753,7 @@ export function FriendMarketProvider({ children }) {
         updateState((next) => {
           next.currentUser.paper_balance = 10000;
           next.portfolio.openBets = next.portfolio.openBets.filter((b) => !b.isPaper);
+          next.openOrders = (next.openOrders || []).filter((o) => !o.isPaper);
           next.flashMessage = "Paper balance reset to $10,000.";
         });
       },
