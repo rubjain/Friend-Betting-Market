@@ -97,6 +97,86 @@ export async function POST(request) {
     return NextResponse.json({ ok: true, state: await getDatabaseState(prisma, userId) }, { status: 200 });
   }
 
+  if (event.type === "payout.paid" || event.type === "payout.failed") {
+    const payout = event.data.object;
+    const payoutId = payout?.id || "";
+    const paymentTransactionId = payout?.metadata?.paymentTransactionId || "";
+    if (!payoutId || !paymentTransactionId) {
+      return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
+    }
+
+    const transaction = await prisma.paymentTransaction.findUnique({ where: { id: paymentTransactionId } });
+    if (!transaction) {
+      return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
+    }
+
+    if (event.type === "payout.paid") {
+      await prisma.paymentTransaction.update({
+        where: { id: transaction.id },
+        data: { status: "COMPLETED", provider: "stripe", providerRef: payoutId },
+      });
+
+      await prisma.auditTrail.create({
+        data: {
+          actorId: transaction.reviewedById || transaction.userId,
+          action: "payment.withdrawal.completed",
+          metadata: { paymentTransactionId: transaction.id, payoutId },
+        },
+      });
+
+      return NextResponse.json({ ok: true, state: await getDatabaseState(prisma, transaction.userId) });
+    }
+
+    // payout.failed: return held funds
+    const amount = Number(transaction.amount);
+    await prisma.$transaction(async (tx) => {
+      await tx.paymentTransaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: "REJECTED",
+          provider: "stripe",
+          providerRef: payoutId,
+          metadata: {
+            ...(transaction.metadata || {}),
+            note: "Stripe payout failed; held funds returned.",
+            payoutFailure: payout?.failure_message || payout?.failure_code || "unknown",
+          },
+        },
+      });
+
+      await tx.balanceAccount.upsert({
+        where: { userId_currency: { userId: transaction.userId, currency: "WITHDRAWABLE" } },
+        update: { balance: { increment: amount } },
+        create: { userId: transaction.userId, currency: "WITHDRAWABLE", balance: amount },
+      });
+
+      await tx.ledgerEntry.create({
+        data: {
+          userId: transaction.userId,
+          transactionType: "CREDIT",
+          amount,
+          currency: "WITHDRAWABLE",
+          source: "REFUND",
+          metadata: {
+            note: `Stripe payout failed for withdrawal ${transaction.id}; held funds returned.`,
+            paymentTransactionId: transaction.id,
+            payoutId,
+          },
+        },
+      });
+
+      await tx.auditTrail.create({
+        data: {
+          actorId: transaction.reviewedById || transaction.userId,
+          action: "payment.withdrawal.failed",
+          metadata: { paymentTransactionId: transaction.id, payoutId },
+        },
+      });
+    });
+
+    return NextResponse.json({ ok: true, state: await getDatabaseState(prisma, transaction.userId) });
+  }
+
   // Acknowledge all other event types for now.
   return NextResponse.json({ ok: true, type: event.type }, { status: 200 });
 }
