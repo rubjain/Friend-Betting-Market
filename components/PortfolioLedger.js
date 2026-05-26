@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useFriendMarket } from "../context/FriendMarketContext";
+import { useAgora } from "../context/AgoraContext";
 import { signedMoney, titleCase } from "../lib/formatters";
 import { getLedgerView, ledgerFilterOptions, ledgerSortOptions } from "../lib/ledgerViews";
 
 export default function PortfolioLedger() {
-  const { state, actions, selectors } = useFriendMarket();
+  const { state, actions, selectors } = useAgora();
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const ledgerEntries = selectors.getLedgerEntries();

@@ -1,6 +1,6 @@
 import "../styles.css";
 import AppShell from "../components/AppShell";
-import { FriendMarketProvider } from "../context/FriendMarketContext";
+import { AgoraProvider } from "../context/AgoraContext";
 
 export const metadata = {
   title: "Agora",
@@ -11,9 +11,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body suppressHydrationWarning>
-        <FriendMarketProvider>
+        <AgoraProvider>
           <AppShell>{children}</AppShell>
-        </FriendMarketProvider>
+        </AgoraProvider>
       </body>
     </html>
   );

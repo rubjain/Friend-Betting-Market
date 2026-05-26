@@ -18,12 +18,12 @@ type DraftStore = {
 };
 
 const globalForDrafts = globalThis as typeof globalThis & {
-  __friendMarketDraftStore?: DraftStore;
+  __agoraDraftStore?: DraftStore;
 };
 
 const devDraftStore =
-  globalForDrafts.__friendMarketDraftStore ??
-  (globalForDrafts.__friendMarketDraftStore = { drafts: [] });
+  globalForDrafts.__agoraDraftStore ??
+  (globalForDrafts.__agoraDraftStore = { drafts: [] });
 
 export function normalizeQuestion(question: string) {
   return String(question || "")

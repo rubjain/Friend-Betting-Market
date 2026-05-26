@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { actions } = useFriendMarket();
+  const { actions } = useAgora();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);

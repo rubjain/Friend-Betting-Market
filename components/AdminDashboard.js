@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFriendMarket } from "../context/FriendMarketContext";
+import { useAgora } from "../context/AgoraContext";
 import {
   buildLedgerExportRows,
   buildRiskReviewExportRows,
@@ -21,7 +21,7 @@ import RiskReviewQueue from "./RiskReviewQueue";
 import { InfoRow } from "./ui";
 
 export default function AdminDashboard() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [confirmation, setConfirmation] = useState(null);
   const [pendingAction, setPendingAction] = useState("");
   const riskUsers = state.users.filter((user) => user.risk_status !== "clear" || user.risk_score >= 40);

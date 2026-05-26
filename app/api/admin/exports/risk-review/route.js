@@ -16,7 +16,7 @@ export async function GET(request) {
   const riskUsers = state.users.filter((user) => user.risk_status !== "clear" || user.risk_score >= 40);
   const rows = (await buildDatabaseRiskReviewExportRows()) ?? buildRiskReviewExportRows(riskUsers);
   const csv = toCsv(rows, riskReviewExportColumns);
-  const filename = buildExportFilename("friendmarket-risk-review-export");
+  const filename = buildExportFilename("agora-risk-review-export");
 
   return new Response(csv, {
     headers: {

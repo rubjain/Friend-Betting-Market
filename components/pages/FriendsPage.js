@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { getMultiplier } from "../../lib/marketMath";
 import { SectionHead } from "../ui";
 
@@ -38,7 +38,7 @@ function getInitials(name) {
 }
 
 export default function FriendsPage() {
-  const { state, actions, selectors } = useFriendMarket();
+  const { state, actions, selectors } = useAgora();
   const [pendingAction, setPendingAction] = useState("");
   const [boostPanelFriend, setBoostPanelFriend] = useState(null);
   const [h2hPanelFriend, setH2hPanelFriend] = useState(null);
@@ -134,6 +134,11 @@ export default function FriendsPage() {
         title="Friends"
         body="Invite friends, track your records, and see what they're betting on."
       />
+      <p className="page-inline-links">
+        <Link href="/groups">Groups</Link>
+        <span aria-hidden="true"> · </span>
+        <Link href="/feed">Full activity feed</Link>
+      </p>
 
       <div className="friends-layout">
         {/* Left column: friends list */}

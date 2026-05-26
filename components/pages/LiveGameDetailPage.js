@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import MarketGamePanel from "../MarketGamePanel";
 import BettingPanel from "../BettingPanel";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { EmptyState } from "../ui";
 
 export default function LiveGameDetailPage({ gameId: gameIdProp }) {
-  const { state, selectors } = useFriendMarket();
+  const { state, selectors } = useAgora();
   const decodedId = decodeURIComponent(gameIdProp || "");
 
   const fromContext = useMemo(

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const SESSION_COOKIE_NAME = "friendmarket-demo-session";
+const SESSION_COOKIE_NAME = "agora-demo-session";
 
 function sessionLooksAdmin(request) {
   const value = request.cookies.get(SESSION_COOKIE_NAME)?.value;

@@ -3,11 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AdminDashboard from "../AdminDashboard";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 
 export default function AdminPage() {
   const router = useRouter();
-  const { state, hydrated, actions } = useFriendMarket();
+  const { state, hydrated, actions } = useAgora();
 
   useEffect(() => {
     if (!hydrated || state.currentUser.isAdmin) {

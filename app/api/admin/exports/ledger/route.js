@@ -27,7 +27,7 @@ export async function GET(request) {
   const rows =
     (await buildDatabaseLedgerExportRows({ filter, sort })) ?? buildLedgerExportRows(fallbackRows);
   const csv = toCsv(rows, ledgerExportColumns);
-  const filename = buildExportFilename("friendmarket-ledger-export", { filter, sort });
+  const filename = buildExportFilename("agora-ledger-export", { filter, sort });
 
   return new Response(csv, {
     headers: {

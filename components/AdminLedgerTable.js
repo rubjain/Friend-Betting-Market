@@ -78,7 +78,7 @@ export default function AdminLedgerTable({ ledger }) {
 
   async function exportFilteredLedger() {
     const params = new URLSearchParams({ filter, sort });
-    const filename = buildExportFilename("friendmarket-ledger-export", { filter, sort });
+    const filename = buildExportFilename("agora-ledger-export", { filter, sort });
     try {
       const response = await fetch(`/api/admin/exports/ledger?${params.toString()}`);
       if (!response.ok) throw new Error("Ledger export failed.");

@@ -21,10 +21,19 @@ function withDatabaseUrl(fn) {
 }
 
 test("admin permission levels default demo admins to owner", () => {
-  const session = { isAdmin: true, userId: "user_1" };
-
-  assert.equal(getAdminLevel(session, {}), "owner");
-  assert.equal(hasAdminPermission(session, ADMIN_PERMISSIONS.CONFIG, {}), true);
+  const previous = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
+  try {
+    const session = { isAdmin: true, userId: "user_1" };
+    assert.equal(getAdminLevel(session, {}), "owner");
+    assert.equal(hasAdminPermission(session, ADMIN_PERMISSIONS.CONFIG, {}), true);
+  } finally {
+    if (previous === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = previous;
+    }
+  }
 });
 
 test("database admins default to viewer except seeded owner", () => {
@@ -45,7 +54,7 @@ test("database admins default to viewer except seeded owner", () => {
 test("configured admin levels grant scoped permissions", () => {
   withDatabaseUrl(() => {
     const env = {
-      FRIENDMARKET_ADMIN_LEVELS_JSON: JSON.stringify({
+      AGORA_ADMIN_LEVELS_JSON: JSON.stringify({
         risk_admin: "risk_manager",
         market_admin: "market_manager",
       }),

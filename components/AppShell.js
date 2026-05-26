@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFriendMarket } from "../context/FriendMarketContext";
+import { useAgora } from "../context/AgoraContext";
 import { money } from "../lib/formatters";
 import { buildNotifications, countActionableNotifications } from "../lib/notifications";
 import LiveGamesPoller from "./LiveGamesPoller";
@@ -37,6 +37,7 @@ const routes = [
   ["/deposit", "Deposit"],
   ["/withdraw", "Withdraw"],
   ["/friends", "Friends"],
+  ["/groups", "Groups"],
   ["/leaderboard", "Leaderboard"],
   ["/faq", "FAQ"],
   ["/legal", "Terms"],
@@ -57,7 +58,7 @@ const settingsRoutes = [
 export default function AppShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { state, hydrated, actions } = useFriendMarket();
+  const { state, hydrated, actions } = useAgora();
   const showHydratePlaceholder = shouldShowHydratePlaceholder(hydrated, pathname);
   const [sessionPending, setSessionPending] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(true);
@@ -82,6 +83,8 @@ export default function AppShell({ children }) {
       markets: "/markets",
       "market-detail": `/markets/${state.selectedMarketId}`,
       friends: "/friends",
+      groups: "/groups",
+      feed: "/feed",
       portfolio: "/portfolio",
       deposit: "/deposit",
       withdraw: "/withdraw",

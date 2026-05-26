@@ -23,6 +23,9 @@ if (!hasDatabaseUrl()) {
     apiKeys: await prisma.apiKey.count(),
     strategies: await prisma.strategy.count(),
     strategyExecutions: await prisma.strategyExecution.count(),
+    groups: await prisma.group.count(),
+    groupMembers: await prisma.groupMember.count(),
+    marketComments: await prisma.marketComment.count(),
   };
 
   assertMinimum("users", counts.users, 3);

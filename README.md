@@ -108,7 +108,7 @@ Auth endpoints for production hardening:
 - `PATCH /api/auth/password-reset` accepts `{ "token": "...", "password": "new-password" }`, updates the password, revokes existing sessions, and writes an audit entry.
 - `/verify-email` and `/forgot-password` expose those flows in the app UI for demo and QA.
 
-Production still needs a real email provider before these tokens are user-facing. Set `FRIENDMARKET_APP_URL` and `FRIENDMARKET_EMAIL_FROM` now so links can be generated consistently when delivery is connected.
+Production still needs a real email provider before these tokens are user-facing. Set `AGORA_APP_URL` and `AGORA_EMAIL_FROM` now so links can be generated consistently when delivery is connected.
 
 Funding endpoints for payment-infrastructure hardening:
 
@@ -207,7 +207,7 @@ Without `DATABASE_URL`, keys and strategies still work in demo mode but are in-m
 
 OpenAPI contract (including error `code` fields): `docs/openapi.yaml`.
 
-Set `FRIENDMARKET_SESSION_SECRET` to a long random value before sharing any environment. To expose the temporary admin toggle locally, set `FRIENDMARKET_DEV_ADMIN_SHORTCUT=1`; keep it disabled outside local development.
+Set `AGORA_SESSION_SECRET` to a long random value before sharing any environment. To expose the temporary admin toggle locally, set `AGORA_DEV_ADMIN_SHORTCUT=1`; keep it disabled outside local development.
 
 For a production verification build:
 
@@ -242,7 +242,7 @@ The old `index.html` and `app.js` prototype files are still present as migration
 - `app/` - Next.js routes
 - `app/api/` - API routes for demo-state hydration, bet placement, market submission, profile actions, friend actions, admin config, admin funds, admin user actions, admin market actions, and admin CSV exports
 - `components/` - shared shell, market, betting, portfolio, admin, and page components
-- `context/FriendMarketContext.js` - localStorage hydration and demo state actions
+- `context/AgoraContext.js` - localStorage hydration and demo state actions
 - `lib/defaultState.js` - seed data
 - `lib/marketMath.js` - payout, funding, and multiplier rules
 - `lib/accounting.js` - ledger entry factories for deposits, bets, settlements, and admin adjustments

@@ -21,8 +21,8 @@ const verifiedUser = {
 };
 
 test("real-money flag controls payment compliance enforcement mode", () => {
-  assert.equal(isRealMoneyModeEnabled({ FRIENDMARKET_REAL_MONEY_MODE: "1" }), true);
-  assert.equal(isRealMoneyModeEnabled({ FRIENDMARKET_REAL_MONEY_MODE: "0" }), false);
+  assert.equal(isRealMoneyModeEnabled({ AGORA_REAL_MONEY_MODE: "1" }), true);
+  assert.equal(isRealMoneyModeEnabled({ AGORA_REAL_MONEY_MODE: "0" }), false);
 });
 
 test("payment compliance allows demo deposits but records non-enforced warning", () => {
@@ -49,7 +49,7 @@ test("payment compliance blocks unverified real-money withdrawals", () => {
       riskStatus: "clear",
       verificationChecks: [{ type: "EMAIL", status: "VERIFIED" }],
     },
-    env: { FRIENDMARKET_REAL_MONEY_MODE: "1" },
+    env: { AGORA_REAL_MONEY_MODE: "1" },
   });
 
   assert.equal(result.ok, false);
@@ -62,7 +62,7 @@ test("payment compliance blocks unverified real-money withdrawals", () => {
 });
 
 test("payment compliance allows verified real-money deposits and withdrawals", () => {
-  const env = { FRIENDMARKET_REAL_MONEY_MODE: "1" };
+  const env = { AGORA_REAL_MONEY_MODE: "1" };
 
   assert.equal(evaluatePaymentCompliance({ action: "deposit", user: verifiedUser, env }).ok, true);
   assert.equal(evaluatePaymentCompliance({ action: "withdrawal", user: verifiedUser, env }).ok, true);
@@ -89,7 +89,7 @@ test("payment compliance blocks self-excluded accounts before money movement", (
         selfExcludedUntil: "2026-05-20T00:00:00.000Z",
       },
     },
-    env: { FRIENDMARKET_REAL_MONEY_MODE: "1" },
+    env: { AGORA_REAL_MONEY_MODE: "1" },
     now: Date.parse("2026-05-13T00:00:00.000Z"),
   });
 
@@ -111,7 +111,7 @@ test("payment compliance enforces real-money responsible deposit limits", () => 
         dailyDepositLimit: 100,
       },
     },
-    env: { FRIENDMARKET_REAL_MONEY_MODE: "1" },
+    env: { AGORA_REAL_MONEY_MODE: "1" },
   });
 
   assert.equal(result.ok, false);

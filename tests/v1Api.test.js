@@ -37,13 +37,13 @@ test("real-money trade eligibility enforces verification checks only in real-mon
 
   const demoResult = evaluateRealMoneyBetEligibility({
     user,
-    env: { FRIENDMARKET_REAL_MONEY_MODE: "0" },
+    env: { AGORA_REAL_MONEY_MODE: "0" },
   });
   assert.equal(demoResult.ok, true);
 
   const realResult = evaluateRealMoneyBetEligibility({
     user,
-    env: { FRIENDMARKET_REAL_MONEY_MODE: "1" },
+    env: { AGORA_REAL_MONEY_MODE: "1" },
   });
   assert.equal(realResult.ok, true);
 });

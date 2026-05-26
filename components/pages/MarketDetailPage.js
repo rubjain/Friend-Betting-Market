@@ -6,7 +6,7 @@ import BettingPanel from "../BettingPanel";
 import MarketGamePanel from "../MarketGamePanel";
 import MarketPriceChart from "../MarketPriceChart";
 import TennisPremiumMarketPage from "../TennisPremiumMarketPage";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { formatMarketDate, formatPercent, money } from "../../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock, getMarketAlgorithmSnapshot } from "../../lib/marketAlgorithms";
 import { getMultiplier } from "../../lib/marketMath";
@@ -42,7 +42,7 @@ export default function MarketDetailPage({ marketId }) {
 }
 
 function DefaultMarketDetailPage({ marketId }) {
-  const { state, actions, selectors } = useFriendMarket();
+  const { state, actions, selectors } = useAgora();
   const market = selectors.getSelectedMarket(marketId);
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);

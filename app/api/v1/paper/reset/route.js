@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { resolvePublicApiCaller, requireApiKeyScopes } from "../../../../lib/server/auth.js";
-import { hasDatabaseUrl, prisma } from "../../../../lib/server/prisma.js";
-import { getDatabaseState } from "../../../../lib/server/dbState.js";
-import { resetPaperBalanceForDemoUser } from "../../../../lib/server/demoStore.js";
+import { resolvePublicApiCaller, requireApiKeyScopes } from "../../../../../lib/server/auth.js";
+import { hasDatabaseUrl, prisma } from "../../../../../lib/server/prisma.js";
+import { getDatabaseState } from "../../../../../lib/server/dbState.js";
+import { resetPaperBalanceForDemoUser } from "../../../../../lib/server/demoStore.js";
 
 const PAPER_STARTING_BALANCE = 10000;
 

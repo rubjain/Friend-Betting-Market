@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { formatPercent, money } from "../../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock, getMarketPipelineSummary } from "../../lib/marketAlgorithms";
 import { buildMarketDualPriceSeries } from "../../lib/marketPriceSeries";
@@ -43,7 +43,7 @@ function RowChartTooltip({ active, payload }) {
 
 function TopMarketRow({ market, linkedGame, now, activityTick, rowIndex }) {
   const router = useRouter();
-  const { actions } = useFriendMarket();
+  const { actions } = useAgora();
   const series = useMemo(() => buildMarketDualPriceSeries(market, linkedGame, now), [market, linkedGame, now]);
   const awayColor = linkedGame?.awayTeamColor || "var(--accent)";
   const homeColor = linkedGame?.homeTeamColor || "var(--accent-2)";
@@ -154,7 +154,7 @@ function TopMarketRow({ market, linkedGame, now, activityTick, rowIndex }) {
 }
 
 export default function LandingPage() {
-  const { state, selectors } = useFriendMarket();
+  const { state, selectors } = useAgora();
   const [now, setNow] = useState(() => Date.now());
   const [activityTick, setActivityTick] = useState(0);
 

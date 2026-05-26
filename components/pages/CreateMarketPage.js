@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { getMarketCategory, sportMarketCategories } from "../../lib/marketTaxonomy";
 import { hasValidationErrors, validateCreateMarketDraft } from "../../lib/validation";
 import { SectionHead } from "../ui";
 
 export default function CreateMarketPage() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const draft = state.createMarketDraft;

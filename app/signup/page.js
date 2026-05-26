@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { actions } = useFriendMarket();
+  const { actions } = useAgora();
   const [draft, setDraft] = useState({ name: "", email: "", username: "", password: "", confirmPassword: "" });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pending, setPending] = useState(false);

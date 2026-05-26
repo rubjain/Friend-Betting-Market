@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
 import PortfolioLedger from "../PortfolioLedger";
 import { InfoRow, SectionHead } from "../ui";
@@ -22,7 +22,7 @@ function statusText(value) {
 }
 
 export default function SettingsPage() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [pendingAction, setPendingAction] = useState("");
   const [loginIdentifier, setLoginIdentifier] = useState(state.currentUser.email);
   const [loginPassword, setLoginPassword] = useState("password123");

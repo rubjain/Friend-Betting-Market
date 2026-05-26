@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import BettingPanel from "./BettingPanel";
 import TennisWinProbChart from "./TennisWinProbChart";
-import { useFriendMarket } from "../context/FriendMarketContext";
+import { useAgora } from "../context/AgoraContext";
 import { mergeTennisSnapshots } from "../lib/tennisScoreboard";
 import { parseGamePointsFromStatusText } from "../lib/tennisPointParsing.js";
 import { getLinkedLiveGame } from "../lib/marketAlgorithms";
@@ -47,7 +47,7 @@ function ServeRacket() {
 }
 
 export default function TennisPremiumMarketPage({ marketId }) {
-  const { state, actions, selectors } = useFriendMarket();
+  const { state, actions, selectors } = useAgora();
   const market = selectors.getSelectedMarket(marketId);
   const linkedGame = useMemo(
     () => (market ? getLinkedLiveGame(market, state.liveGames) : null),

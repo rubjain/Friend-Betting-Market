@@ -13,7 +13,6 @@ import {
 import { defaultState, STORAGE_KEY } from "../lib/defaultState";
 import { mergeGameMarkets } from "../lib/gameMarkets.js";
 import { money } from "../lib/formatters";
-import { diffStateForEvents } from "../lib/notifications";
 import { calculatePayout } from "../lib/marketMath";
 import { getResolutionTemplate, sportMarketCategories } from "../lib/marketTaxonomy";
 import { applyRiskSignalsToUser, getBoostRiskSignals, getRiskBand } from "../lib/riskEngine";
@@ -193,7 +192,6 @@ function mergeStoredState(parsed) {
     users: normalizeUsers(mergeById(defaultState.users, parsed.users || [])),
     ledger: normalizeLedger(parsed.ledger || defaultState.ledger),
     openOrders: parsed.openOrders || [],
-    eventNotifications: parsed.eventNotifications || [],
   };
 }
 
@@ -228,20 +226,6 @@ function buildStateFromSessionPayload(payload, previousTheme, previousFlash = ""
     theme: previousTheme ?? merged.theme ?? defaultState.theme,
     flashMessage: sessionNotice,
     mobileNavOpen: false,
-  };
-}
-
-// Wraps buildStateFromSessionPayload and diffs prev vs next to append new event notifications.
-function buildStateWithEvents(payload, prevState) {
-  const next = buildStateFromSessionPayload(payload, prevState.theme, prevState.flashMessage);
-  const newEvents = diffStateForEvents(prevState, next);
-  if (newEvents.length === 0) return next;
-  // Deduplicate by id, new events win
-  const existingIds = new Set(newEvents.map((e) => e.id));
-  const kept = (prevState.eventNotifications || []).filter((e) => !existingIds.has(e.id));
-  return {
-    ...next,
-    eventNotifications: [...newEvents, ...kept].slice(0, 50), // cap at 50
   };
 }
 
@@ -455,10 +439,8 @@ export function AgoraProvider({ children }) {
         }
 
         if (!canceled) {
-          // Initial hydration: no prev events to diff against, just build state normally
           const theme = savedState?.theme || mergeIncomingState(payload.state).theme;
-          const base = buildStateFromSessionPayload(payload, theme, "");
-          setState({ ...base, eventNotifications: savedState?.eventNotifications || [] });
+          setState(buildStateFromSessionPayload(payload, theme, ""));
         }
       } catch {
         if (!canceled) {
@@ -499,7 +481,9 @@ export function AgoraProvider({ children }) {
           if (!response.ok || !payload.state) {
             return;
           }
-          setState((prev) => buildStateWithEvents(payload, prev));
+          setState((prev) =>
+            buildStateFromSessionPayload(payload, prev.theme, prev.flashMessage),
+          );
           if (payload.sessionExpired && !isPublicAuthRoute(pathnameRef.current)) {
             router.push("/login?reason=session");
           }
@@ -539,16 +523,6 @@ export function AgoraProvider({ children }) {
       dismissFlashMessage() {
         updateState((next) => {
           next.flashMessage = "";
-        });
-      },
-      markAllNotificationsRead() {
-        updateState((next) => {
-          next.eventNotifications = (next.eventNotifications || []).map((n) => ({ ...n, read: true }));
-        });
-      },
-      dismissNotification(id) {
-        updateState((next) => {
-          next.eventNotifications = (next.eventNotifications || []).filter((n) => n.id !== id);
         });
       },
       setFlashMessage(message) {
@@ -654,10 +628,12 @@ export function AgoraProvider({ children }) {
         return response.ok ? { ok: true } : { ok: false, message: payload.message };
       },
       async logout() {
-        const { response } = await requestJson("/api/session", { method: "DELETE" });
-        // Always clear client state — if the server failed it's a stale session anyway
+        const { response, payload } = await requestJson("/api/session", { method: "DELETE" });
         if (!response.ok) {
-          console.warn("Logout: server returned non-ok, clearing client state anyway.");
+          updateState((next) => {
+            next.flashMessage = payload?.message || "Sign out failed. Try again.";
+          });
+          return;
         }
         try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
         setState((prev) => ({
@@ -692,7 +668,9 @@ export function AgoraProvider({ children }) {
           if (!response.ok || !payload.state) {
             return false;
           }
-          setState((prev) => buildStateWithEvents(payload, prev));
+          setState((prev) =>
+            buildStateFromSessionPayload(payload, prev.theme, prev.flashMessage),
+          );
           if (payload.sessionExpired && !isPublicAuthRoute(pathnameRef.current)) {
             router.push("/login?reason=session");
           }
@@ -775,6 +753,7 @@ export function AgoraProvider({ children }) {
         updateState((next) => {
           next.currentUser.paper_balance = 10000;
           next.portfolio.openBets = next.portfolio.openBets.filter((b) => !b.isPaper);
+          next.openOrders = (next.openOrders || []).filter((o) => !o.isPaper);
           next.flashMessage = "Paper balance reset to $10,000.";
         });
       },

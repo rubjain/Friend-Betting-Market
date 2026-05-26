@@ -8999,3 +8999,16 @@ textarea { min-height: 130px; resize: vertical; }
 .friends-tab-btn:hover { color: var(--text); }
 .friends-tab-btn--active { color: var(--accent); border-bottom-color: var(--accent); }
 
+.page-inline-links {
+  margin: -8px 0 16px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.page-inline-links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.page-inline-links a:hover {
+  text-decoration: underline;
+}
+

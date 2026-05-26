@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
 import PortfolioChart from "../PortfolioChart";
 
 export default function ProfilePage() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [profileDraft, setProfileDraft] = useState({
     name: state.currentUser.name,
     email: state.currentUser.email,

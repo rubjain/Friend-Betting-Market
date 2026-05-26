@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useFriendMarket } from "../context/FriendMarketContext";
+import { useAgora } from "../context/AgoraContext";
 import { money } from "../lib/formatters";
 import { getContractSideLabels } from "../lib/marketLabels";
 import { calculateOrderPreview, calculatePayout, dollarsToShares, sharesToDollars, priceForSideExported } from "../lib/marketMath";
@@ -17,7 +17,7 @@ function expiryLabel(val) {
 }
 
 export default function BettingPanel({ market, linkedGame = null }) {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [showReview, setShowReview] = useState(false);

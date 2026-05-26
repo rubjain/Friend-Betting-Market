@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
 import { InfoRow, SectionHead } from "../ui";
 
@@ -25,7 +25,7 @@ const withdrawMethods = [
 const quickWithdrawAmounts = [10, 20, 50, 100];
 
 export default function WithdrawPage() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [pendingAction, setPendingAction] = useState("");
   const [withdrawMethod, setWithdrawMethod] = useState("bank");
   const selectedWithdrawMethod = withdrawMethods.find((method) => method.id === withdrawMethod) || withdrawMethods[0];

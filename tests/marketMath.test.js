@@ -370,14 +370,14 @@ test("CSV exporter quotes commas, quotes, and newlines", () => {
 
 test("export filenames include date and active filters", () => {
   const filename = buildExportFilename(
-    "FriendMarket Ledger Export",
+    "Agora Ledger Export",
     { filter: "withdrawable", sort: "amount_desc", action: "all" },
     new Date("2026-05-12T10:15:00Z"),
   );
 
   assert.equal(
     filename,
-    "friendmarket-ledger-export_2026-05-12_filter-withdrawable_sort-amount-desc.csv",
+    "agora-ledger-export_2026-05-12_filter-withdrawable_sort-amount-desc.csv",
   );
 });
 
@@ -574,12 +574,12 @@ test("source adapters define required settlement fields by category", () => {
 });
 
 test("request auth helper recognizes dev admin shortcut header when enabled", async () => {
-  const previousShortcut = process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
-  process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = "1";
-  const userRequest = new Request("http://friendmarket.test/api/admin/config");
-  const adminRequest = new Request("http://friendmarket.test/api/admin/config", {
+  const previousShortcut = process.env.AGORA_DEV_ADMIN_SHORTCUT;
+  process.env.AGORA_DEV_ADMIN_SHORTCUT = "1";
+  const userRequest = new Request("http://agora.test/api/admin/config");
+  const adminRequest = new Request("http://agora.test/api/admin/config", {
     headers: {
-      "x-friendmarket-role": "admin",
+      "x-agora-role": "admin",
     },
   });
 
@@ -594,14 +594,14 @@ test("request auth helper recognizes dev admin shortcut header when enabled", as
   assert.equal(allowed.response, null);
   assert.equal(allowed.session.role, "admin");
   if (previousShortcut === undefined) {
-    delete process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
+    delete process.env.AGORA_DEV_ADMIN_SHORTCUT;
   } else {
-    process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = previousShortcut;
+    process.env.AGORA_DEV_ADMIN_SHORTCUT = previousShortcut;
   }
 });
 
 test("authenticated guard rejects anonymous requests", async () => {
-  const request = new Request("http://friendmarket.test/api/funds/deposit");
+  const request = new Request("http://agora.test/api/funds/deposit");
   const guarded = await requireAuthenticated(request);
 
   assert.equal(guarded.session.authenticated, false);
@@ -610,16 +610,16 @@ test("authenticated guard rejects anonymous requests", async () => {
 });
 
 test("admin permission guard rejects scoped-out admins", async () => {
-  const previousShortcut = process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
+  const previousShortcut = process.env.AGORA_DEV_ADMIN_SHORTCUT;
   const previousDatabase = process.env.DATABASE_URL;
-  const previousLevels = process.env.FRIENDMARKET_ADMIN_LEVELS_JSON;
-  process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = "1";
+  const previousLevels = process.env.AGORA_ADMIN_LEVELS_JSON;
+  process.env.AGORA_DEV_ADMIN_SHORTCUT = "1";
   process.env.DATABASE_URL = "postgresql://example/test";
-  process.env.FRIENDMARKET_ADMIN_LEVELS_JSON = JSON.stringify({ user_1: "viewer" });
+  process.env.AGORA_ADMIN_LEVELS_JSON = JSON.stringify({ user_1: "viewer" });
 
-  const request = new Request("http://friendmarket.test/api/admin/config", {
+  const request = new Request("http://agora.test/api/admin/config", {
     headers: {
-      "x-friendmarket-role": "admin",
+      "x-agora-role": "admin",
     },
   });
   const guarded = await requireAdminPermission(request, ADMIN_PERMISSIONS.CONFIG);
@@ -629,9 +629,9 @@ test("admin permission guard rejects scoped-out admins", async () => {
   assert.equal((await guarded.response.json()).message, "Your admin role does not allow this action.");
 
   if (previousShortcut === undefined) {
-    delete process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
+    delete process.env.AGORA_DEV_ADMIN_SHORTCUT;
   } else {
-    process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = previousShortcut;
+    process.env.AGORA_DEV_ADMIN_SHORTCUT = previousShortcut;
   }
   if (previousDatabase === undefined) {
     delete process.env.DATABASE_URL;
@@ -639,9 +639,9 @@ test("admin permission guard rejects scoped-out admins", async () => {
     process.env.DATABASE_URL = previousDatabase;
   }
   if (previousLevels === undefined) {
-    delete process.env.FRIENDMARKET_ADMIN_LEVELS_JSON;
+    delete process.env.AGORA_ADMIN_LEVELS_JSON;
   } else {
-    process.env.FRIENDMARKET_ADMIN_LEVELS_JSON = previousLevels;
+    process.env.AGORA_ADMIN_LEVELS_JSON = previousLevels;
   }
 });
 

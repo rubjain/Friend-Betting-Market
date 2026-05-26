@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
 import { InfoRow, SectionHead } from "../ui";
 
@@ -39,7 +39,7 @@ const depositMethods = [
 const quickDepositAmounts = [10, 25, 50, 100];
 
 export default function DepositPage() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [pendingAction, setPendingAction] = useState("");
   const [depositMethod, setDepositMethod] = useState("bank");
   const selectedDepositMethod = depositMethods.find((method) => method.id === depositMethod) || depositMethods[0];

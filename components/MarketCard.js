@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { useFriendMarket } from "../context/FriendMarketContext";
+import { useAgora } from "../context/AgoraContext";
 import { formatMarketDate, formatPercent, money } from "../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock } from "../lib/marketAlgorithms";
 import { getContractSideLabels } from "../lib/marketLabels";
 
 export default function MarketCard({ market, compact = false }) {
   const router = useRouter();
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const linkedGame = getLinkedLiveGame(market, state.liveGames);
   const { yesLabel, noLabel } = useMemo(
     () => getContractSideLabels(market, linkedGame, { shortSides: true }),
