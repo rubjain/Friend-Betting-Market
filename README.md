@@ -110,6 +110,16 @@ Auth endpoints for production hardening:
 
 Production still needs a real email provider before these tokens are user-facing. Set `AGORA_APP_URL` and `AGORA_EMAIL_FROM` now so links can be generated consistently when delivery is connected.
 
+### Stripe (optional)
+
+If you want real deposit collection via Stripe Checkout (instead of the demo ledger), set:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+Then POST to `/api/funds/deposit` with `{ "amount": 25, "method": "stripe" }`.
+The API returns `checkoutUrl`. Stripe will call `/api/webhooks/payments` and the app will mark the `PaymentTransaction` complete and credit withdrawable balance.
+
 Funding endpoints for payment-infrastructure hardening:
 
 - `POST /api/funds/deposit` accepts `{ "amount": 25, "method": "bank" }`, creates a completed demo-ledger payment transaction, credits withdrawable balance, writes a ledger entry, and records an audit event.
