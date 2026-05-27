@@ -57,6 +57,7 @@ components:
         mode:
           type: string
           enum: [paper, real]
+          description: Defaults to paper. Real mode returns REAL_MONEY_DISABLED while AGORA_REAL_MONEY_MODE=0.
           example: paper
         stake:
           type: number
@@ -92,6 +93,7 @@ components:
         mode:
           type: string
           enum: [paper, real]
+          description: Defaults to paper. Real mode returns REAL_MONEY_DISABLED while AGORA_REAL_MONEY_MODE=0.
           example: paper
         isPaper:
           type: boolean
@@ -121,7 +123,55 @@ components:
           description: Strategy configuration payload (rules for RULES strategies).
           additionalProperties: true
 
+    HealthCheck:
+      type: object
+      properties:
+        key: { type: string }
+        ok: { type: boolean }
+        required: { type: boolean }
+        message: { type: string }
+
+    HealthResponse:
+      type: object
+      required: [ok, mode, checks, generatedAt]
+      properties:
+        ok:
+          type: boolean
+          example: true
+        mode:
+          type: string
+          example: public-beta
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/HealthCheck" }
+        database:
+          type: object
+          properties:
+            ok: { type: boolean }
+            message: { type: string }
+        provider:
+          type: object
+          additionalProperties: true
+        generatedAt:
+          type: string
+          format: date-time
+
 paths:
+  /api/health:
+    get:
+      summary: Public beta health and launch-readiness checks
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+        "503":
+          description: Not ready for hosted beta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+
   /api/v1/keys:
     get:
       summary: List API keys (cookie session auth)
@@ -191,6 +241,11 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
+        "503":
+          description: Public beta requires DATABASE_URL (code DATABASE_REQUIRED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
 
   /api/v1/markets/{marketId}:
     get:
@@ -243,6 +298,11 @@ paths:
       responses:
         "200":
           description: OK
+        "503":
+          description: Public beta requires DATABASE_URL (code DATABASE_REQUIRED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
 
   /api/v1/bets:
     post:
@@ -273,7 +333,12 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
         "403":
-          description: Forbidden (missing scope)
+          description: Forbidden (missing scope or real money disabled)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "503":
+          description: Public beta requires DATABASE_URL (code DATABASE_REQUIRED)
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
@@ -305,6 +370,11 @@ paths:
           description: Created
         "400":
           description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "503":
+          description: Public beta requires DATABASE_URL (code DATABASE_REQUIRED)
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
@@ -525,4 +595,3 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
-

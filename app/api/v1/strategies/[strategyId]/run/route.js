@@ -3,6 +3,7 @@ import { requireApiKeyScopes, resolvePublicApiCaller } from "../../../../../../l
 import { getStrategy, logStrategyExecution } from "../../../../../../lib/server/strategyService.js";
 import { runStrategyOnce } from "../../../../../../lib/strategies/strategyRunner.js";
 import { inferV1ErrorCode } from "../../../../../../lib/server/v1ErrorCodes.js";
+import { realMoneyDisabledPayload, shouldBlockRealMoney } from "../../../../../../lib/server/betaRuntime.js";
 
 export async function POST(request, context) {
   const caller = await resolvePublicApiCaller(request);
@@ -22,6 +23,9 @@ export async function POST(request, context) {
       { ok: false, message: "Strategy not found.", code: inferV1ErrorCode("Strategy not found.") },
       { status: 404 },
     );
+  }
+  if (String(strategy.mode).toUpperCase() === "REAL" && shouldBlockRealMoney()) {
+    return NextResponse.json(realMoneyDisabledPayload(), { status: 403 });
   }
 
   await logStrategyExecution({
@@ -49,4 +53,3 @@ export async function POST(request, context) {
     { status: result.ok ? 200 : 400 },
   );
 }
-

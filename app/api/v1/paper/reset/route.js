@@ -3,10 +3,14 @@ import { resolvePublicApiCaller, requireApiKeyScopes } from "../../../../../lib/
 import { hasDatabaseUrl, prisma } from "../../../../../lib/server/prisma.js";
 import { getDatabaseState } from "../../../../../lib/server/dbState.js";
 import { resetPaperBalanceForDemoUser } from "../../../../../lib/server/demoStore.js";
+import { betaRuntimeError } from "../../../../../lib/server/betaRuntime.js";
 
 const PAPER_STARTING_BALANCE = 10000;
 
 export async function POST(request) {
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) return NextResponse.json(runtimeError, { status: 503 });
+
   const caller = await resolvePublicApiCaller(request);
   if (!caller.ok) return caller.response;
 

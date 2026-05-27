@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { getSessionFromRequest } from "../../../../lib/server/auth.js";
 import { createApiKey, listApiKeys, revokeApiKey } from "../../../../lib/server/apiKeyService.js";
 import { inferV1ErrorCode } from "../../../../lib/server/v1ErrorCodes.js";
+import { betaRuntimeError } from "../../../../lib/server/betaRuntime.js";
 
 export async function GET(request) {
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) return NextResponse.json(runtimeError, { status: 503 });
+
   const session = await getSessionFromRequest(request);
   if (!session.authenticated) {
     return NextResponse.json(
@@ -17,6 +21,9 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) return NextResponse.json(runtimeError, { status: 503 });
+
   const session = await getSessionFromRequest(request);
   if (!session.authenticated) {
     return NextResponse.json(
@@ -43,6 +50,9 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) return NextResponse.json(runtimeError, { status: 503 });
+
   const session = await getSessionFromRequest(request);
   if (!session.authenticated) {
     return NextResponse.json(

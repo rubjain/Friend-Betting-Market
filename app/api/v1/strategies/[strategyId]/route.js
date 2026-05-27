@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiKeyScopes, resolvePublicApiCaller } from "../../../../../lib/server/auth.js";
 import { deleteStrategy, getStrategy, updateStrategy } from "../../../../../lib/server/strategyService.js";
 import { inferV1ErrorCode } from "../../../../../lib/server/v1ErrorCodes.js";
+import { realMoneyDisabledPayload, shouldBlockRealMoney } from "../../../../../lib/server/betaRuntime.js";
 
 function normalizeStatus(status) {
   const s = String(status || "").toUpperCase();
@@ -43,6 +44,10 @@ export async function PATCH(request, context) {
   if (body.mode !== undefined) patch.mode = String(body.mode).toUpperCase();
   if (body.status !== undefined) patch.status = normalizeStatus(body.status);
   if (body.config !== undefined) patch.config = body.config;
+
+  if (patch.mode === "REAL" && shouldBlockRealMoney()) {
+    return NextResponse.json(realMoneyDisabledPayload(), { status: 403 });
+  }
 
   const result = await updateStrategy({ userId, strategyId, patch });
   if (!result?.ok) {

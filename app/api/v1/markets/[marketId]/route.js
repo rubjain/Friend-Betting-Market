@@ -4,8 +4,12 @@ import { getDatabaseState } from "../../../../../lib/server/dbState.js";
 import { getDemoState } from "../../../../../lib/server/demoStore.js";
 import { hasDatabaseUrl } from "../../../../../lib/server/prisma.js";
 import { inferV1ErrorCode } from "../../../../../lib/server/v1ErrorCodes.js";
+import { betaRuntimeError } from "../../../../../lib/server/betaRuntime.js";
 
 export async function GET(request, context) {
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) return NextResponse.json(runtimeError, { status: 503 });
+
   const caller = await resolvePublicApiCaller(request);
   if (!caller.ok) {
     return caller.response;

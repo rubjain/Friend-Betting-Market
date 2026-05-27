@@ -8,16 +8,16 @@ import { InfoRow, SectionHead } from "../ui";
 const withdrawMethods = [
   {
     id: "bank",
-    name: "Bank account",
-    detail: "ACH withdrawal",
-    badge: "1-3 business days",
+    name: "Demo bank",
+    detail: "Simulated ACH review",
+    badge: "Paper beta",
     mark: "BA",
   },
   {
     id: "card",
-    name: "Debit card",
-    detail: "Eligible cards",
-    badge: "Fast",
+    name: "Demo debit card",
+    detail: "Simulated payout review",
+    badge: "Paper beta",
     mark: "DC",
   },
 ];
@@ -45,17 +45,17 @@ export default function WithdrawPage() {
   return (
     <section className="page active money-page">
       <SectionHead
-        title="Withdraw"
-        body="Move withdrawable funds back to a connected payout method."
+        title="Request Simulated Withdrawal"
+        body="Paper beta withdrawals are review-only ledger simulations. No real payout is sent."
       />
 
       <div className="list-card deposit-card money-card">
         <div className="deposit-card-head">
           <div>
-            <h3>Request withdrawal</h3>
-            <p>Select a payout method and amount.</p>
+            <h3>Request review</h3>
+            <p>Select a demo payout method and amount for admin review.</p>
           </div>
-          <span className="pill">Withdrawable only</span>
+          <span className="pill">No real payout</span>
         </div>
 
         <div className="deposit-method-grid compact-method-grid" role="list" aria-label="Withdrawal methods">
@@ -94,7 +94,7 @@ export default function WithdrawPage() {
               </span>
             </label>
             <button className="btn btn-primary deposit-submit" type="button" disabled={!!pendingAction} onClick={runWithdraw}>
-              {pendingAction === "withdraw" ? "Submitting..." : `Withdraw to ${selectedWithdrawMethod.name}`}
+              {pendingAction === "withdraw" ? "Submitting..." : `Request via ${selectedWithdrawMethod.name}`}
             </button>
           </div>
 

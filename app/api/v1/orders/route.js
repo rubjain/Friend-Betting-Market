@@ -5,8 +5,16 @@ import { createLimitOrder, getOrdersForState, cancelOrder } from "../../../../li
 import { createDemoLimitOrder, getDemoOrders, cancelDemoOrder } from "../../../../lib/server/demoStore.js";
 import { getDatabaseState } from "../../../../lib/server/dbState.js";
 import { inferV1ErrorCode } from "../../../../lib/server/v1ErrorCodes.js";
+import {
+  betaRuntimeError,
+  realMoneyDisabledPayload,
+  shouldBlockRealMoney,
+} from "../../../../lib/server/betaRuntime.js";
 
 export async function GET(request) {
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) return NextResponse.json(runtimeError, { status: 503 });
+
   const caller = await resolvePublicApiCaller(request);
   if (!caller.ok) return caller.response;
   const scopeCheck = requireApiKeyScopes(caller.apiKeyScopes, "read:portfolio");
@@ -20,12 +28,18 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) return NextResponse.json(runtimeError, { status: 503 });
+
   const caller = await resolvePublicApiCaller(request);
   if (!caller.ok) return caller.response;
 
   const body = await request.json().catch(() => ({}));
-  const mode = String(body.mode || "").toLowerCase();
+  const mode = String(body.mode || (body.isPaper === false ? "real" : "paper")).toLowerCase();
   const isPaper = mode === "paper" || Boolean(body.isPaper);
+  if (!isPaper && shouldBlockRealMoney()) {
+    return NextResponse.json(realMoneyDisabledPayload(), { status: 403 });
+  }
   const scopeCheck = requireApiKeyScopes(caller.apiKeyScopes, isPaper ? "trade:paper" : "trade:real");
   if (!scopeCheck.ok) return scopeCheck.response;
 
@@ -75,6 +89,9 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) return NextResponse.json(runtimeError, { status: 503 });
+
   const caller = await resolvePublicApiCaller(request);
   if (!caller.ok) return caller.response;
 
@@ -106,4 +123,3 @@ export async function DELETE(request) {
   const state = await getDatabaseState(undefined, caller.userId);
   return NextResponse.json({ ...result, state });
 }
-

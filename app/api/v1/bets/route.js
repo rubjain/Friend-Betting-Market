@@ -3,10 +3,15 @@ import { requireApiKeyScopes, resolvePublicApiCaller } from "../../../../lib/ser
 import { placeBet } from "../../../../lib/server/betService.js";
 import { placeDemoBet } from "../../../../lib/server/demoStore.js";
 import { inferV1ErrorCode } from "../../../../lib/server/v1ErrorCodes.js";
+import {
+  betaRuntimeError,
+  realMoneyDisabledPayload,
+  shouldBlockRealMoney,
+} from "../../../../lib/server/betaRuntime.js";
 
 export async function POST(request) {
   const payload = await request.json();
-  const mode = String(payload.mode || "").toLowerCase();
+  const mode = String(payload.mode || (payload.isPaper === false ? "real" : "paper")).toLowerCase();
   const isPaper = mode === "paper" || Boolean(payload.isPaper);
   const normalizedBetDraft = payload.betDraft || (
     payload.stake != null
@@ -29,6 +34,14 @@ export async function POST(request) {
       { ok: false, message: "Invalid mode. Use \"paper\" or \"real\".", code: "INVALID_MODE" },
       { status: 400 },
     );
+  }
+  if (!isPaper && shouldBlockRealMoney()) {
+    return NextResponse.json(realMoneyDisabledPayload(), { status: 403 });
+  }
+
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) {
+    return NextResponse.json(runtimeError, { status: 503 });
   }
 
   const caller = await resolvePublicApiCaller(request);
@@ -67,4 +80,3 @@ export async function POST(request) {
 
   return NextResponse.json(result, { status: 201 });
 }
-

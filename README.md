@@ -219,6 +219,8 @@ OpenAPI contract (including error `code` fields): `docs/openapi.yaml`.
 
 Set `AGORA_SESSION_SECRET` to a long random value before sharing any environment. To expose the temporary admin toggle locally, set `AGORA_DEV_ADMIN_SHORTCUT=1`; keep it disabled outside local development.
 
+For the hosted paper-money beta, use Vercel + Supabase, set `AGORA_PUBLIC_BETA=1`, keep `AGORA_REAL_MONEY_MODE=0`, and verify `/api/health` before release. The full launch checklist and rollback notes live in `docs/public-beta-runbook.md`.
+
 For a production verification build:
 
 ```bash

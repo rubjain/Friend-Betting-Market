@@ -193,14 +193,14 @@ export default function LandingPage() {
   return (
     <section className="page active landing-page">
       <div className="hero-section">
-        <p className="hero-eyebrow">Social prediction markets</p>
+        <p className="hero-eyebrow">Paper-money public beta</p>
         <h2 className="hero-headline">Trade what you know. Boost with friends.</h2>
         <p className="hero-sub">
-          Binary YES/NO markets on live sports you follow. Social boosts amplify your winnings.
+          Binary YES/NO markets on live sports you follow. Social boosts amplify paper winnings; no real money is at stake.
         </p>
         <div className="hero-ctas">
           <Link className="btn btn-primary" href="/markets">Browse Markets</Link>
-          <Link className="btn btn-secondary" href="/portfolio">My Portfolio</Link>
+          <Link className="btn btn-secondary" href="/developer">Developer API</Link>
         </div>
       </div>
 
@@ -222,6 +222,21 @@ export default function LandingPage() {
           <strong className="landing-stat-value">{landingData.pipeline.liveLinked}</strong>
         </div>
       </div>
+
+      <section className="landing-beta-grid" aria-label="Beta paths">
+        <Link className="list-card landing-beta-card" href="/markets">
+          <span className="label">Sports users</span>
+          <strong>Find live-linked markets and place paper trades.</strong>
+        </Link>
+        <Link className="list-card landing-beta-card" href="/groups">
+          <span className="label">Friends beta</span>
+          <strong>Create groups, compare leaderboards, and boost together.</strong>
+        </Link>
+        <Link className="list-card landing-beta-card" href="/developer">
+          <span className="label">Model builders</span>
+          <strong>Connect external AI bots with scoped API keys.</strong>
+        </Link>
+      </section>
 
       <section>
         <div className="section-head">

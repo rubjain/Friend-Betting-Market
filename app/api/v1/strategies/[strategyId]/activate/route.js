@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireApiKeyScopes, resolvePublicApiCaller } from "../../../../../../lib/server/auth.js";
-import { updateStrategy } from "../../../../../../lib/server/strategyService.js";
+import { getStrategy, updateStrategy } from "../../../../../../lib/server/strategyService.js";
 import { inferV1ErrorCode } from "../../../../../../lib/server/v1ErrorCodes.js";
+import { realMoneyDisabledPayload, shouldBlockRealMoney } from "../../../../../../lib/server/betaRuntime.js";
 
 export async function POST(request, context) {
   const caller = await resolvePublicApiCaller(request);
@@ -12,6 +13,16 @@ export async function POST(request, context) {
 
   const userId = caller.userId;
   const strategyId = context?.params?.strategyId;
+  const strategy = await getStrategy({ userId, strategyId });
+  if (!strategy) {
+    return NextResponse.json(
+      { ok: false, message: "Strategy not found.", code: "NOT_FOUND" },
+      { status: 404 },
+    );
+  }
+  if (String(strategy.mode).toUpperCase() === "REAL" && shouldBlockRealMoney()) {
+    return NextResponse.json(realMoneyDisabledPayload(), { status: 403 });
+  }
 
   const result = await updateStrategy({
     userId,
@@ -27,4 +38,3 @@ export async function POST(request, context) {
 
   return NextResponse.json(result, { status: 200 });
 }
-

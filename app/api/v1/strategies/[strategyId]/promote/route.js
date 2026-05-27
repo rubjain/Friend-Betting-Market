@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiKeyScopes, resolvePublicApiCaller } from "../../../../../../lib/server/auth.js";
 import { promoteStrategyToReal } from "../../../../../../lib/server/strategyService.js";
 import { inferV1ErrorCode } from "../../../../../../lib/server/v1ErrorCodes.js";
+import { realMoneyDisabledPayload, shouldBlockRealMoney } from "../../../../../../lib/server/betaRuntime.js";
 
 export async function POST(request, context) {
   const caller = await resolvePublicApiCaller(request);
@@ -13,6 +14,9 @@ export async function POST(request, context) {
     return scopeCheck.response;
   }
   const userId = caller.userId;
+  if (shouldBlockRealMoney()) {
+    return NextResponse.json(realMoneyDisabledPayload(), { status: 403 });
+  }
 
   const strategyId = context?.params?.strategyId;
   const result = await promoteStrategyToReal({ userId, strategyId });
@@ -24,4 +28,3 @@ export async function POST(request, context) {
   }
   return NextResponse.json(result, { status: 201 });
 }
-
