@@ -760,10 +760,101 @@ a { color: inherit; text-decoration: none; }
 .toggle input { width: 15px; height: 15px; }
 .toggle span { white-space: nowrap; }
 
-.theme-toggle {
-  white-space: nowrap;
+.theme-switch {
+  display: flex;
+  justify-content: center;
   width: 100%;
-  justify-content: flex-start;
+  padding: 7px 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.theme-switch-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  align-items: center;
+  width: 86px;
+  height: 38px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.theme-switch-icon {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--muted);
+  transition: color 140ms ease, opacity 140ms ease;
+}
+
+.theme-switch-icon svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.theme-switch-icon--light svg circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+.theme-switch-icon--dark svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.theme-switch--light .theme-switch-icon--light {
+  color: var(--text);
+}
+
+.theme-switch--dark .theme-switch-icon--light {
+  color: var(--muted);
+}
+
+.theme-switch--dark .theme-switch-icon--dark {
+  color: var(--text);
+}
+
+.theme-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.theme-switch--dark .theme-switch-thumb {
+  transform: translateX(39px);
+}
+
+.theme-switch:hover .theme-switch-track,
+.theme-switch:focus-visible .theme-switch-track {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.theme-switch:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  outline-offset: 3px;
+  border-radius: 999px;
 }
 
 /* ── Section head ─────────────────────────────────────────── */

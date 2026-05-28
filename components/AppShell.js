@@ -31,20 +31,31 @@ function shouldShowHydratePlaceholder(hydrated, pathname) {
   return true;
 }
 
-const routes = [
-  ["/markets", "Markets"],
-  ["/portfolio", "Portfolio"],
-  ["/deposit", "Deposit"],
-  ["/withdraw", "Withdraw"],
-  ["/friends", "Friends"],
-  ["/groups", "Groups"],
-  ["/leaderboard", "Leaderboard"],
-  ["/faq", "FAQ"],
-  ["/legal", "Terms"],
-  ["/privacy", "Privacy"],
-  ["/create", "Create"],
-  ["/developer", "Developer"],
-  ["/profile", "Profile"],
+const groupedRoutes = [
+  {
+    href: "/deposit",
+    label: "Manage funds",
+    items: [
+      ["/deposit", "Deposit"],
+      ["/withdraw", "Withdraw"],
+    ],
+  },
+  {
+    href: "/friends",
+    label: "Social",
+    items: [
+      ["/friends", "Friends"],
+      ["/groups", "Groups"],
+    ],
+  },
+  {
+    href: "/legal",
+    label: "Legal",
+    items: [
+      ["/legal", "Terms"],
+      ["/privacy", "Privacy"],
+    ],
+  },
 ];
 
 const settingsRoutes = [
@@ -53,6 +64,19 @@ const settingsRoutes = [
   ["/settings#appearance", "Appearance"],
   ["/settings#referrals", "Referrals"],
   ["/settings#ledger", "Transaction history"],
+];
+
+const navigationItems = [
+  ["/markets", "Markets"],
+  ["/portfolio", "Portfolio"],
+  groupedRoutes[0],
+  groupedRoutes[1],
+  ["/leaderboard", "Leaderboard"],
+  ["/create", "Create"],
+  ["/developer", "Developer"],
+  ["/profile", "Profile"],
+  ["/faq", "FAQ"],
+  groupedRoutes[2],
 ];
 
 export default function AppShell({ children }) {
@@ -119,6 +143,10 @@ export default function AppShell({ children }) {
       return pathname === "/markets" || pathname.startsWith("/markets/");
     }
     return pathname === path;
+  }
+
+  function isGroupActive(group) {
+    return group.items.some(([path]) => isActive(path));
   }
 
   function handleAdminToggle(event) {
@@ -279,17 +307,43 @@ export default function AppShell({ children }) {
               >
                 Home
               </Link>
-              {routes.map(([path, label]) => (
-                <Link
-                  key={path}
-                  className={`nav-link ${isActive(path) ? "active" : ""}`}
-                  href={path}
-                  aria-current={isActive(path) ? "page" : undefined}
-                  onClick={() => scheduleNavigationClose()}
-                >
-                  {label}
-                </Link>
-              ))}
+              {navigationItems.map((item) => {
+                if (Array.isArray(item)) {
+                  const [path, label] = item;
+                  return (
+                    <Link
+                      key={path}
+                      className={`nav-link ${isActive(path) ? "active" : ""}`}
+                      href={path}
+                      aria-current={isActive(path) ? "page" : undefined}
+                      onClick={() => scheduleNavigationClose()}
+                    >
+                      {label}
+                    </Link>
+                  );
+                }
+
+                const active = isGroupActive(item);
+                return (
+                  <div className="nav-flyout-item" key={item.label}>
+                    <Link
+                      className={`nav-link ${active ? "active" : ""}`}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => scheduleNavigationClose()}
+                    >
+                      {item.label}
+                    </Link>
+                    <div className="nav-flyout" aria-label={`${item.label} sections`}>
+                      {item.items.map(([path, label]) => (
+                        <Link className="nav-flyout-link" href={path} key={path} onClick={() => scheduleNavigationClose()}>
+                          {label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
               <div className="nav-flyout-item">
                 <Link
                   className={`nav-link ${pathname === "/settings" ? "active" : ""}`}
@@ -337,8 +391,29 @@ export default function AppShell({ children }) {
                 Log in
               </Link>
             )}
-            <button className="btn btn-ghost theme-toggle" type="button" onClick={actions.toggleTheme}>
-              {state.theme === "dark" ? "Light mode" : "Dark mode"}
+            <button
+              className={`theme-switch ${state.theme === "dark" ? "theme-switch--dark" : "theme-switch--light"}`}
+              type="button"
+              role="switch"
+              aria-checked={state.theme === "dark"}
+              aria-label={state.theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              title={state.theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              onClick={actions.toggleTheme}
+            >
+              <span className="theme-switch-track" aria-hidden="true">
+                <span className="theme-switch-icon theme-switch-icon--light">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" />
+                  </svg>
+                </span>
+                <span className="theme-switch-icon theme-switch-icon--dark">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M19.5 14.4A7.8 7.8 0 0 1 9.6 4.5 8 8 0 1 0 19.5 14.4Z" />
+                  </svg>
+                </span>
+                <span className="theme-switch-thumb" />
+              </span>
             </button>
           </div>
         </div>
