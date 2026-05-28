@@ -18,5 +18,8 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm run prisma:validate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agora_ci
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/agora_ci
       - run: npm test
       - run: npm run build
