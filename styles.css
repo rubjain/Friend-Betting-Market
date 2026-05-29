@@ -9467,10 +9467,225 @@ textarea { min-height: 130px; resize: vertical; }
 .flash-banner { background: var(--accent); color: #fff; padding: 10px 16px; border-radius: 8px; margin-bottom: 12px; cursor: pointer; font-size: 0.9rem; }
 
 /* ── Friends tab bar ─────────────────────────────────────── */
-.friends-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
-.friends-tab-btn { background: none; border: none; padding: 8px 16px; font-size: 0.9rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-.friends-tab-btn:hover { color: var(--text); }
-.friends-tab-btn--active { color: var(--accent); border-bottom-color: var(--accent); }
+.friends-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+.friends-tab {
+  background: none; border: none; padding: 9px 16px 10px;
+  font-size: 0.9rem; font-weight: 500; color: var(--text-muted); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  display: flex; align-items: center; gap: 6px; transition: color 0.15s;
+}
+.friends-tab:hover { color: var(--text); }
+.friends-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.friends-tab-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-alt); color: var(--text-muted);
+  font-size: 0.72rem; font-weight: 700; border-radius: 99px;
+  padding: 1px 6px; min-width: 18px; line-height: 1.4;
+}
+.friends-tab-badge--accent { background: var(--accent); color: #fff; }
+.friends-tab-badge--alert { background: #e53e3e; color: #fff; }
+
+/* ── Add friend card ─────────────────────────────────────── */
+.friends-add-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.friends-add-card-title { font-size: 0.9rem; font-weight: 600; margin: 0; }
+.friends-discovery-inset { display: flex; flex-direction: column; gap: 8px; }
+.friends-discovery-inset input {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--bg-card); color: var(--text); font-size: 0.9rem;
+  box-sizing: border-box;
+}
+.friends-discovery-inset input:focus { outline: none; border-color: var(--accent); }
+
+/* ── Pending section ─────────────────────────────────────── */
+.pending-section { display: flex; flex-direction: column; gap: 1px; }
+.pending-section-label {
+  font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-muted); padding: 8px 0 4px;
+}
+
+/* ── Bet Together ────────────────────────────────────────── */
+.together-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.together-skeleton-list { display: flex; flex-direction: column; gap: 12px; }
+.together-skeleton-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.together-market-list { display: flex; flex-direction: column; gap: 14px; }
+.together-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px; display: flex; flex-direction: column; gap: 12px;
+  transition: border-color 0.15s;
+}
+.together-card:hover { border-color: var(--accent); }
+.together-card-top { display: flex; flex-direction: column; gap: 4px; }
+.together-card-meta { display: flex; align-items: center; gap: 8px; }
+.together-card-category { color: var(--text-muted); }
+.together-card-mybadge {
+  font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+}
+.together-card-mybadge--yes { background: rgba(56,161,105,0.15); color: #276749; }
+.together-card-mybadge--no  { background: rgba(229,62,62,0.12);  color: #c53030; }
+.together-card-title {
+  font-size: 0.95rem; font-weight: 600; color: var(--text);
+  text-decoration: none; line-height: 1.35;
+}
+.together-card-title:hover { color: var(--accent); }
+.together-odds-bar {
+  display: flex; border-radius: 6px; overflow: hidden; height: 26px; gap: 2px;
+}
+.together-odds-yes {
+  background: rgba(56,161,105,0.18); color: #276749;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; transition: width 0.3s; min-width: 40px;
+}
+.together-odds-no {
+  background: rgba(229,62,62,0.12); color: #c53030;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; transition: width 0.3s; min-width: 40px;
+}
+.together-friends-row { display: flex; align-items: center; gap: 10px; }
+.together-avatars { display: flex; }
+.together-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.68rem; font-weight: 700; color: #fff;
+  border: 2px solid var(--bg-card); margin-left: -6px;
+  flex-shrink: 0;
+}
+.together-avatars .together-avatar:first-child { margin-left: 0; }
+.together-avatar--yes { background: #38a169; }
+.together-avatar--no  { background: #e53e3e; }
+.together-avatar--more { background: var(--text-muted); font-size: 0.65rem; }
+.together-friend-names { color: var(--text-muted); font-size: 0.82rem; }
+.together-join-btn { align-self: flex-start; margin-top: 2px; text-decoration: none; }
+
+/* ── Invite to Market Panel ──────────────────────────────── */
+.invite-panel { max-height: 90vh; overflow-y: auto; }
+.invite-panel-label { display: block; margin-bottom: 8px; }
+.invite-panel-search {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--bg-card); color: var(--text);
+  font-size: 0.9rem; margin-bottom: 8px; box-sizing: border-box;
+}
+.invite-panel-search:focus { outline: none; border-color: var(--accent); }
+.invite-panel-market-list {
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 280px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 8px; padding: 4px;
+  margin-bottom: 12px;
+}
+.invite-market-row {
+  width: 100%; text-align: left; background: none; border: none;
+  padding: 9px 10px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  transition: background 0.12s;
+}
+.invite-market-row:hover { background: var(--surface-alt); }
+.invite-market-row--selected { background: rgba(var(--accent-rgb, 99,102,241), 0.1) !important; outline: 1.5px solid var(--accent); }
+.invite-market-row--boosting { opacity: 0.6; }
+.invite-market-row-inner { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.invite-market-title { font-size: 0.875rem; font-weight: 500; color: var(--text); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.invite-market-meta { color: var(--text-muted); }
+.invite-market-boosting-badge {
+  font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 99px;
+  background: rgba(56,161,105,0.15); color: #276749; flex-shrink: 0;
+}
+.invite-panel-preview {
+  background: var(--surface-alt); border-radius: 8px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 3px; margin-bottom: 12px;
+}
+.invite-panel-preview-label { color: var(--text-muted); }
+.invite-panel-preview-title { font-size: 0.875rem; font-weight: 600; line-height: 1.35; }
+.invite-panel-cta { width: 100%; }
+.invite-panel-success {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 24px 0 8px; text-align: center;
+}
+.invite-panel-success-icon {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(56,161,105,0.15); color: #276749;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; font-weight: 700;
+}
+
+/* ── Groups page additions ───────────────────────────────── */
+.groups-page-root {}
+.groups-flash {
+  padding: 10px 16px; background: var(--accent); color: #fff;
+  border-radius: 8px; margin-bottom: 14px; cursor: pointer;
+  font-size: 0.875rem; display: flex; align-items: center; justify-content: space-between;
+}
+.groups-loading { display: flex; flex-direction: column; gap: 12px; }
+.groups-skeleton-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.groups-empty { text-align: center; padding: 32px 16px; color: var(--text-muted); }
+.groups-empty strong { display: block; color: var(--text); margin-bottom: 4px; }
+.groups-list { display: flex; flex-direction: column; gap: 14px; }
+.groups-create-footer { margin-top: 12px; display: flex; justify-content: flex-end; }
+.groups-card-name-row { display: flex; align-items: center; gap: 8px; }
+.groups-owner-badge {
+  font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 99px;
+  background: rgba(var(--accent-rgb, 99,102,241), 0.12); color: var(--accent);
+}
+.groups-expand-icon { font-size: 0.75rem; color: var(--text-muted); }
+.groups-expanded { border-top: 1px solid var(--border); }
+.groups-section { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.groups-section:last-child { border-bottom: 0; }
+.groups-section-header { display: flex; align-items: center; justify-content: space-between; }
+.groups-section-title {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-muted);
+}
+/* Leaderboard with avatars */
+.leaderboard-avatar {
+  width: 28px !important; height: 28px !important;
+  font-size: 0.65rem !important; flex-shrink: 0;
+}
+.leaderboard-identity { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+/* Group markets */
+.groups-markets-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; color: var(--text-muted); }
+.groups-market-list { display: flex; flex-direction: column; gap: 10px; }
+.groups-market-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 10px; background: var(--surface-alt); border-radius: 8px;
+}
+.groups-market-row-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.groups-market-title {
+  font-size: 0.875rem; font-weight: 600; color: var(--text); text-decoration: none;
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.groups-market-title:hover { color: var(--accent); }
+.groups-market-meta { display: flex; gap: 10px; color: var(--text-muted); }
+.groups-market-odds { font-size: 0.78rem; }
+.groups-market-members { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
+.groups-market-badge {
+  font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 99px; white-space: nowrap;
+}
+.groups-market-badge--yes { background: rgba(56,161,105,0.15); color: #276749; }
+.groups-market-badge--no  { background: rgba(229,62,62,0.12);  color: #c53030; }
+.groups-market-badge--me  { outline: 1.5px solid currentColor; }
+.groups-market-join-btn { text-decoration: none; }
+/* Member chips */
+.groups-member-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.groups-member-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface-alt); border: 1px solid var(--border);
+  border-radius: 99px; padding: 4px 10px 4px 4px;
+  font-size: 0.82rem;
+}
+.groups-member-chip--self { border-color: var(--accent); }
+.groups-member-avatar {
+  width: 24px !important; height: 24px !important;
+  font-size: 0.6rem !important; flex-shrink: 0;
+}
+.groups-owner-dot { color: #d69e2e; font-size: 0.75rem; margin-left: 1px; }
+.groups-leave-btn { color: var(--text-muted); }
+.groups-leave-btn:hover { color: #e53e3e; }
 
 .page-inline-links {
   margin: -8px 0 16px;
