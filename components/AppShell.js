@@ -46,6 +46,7 @@ const groupedRoutes = [
     items: [
       ["/friends", "Friends"],
       ["/groups", "Groups"],
+      ["/leaderboard", "Leaderboard"],
     ],
   },
   {
@@ -71,7 +72,6 @@ const navigationItems = [
   ["/portfolio", "Portfolio"],
   groupedRoutes[0],
   groupedRoutes[1],
-  ["/leaderboard", "Leaderboard"],
   ["/create", "Create"],
   ["/developer", "Developer"],
   ["/profile", "Profile"],
@@ -108,6 +108,7 @@ export default function AppShell({ children }) {
       "market-detail": `/markets/${state.selectedMarketId}`,
       friends: "/friends",
       groups: "/groups",
+      leaderboard: "/leaderboard",
       feed: "/feed",
       portfolio: "/portfolio",
       deposit: "/deposit",

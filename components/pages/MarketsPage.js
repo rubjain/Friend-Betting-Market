@@ -15,32 +15,44 @@ const SORT_OPTIONS = [
   { key: "longshot",label: "Long shots" },
 ];
 
-function sortMarkets(markets, sort) {
-  const copy = [...markets];
-  switch (sort) {
-    case "volume":
-      return copy.sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
-    case "closing":
-      return copy.sort((a, b) => {
-        if (!a.endDate) return 1;
-        if (!b.endDate) return -1;
-        return a.endDate < b.endDate ? -1 : a.endDate > b.endDate ? 1 : 0;
-      });
-    case "longshot":
-      // Surface underdog markets — lowest winning-side price = most upside
-      return copy.sort(
-        (a, b) =>
-          Math.min(a.yesPrice ?? 0.5, a.noPrice ?? 0.5) -
-          Math.min(b.yesPrice ?? 0.5, b.noPrice ?? 0.5),
-      );
-    case "newest":
-    default:
-      return copy.sort((a, b) => {
-        if (!a.createdAt) return 1;
-        if (!b.createdAt) return -1;
-        return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0;
-      });
+function isLiveMarket(market, liveGames) {
+  return liveGames?.some((g) => g.id === market.id && g.status === "live") ?? false;
+}
+
+function sortMarkets(markets, sort, liveGames) {
+  const live = markets.filter((m) => isLiveMarket(m, liveGames));
+  const rest = markets.filter((m) => !isLiveMarket(m, liveGames));
+
+  function innerSort(arr) {
+    const copy = [...arr];
+    switch (sort) {
+      case "volume":
+        return copy.sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
+      case "closing":
+        return copy.sort((a, b) => {
+          if (!a.endDate) return 1;
+          if (!b.endDate) return -1;
+          return a.endDate < b.endDate ? -1 : a.endDate > b.endDate ? 1 : 0;
+        });
+      case "longshot":
+        return copy.sort(
+          (a, b) =>
+            Math.min(a.yesPrice ?? 0.5, a.noPrice ?? 0.5) -
+            Math.min(b.yesPrice ?? 0.5, b.noPrice ?? 0.5),
+        );
+      case "newest":
+      default:
+        // Sort upcoming by start time (soonest first)
+        return copy.sort((a, b) => {
+          const at = a.closeTime ? Date.parse(a.closeTime) : Infinity;
+          const bt = b.closeTime ? Date.parse(b.closeTime) : Infinity;
+          return at - bt;
+        });
+    }
   }
+
+  // Live games always first, then sorted rest
+  return [...innerSort(live), ...innerSort(rest)];
 }
 
 export default function MarketsPage() {
@@ -65,8 +77,8 @@ export default function MarketsPage() {
       const matchesCategory = category === "all" || market.category === category;
       return matchesQuery && matchesCategory;
     });
-    return sortMarkets(filtered, sort);
-  }, [catalogMarkets, query, category, sort]);
+    return sortMarkets(filtered, sort, state.liveGames);
+  }, [catalogMarkets, query, category, sort, state.liveGames]);
 
   const pipeline = getMarketPipelineSummary(catalogMarkets, state.liveGames);
 
