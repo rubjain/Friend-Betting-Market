@@ -131,8 +131,14 @@ function mergeById(defaultItems, savedItems = []) {
 }
 
 function mergeStoredState(parsed) {
+  // When the server/stored state includes markets, trust them directly — do NOT
+  // merge with defaultState.markets as a base.  The old seed-market defaults only
+  // apply when no markets are provided at all (offline / no-DB demo fallback).
+  const parsedMarkets = filterSportMarkets(parsed.markets || []);
   const mergedMarkets = normalizeMarkets(
-    mergeById(defaultState.markets, filterSportMarkets(parsed.markets || [])),
+    parsedMarkets.length > 0
+      ? parsedMarkets
+      : mergeById(defaultState.markets, parsedMarkets),
   );
   const marketById = new Map(mergedMarkets.map((market) => [market.id, market]));
   const selectedMarketId = marketById.has(parsed.selectedMarketId)
