@@ -24,6 +24,18 @@ Agora's first launch is paper-money only. Real-money deposits, withdrawals, real
 - `AGORA_ADMIN_LEVELS_JSON`: configure scoped admin permissions for beta admins.
 - `AGORA_DISABLE_ESPN=0`: use ESPN first unless provider testing requires fallback.
 
+## Custom domain go-live
+
+When your domain DNS is pointed at Vercel:
+
+1. Add the custom domain in the Vercel project and wait for TLS provisioning.
+2. Set `AGORA_APP_URL` to `https://yourdomain.com` (no trailing slash).
+3. Confirm Supabase `DATABASE_URL` and `DIRECT_URL` on Vercel match production.
+4. Run `npm run prisma:migrate:deploy` and `npm run db:verify` against production.
+5. Deploy and confirm `GET /api/health` returns `ok: true` on the custom domain.
+6. Run the account onboarding and bot/API smoke tests below on that origin.
+7. Share `/developer` and `docs/openapi.yaml` with external bot builders.
+
 ## Release Checklist
 
 1. Run `npm ci`.

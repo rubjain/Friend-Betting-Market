@@ -49,6 +49,16 @@ test("real-money disabled has stable v1 payload and code", () => {
   assert.equal(inferV1ErrorCode(payload.message), "REAL_MONEY_DISABLED");
 });
 
+test("beta runtime database guard blocks public beta without DATABASE_URL", () => {
+  const error = betaRuntimeError({
+    AGORA_PUBLIC_BETA: "1",
+    NODE_ENV: "development",
+  });
+
+  assert.equal(error?.code, "DATABASE_REQUIRED");
+  assert.match(error?.message || "", /DATABASE_URL/i);
+});
+
 test("beta runtime database guard is inactive for local development", () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalPublicBeta = process.env.AGORA_PUBLIC_BETA;

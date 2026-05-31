@@ -4,6 +4,12 @@ info:
   version: 0.1.0
 servers:
   - url: http://127.0.0.1:3000
+    description: Local development (`npm run dev`)
+  - url: https://{your-domain}
+    description: Production paper beta (`AGORA_APP_URL` on Vercel)
+    variables:
+      your-domain:
+        default: example.com
 
 components:
   schemas:
@@ -477,7 +483,10 @@ paths:
               properties:
                 name: { type: string }
                 type: { type: string, enum: [RULES, ML] }
-                mode: { type: string, enum: [PAPER, REAL] }
+                mode:
+                  type: string
+                  enum: [PAPER, REAL]
+                  description: REAL returns 403 with REAL_MONEY_DISABLED while AGORA_REAL_MONEY_MODE=0.
                 status: { type: string, enum: [DRAFT, ACTIVE, PAUSED] }
                 config:
                   type: object
@@ -485,6 +494,16 @@ paths:
       responses:
         "200":
           description: OK
+        "403":
+          description: Real-money strategy changes disabled for paper beta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "503":
+          description: Public beta requires DATABASE_URL (code DATABASE_REQUIRED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
         "400":
           description: Bad request
           content:

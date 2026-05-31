@@ -2,9 +2,16 @@ import { NextResponse } from "next/server";
 import { requireApiKeyScopes, resolvePublicApiCaller } from "../../../../../../lib/server/auth.js";
 import { promoteStrategyToReal } from "../../../../../../lib/server/strategyService.js";
 import { inferV1ErrorCode } from "../../../../../../lib/server/v1ErrorCodes.js";
-import { realMoneyDisabledPayload, shouldBlockRealMoney } from "../../../../../../lib/server/betaRuntime.js";
+import {
+  betaRuntimeError,
+  realMoneyDisabledPayload,
+  shouldBlockRealMoney,
+} from "../../../../../../lib/server/betaRuntime.js";
 
 export async function POST(request, context) {
+  const runtimeError = betaRuntimeError();
+  if (runtimeError) return NextResponse.json(runtimeError, { status: 503 });
+
   const caller = await resolvePublicApiCaller(request);
   if (!caller.ok) {
     return caller.response;
