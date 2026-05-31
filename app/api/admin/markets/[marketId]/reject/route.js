@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "../../../../../../lib/server/auth.js";
+import { requireAdminPermission } from "../../../../../../lib/server/auth.js";
+import { ADMIN_PERMISSIONS } from "../../../../../../lib/server/adminPermissions.js";
 import { rejectDraftMarket } from "../../../../../../lib/server/draftMarketGenerator";
 import { rejectDatabaseMarket } from "../../../../../../lib/server/marketService.js";
 import { rejectDemoMarket } from "../../../../../../lib/server/demoStore.js";
 
 export async function POST(request, { params }) {
-  const { session, response } = await requireAdmin(request);
+  const { session, response } = await requireAdminPermission(request, ADMIN_PERMISSIONS.MARKET_MODERATION);
   if (response) return response;
 
   const draftResult = await rejectDraftMarket(params.marketId, session.userId);

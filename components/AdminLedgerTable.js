@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  buildExportFilename,
+  buildLedgerExportRows,
+  ledgerExportColumns,
+  toCsv,
+} from "../lib/exporters";
 import { signedMoney, titleCase } from "../lib/formatters";
 import { getLedgerView, ledgerFilterOptions, ledgerSortOptions } from "../lib/ledgerViews";
 
@@ -58,6 +64,37 @@ export default function AdminLedgerTable({ ledger }) {
     setPage(1);
   }
 
+  function downloadCsv(filename, csv) {
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportFilteredLedger() {
+    const params = new URLSearchParams({ filter, sort });
+    const filename = buildExportFilename("agora-ledger-export", { filter, sort });
+    try {
+      const response = await fetch(`/api/admin/exports/ledger?${params.toString()}`);
+      if (!response.ok) throw new Error("Ledger export failed.");
+      downloadCsv(filename, await response.text());
+    } catch {
+      const rows = getLedgerView({
+        entries: ledger,
+        filter,
+        sort,
+        page: 1,
+        pageSize: 5000,
+      }).entries;
+      downloadCsv(filename, toCsv(buildLedgerExportRows(rows), ledgerExportColumns));
+    }
+  }
+
   return (
     <div className="table-card admin-wide">
       <h3>Admin audit history</h3>
@@ -86,6 +123,9 @@ export default function AdminLedgerTable({ ledger }) {
         <div className="pagination-copy">
           {view.totalEntries} entries - page {view.currentPage} of {view.totalPages}
         </div>
+        <button className="btn btn-secondary" type="button" onClick={exportFilteredLedger}>
+          Export current view
+        </button>
       </div>
       <table className="data-table dense-table">
         <thead>

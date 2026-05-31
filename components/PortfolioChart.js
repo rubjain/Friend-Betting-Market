@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { useFriendMarket } from "../context/FriendMarketContext";
+import { useAgora } from "../context/AgoraContext";
 import { money } from "../lib/formatters";
 
 const PERIODS = ["1D", "1W", "1M", "All"];
@@ -19,7 +19,7 @@ const DANGER = "#ef4444";
 const POSITIVE = "#22c55e";
 
 export default function PortfolioChart() {
-  const { selectors } = useFriendMarket();
+  const { selectors } = useAgora();
   const [period, setPeriod] = useState("All");
   const [includeBoosts, setIncludeBoosts] = useState(true);
 

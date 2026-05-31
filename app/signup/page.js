@@ -3,30 +3,41 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { actions } = useFriendMarket();
-  const [draft, setDraft] = useState({ name: "", email: "", username: "", password: "" });
+  const { actions } = useAgora();
+  const [draft, setDraft] = useState({ name: "", email: "", username: "", password: "", confirmPassword: "" });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
   function set(key) {
-    return (e) => setDraft((d) => ({ ...d, [key]: e.currentTarget.value }));
+    return (e) => setDraft((d) => ({ ...d, [key]: e.target.value }));
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (pending) return;
+    if (draft.password !== draft.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (!acceptedTerms) {
+      setError("You must accept the Terms of Use and Privacy Policy to create an account.");
+      return;
+    }
     setError("");
     setPending(true);
     try {
-      const ok = await actions.signup(draft);
-      if (ok) {
+      const result = await actions.signup(draft);
+      if (result?.pending) {
+        router.push(`/check-email?email=${encodeURIComponent(draft.email)}`);
+      } else if (result?.ok) {
         router.push("/");
       } else {
-        setError("Could not create account. Check all fields and try again.");
+        setError(result?.message || "Could not create account. Check all fields and try again.");
       }
     } catch {
       setError("Something went wrong. Try again.");
@@ -37,22 +48,17 @@ export default function SignupPage() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-card">
+      <div className="auth-card auth-card-wide">
         <div className="auth-head">
           <Link className="brand" href="/">
             <div className="brand-mark">AG</div>
           </Link>
           <h2>Create account</h2>
-          <p>Demo mode uses test accounts. Use the sign-in page to enter the basic user sandbox.</p>
-        </div>
-        <div className="note-banner auth-note">
-          Use test@example.com or taylor@example.com with password123 to test friend invites from clean $100 accounts.
+          <p>Verify your email to activate your account.</p>
         </div>
         <form className="form-grid" onSubmit={handleSubmit}>
           <div className="field full">
-            <label className="label" htmlFor="signup-name">
-              Display name
-            </label>
+            <label className="label" htmlFor="signup-name">Display name</label>
             <input
               id="signup-name"
               type="text"
@@ -63,9 +69,7 @@ export default function SignupPage() {
             />
           </div>
           <div className="field full">
-            <label className="label" htmlFor="signup-email">
-              Email
-            </label>
+            <label className="label" htmlFor="signup-email">Email</label>
             <input
               id="signup-email"
               type="email"
@@ -75,9 +79,7 @@ export default function SignupPage() {
             />
           </div>
           <div className="field full">
-            <label className="label" htmlFor="signup-username">
-              Username
-            </label>
+            <label className="label" htmlFor="signup-username">Username</label>
             <input
               id="signup-username"
               type="text"
@@ -88,9 +90,7 @@ export default function SignupPage() {
             />
           </div>
           <div className="field full">
-            <label className="label" htmlFor="signup-password">
-              Password
-            </label>
+            <label className="label" htmlFor="signup-password">Password</label>
             <input
               id="signup-password"
               type="password"
@@ -100,9 +100,42 @@ export default function SignupPage() {
               onChange={set("password")}
             />
           </div>
+          <div className="field full">
+            <label className="label" htmlFor="signup-confirm-password">Confirm password</label>
+            <input
+              id="signup-confirm-password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Re-enter password"
+              value={draft.confirmPassword}
+              onChange={set("confirmPassword")}
+            />
+            {draft.confirmPassword && draft.password !== draft.confirmPassword && (
+              <p style={{ color: "#c62828", fontSize: "13px", margin: "4px 0 0" }}>Passwords do not match.</p>
+            )}
+          </div>
           {error ? <p className="field full auth-error">{error}</p> : null}
           <div className="field full">
-            <button className="btn btn-primary" type="submit" disabled={pending} style={{ width: "100%" }}>
+            <label className="auth-terms">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+              />
+              <span>
+                I agree to the{" "}
+                <Link href="/legal">Terms of Use</Link> and{" "}
+                <Link href="/privacy">Privacy Policy</Link>.
+              </span>
+            </label>
+          </div>
+          <div className="field full">
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={pending || !acceptedTerms || (draft.confirmPassword !== "" && draft.password !== draft.confirmPassword)}
+              style={{ width: "100%" }}
+            >
               {pending ? "Creating account..." : "Create account"}
             </button>
           </div>

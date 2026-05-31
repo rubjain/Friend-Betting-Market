@@ -7,11 +7,13 @@ export async function POST(request) {
   const payload = await request.json();
   const session = await getSessionFromRequest(request);
   const userId = session.userId;
+  const isPaper = Boolean(payload.isPaper);
   const databaseResult = await placeBet({
     marketId: payload.marketId,
     side: payload.side,
     betDraft: payload.betDraft,
     userId,
+    isPaper,
   });
   const result =
     databaseResult ??
@@ -19,6 +21,7 @@ export async function POST(request) {
       marketId: payload.marketId,
       side: payload.side,
       betDraft: payload.betDraft,
+      isPaper,
     });
 
   return NextResponse.json(result, { status: result.ok ? 201 : 400 });

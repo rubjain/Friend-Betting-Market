@@ -10,20 +10,30 @@
     "test": "node --test",
     "sync": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-github.ps1",
     "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "node scripts/seedDatabase.js",
     "db:verify": "node scripts/verifyDatabase.js",
-    "check": "npm run test && next build --webpack"
+    "supabase:turn-on": "node scripts/supabaseTurnOn.js",
+    "check": "npm run test && next build --webpack",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "strategy:worker": "node scripts/strategyWorker.js",
+    "strategy:worker:once": "node scripts/strategyWorker.js --once"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "next": "latest",
+    "nodemailer": "^8.0.7",
     "prisma": "^6.19.3",
     "react": "latest",
     "react-dom": "latest",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "stripe": "^22.1.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/node": "25.6.0",
     "@types/react": "19.2.14",
     "typescript": "6.0.3"

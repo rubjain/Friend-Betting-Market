@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { SectionHead } from "../ui";
 
 const PERIODS = [
@@ -78,7 +78,7 @@ function LeaderboardRow({ row, isCurrentUser, isSelf }) {
 }
 
 export default function LeaderboardPage() {
-  const { state } = useFriendMarket();
+  const { state } = useAgora();
   const currentUserId = state.currentUser?.id;
 
   const [period, setPeriod] = useState("alltime");

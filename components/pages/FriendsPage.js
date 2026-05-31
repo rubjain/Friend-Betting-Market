@@ -2,549 +2,680 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useFriendMarket } from "../../context/FriendMarketContext";
-import { getMultiplier } from "../../lib/marketMath";
+import { useAgora } from "../../context/AgoraContext";
 import { SectionHead } from "../ui";
 
 const FEED_POLL_MS = 30_000;
 
-function formatMoney(n) {
-  const abs = Math.abs(n);
-  const formatted = abs >= 1000 ? "$" + (abs / 1000).toFixed(1) + "k" : "$" + abs.toFixed(2);
-  return n < 0 ? "-" + formatted : "+" + formatted;
+function timeAgo(iso) {
+  const m = Math.floor((Date.now() - new Date(iso)) / 60_000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
 }
 
-function timeAgo(isoString) {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
+function initials(name = "") {
+  return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 }
 
-function getInitials(name) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
+function Avatar({ name, size = "md", side }) {
+  const sz = size === "lg" ? 44 : size === "sm" ? 26 : 34;
+  const fs = size === "lg" ? "1rem" : size === "sm" ? "0.6rem" : "0.75rem";
+  const sideColor = side === "YES" ? "#38a169" : side === "NO" ? "#e53e3e" : "var(--accent)";
+  return (
+    <div style={{
+      width: sz, height: sz, borderRadius: "50%",
+      background: side ? sideColor : "var(--accent)",
+      color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: fs, fontWeight: 700, flexShrink: 0, userSelect: "none",
+    }}>
+      {initials(name)}
+    </div>
+  );
 }
 
 export default function FriendsPage() {
-  const { state, actions, selectors } = useFriendMarket();
-  const [pendingAction, setPendingAction] = useState("");
-  const [boostPanelFriend, setBoostPanelFriend] = useState(null);
-  const [h2hPanelFriend, setH2hPanelFriend] = useState(null);
-  const [pendingExpanded, setPendingExpanded] = useState(false);
+  const { state, actions } = useAgora();
+  const [tab, setTab] = useState("friends");
 
-  // Feed state
+  // friend management
+  const [pendingAction, setPendingAction] = useState("");
+  const [discoveryQuery, setDiscoveryQuery] = useState("");
+  const [discoveryResults, setDiscoveryResults] = useState([]);
+  const [discoveryLoading, setDiscoveryLoading] = useState(false);
+
+  // activity feed
   const [feedItems, setFeedItems] = useState([]);
   const [feedLoading, setFeedLoading] = useState(true);
-  const feedIntervalRef = useRef(null);
+  const feedRef = useRef(null);
 
+  // bet together / invite
+  const [inviteMarket, setInviteMarket] = useState(null);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [inviteSelectedFriends, setInviteSelectedFriends] = useState([]);
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteSide, setInviteSide] = useState("YES");
+  const [inviteSent, setInviteSent] = useState(false);
+  const [inviteSending, setInviteSending] = useState(false);
+  const [receivedInvites, setReceivedInvites] = useState([]);
+  const [sentInvites, setSentInvites] = useState([]);
+  const [invitesLoaded, setInvitesLoaded] = useState(false);
+  const [marketSearch, setMarketSearch] = useState("");
+
+  const hasFriends = state.friends.list.length > 0;
+  const pendingCount = state.friends.pending.length;
+  const incomingCount = state.friends.pending.filter((r) => r.direction === "incoming").length;
+
+  // ── Feed ──────────────────────────────────────────────────────────────────
   const fetchFeed = useCallback(async () => {
     try {
       const res = await fetch("/api/feed/friends");
       const json = await res.json();
-      if (json.ok) setFeedItems(json.items);
-    } catch {
-      // silently fail; feed is non-critical
-    } finally {
-      setFeedLoading(false);
-    }
+      if (json.ok) setFeedItems(json.items ?? []);
+    } catch { /**/ }
+    finally { setFeedLoading(false); }
   }, []);
 
   useEffect(() => {
     fetchFeed();
-    feedIntervalRef.current = setInterval(fetchFeed, FEED_POLL_MS);
-    return () => clearInterval(feedIntervalRef.current);
+    feedRef.current = setInterval(fetchFeed, FEED_POLL_MS);
+    return () => clearInterval(feedRef.current);
   }, [fetchFeed]);
 
-  const selectedMarket = selectors.getSelectedMarket();
-  const boostSlotsRemaining = Math.max(
-    0,
-    state.adminConfig.maxGroupSize - selectedMarket.friendGroup.length,
-  );
-  const pendingCount = state.friends.pending.length;
-  const incomingCount = state.friends.pending.filter((r) => r.direction === "incoming").length;
-  const totalBoosts = state.friends.list.reduce((sum, f) => sum + (f.boostCount || 0), 0);
-  const bestMultiplier = state.markets.length
-    ? Math.max(...state.markets.map((m) => getMultiplier(m, state.adminConfig)))
-    : 1;
+  // ── Discovery search ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const q = discoveryQuery.trim();
+    if (q.length < 2) { setDiscoveryResults([]); return; }
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      setDiscoveryLoading(true);
+      try {
+        const res = await fetch(`/api/friends/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal });
+        const data = await res.json();
+        setDiscoveryResults(data.results ?? []);
+      } catch { if (!ctrl.signal.aborted) setDiscoveryResults([]); }
+      finally { if (!ctrl.signal.aborted) setDiscoveryLoading(false); }
+    }, 250);
+    return () => { ctrl.abort(); clearTimeout(t); };
+  }, [discoveryQuery]);
 
-  async function runFriendAction(actionKey, callback) {
-    if (pendingAction) return;
-    setPendingAction(actionKey);
+  // ── Invites ───────────────────────────────────────────────────────────────
+  const fetchInvites = useCallback(async () => {
     try {
-      await callback();
+      const res = await fetch("/api/friends/bet-invite");
+      const json = await res.json();
+      if (json.ok) { setReceivedInvites(json.received ?? []); setSentInvites(json.sent ?? []); }
+    } catch { /**/ }
+    finally { setInvitesLoaded(true); }
+  }, []);
+
+  useEffect(() => {
+    if (tab === "together") fetchInvites();
+  }, [tab, fetchInvites]);
+
+  async function run(key, fn) {
+    if (pendingAction) return;
+    setPendingAction(key);
+    try { await fn(); } finally { setPendingAction(""); }
+  }
+
+  async function sendInvites() {
+    if (!inviteMarket || !inviteSelectedFriends.length || inviteSending) return;
+    setInviteSending(true);
+    try {
+      const res = await fetch("/api/friends/bet-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketId: inviteMarket.id,
+          marketTitle: inviteMarket.title,
+          friendIds: inviteSelectedFriends.map((f) => f.id),
+          message: inviteMessage || undefined,
+          side: inviteSide,
+        }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setInviteSent(true);
+        fetchInvites();
+      }
     } finally {
-      setPendingAction("");
+      setInviteSending(false);
     }
   }
 
-  const hasFriends = state.friends.list.length > 0;
+  async function respondToInvite(inviteId, status, marketId) {
+    await fetch("/api/friends/bet-invite", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ inviteId, status }),
+    });
+    fetchInvites();
+    if (status === "accepted") {
+      window.location.href = `/markets/${marketId}`;
+    }
+  }
+
+  function resetInviteFlow() {
+    setInviteMarket(null);
+    setInviteSelectedFriends([]);
+    setInviteMessage("");
+    setInviteSide("YES");
+    setInviteSent(false);
+    setMarketSearch("");
+  }
+
+  const filteredMarkets = state.markets
+    .filter((m) => m.status === "active")
+    .filter((m) => !marketSearch || m.title.toLowerCase().includes(marketSearch.toLowerCase()) || m.category?.toLowerCase().includes(marketSearch.toLowerCase()));
+
+  const pendingReceived = receivedInvites.filter((i) => i.status === "pending");
 
   return (
-    <section className="page active">
-      <SectionHead
-        title="Friends"
-        body="Invite friends, track your records, and see what they're betting on."
-      />
+    <section className="page active fp-root">
+      <SectionHead title="Friends" body="Invite friends, challenge each other, and bet together." />
+      <p className="page-inline-links">
+        <Link href="/groups">Groups</Link>
+        <span aria-hidden="true"> · </span>
+        <Link href="/feed">Activity feed</Link>
+      </p>
 
-      <div className="friends-layout">
-        {/* Left column: friends list */}
-        <div className="friends-main">
-          <div className="friends-page-stack">
-            {pendingCount > 0 && (
-              <div className="pending-banner">
-                <div className="pending-banner-summary">
-                  <span className="pending-dot" aria-hidden="true" />
-                  <strong>{pendingCount} friend request{pendingCount !== 1 ? "s" : ""} waiting</strong>
+      {/* ── Tab bar ───────────────────────────────────────────────────────── */}
+      <div className="fp-tabs">
+        {[
+          { key: "friends", label: "Friends", badge: state.friends.list.length || null },
+          { key: "together", label: "Bet Together", badge: pendingReceived.length || null, accent: true },
+          { key: "pending", label: "Pending", badge: pendingCount || null, alert: true },
+        ].map(({ key, label, badge, accent, alert }) => (
+          <button
+            key={key}
+            className={`fp-tab${tab === key ? " fp-tab--active" : ""}`}
+            type="button"
+            onClick={() => setTab(key)}
+          >
+            {label}
+            {badge > 0 && (
+              <span className={`fp-tab-pill${alert ? " fp-tab-pill--alert" : accent ? " fp-tab-pill--accent" : ""}`}>
+                {badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div className="fp-layout">
+        <div className="fp-main">
+
+          {/* ════════════════ FRIENDS TAB ════════════════ */}
+          {tab === "friends" && (
+            <div className="fp-stack">
+              {/* Stats */}
+              <div className="fp-stats">
+                <div className="fp-stat"><strong>{state.friends.list.length}</strong><span>Friends</span></div>
+                <div className="fp-stat-div" />
+                <div className="fp-stat"><strong>{pendingCount}</strong><span>Pending</span></div>
+                <div className="fp-stat-div" />
+                <div className="fp-stat fp-stat--accent">
+                  <strong>{state.friends.list.reduce((s, f) => s + (f.boostCount || 0), 0)}</strong>
+                  <span>Boosts given</span>
+                </div>
+              </div>
+
+              {/* Add friend */}
+              <div className="fp-add-card">
+                <div className="fp-add-card-title">Add a friend</div>
+                <div className="fp-add-row">
+                  <input
+                    type="text"
+                    className="fp-input"
+                    placeholder="@username"
+                    value={state.friendInviteDraft}
+                    onChange={(e) => actions.updateFriendInviteDraft(e.currentTarget.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") run("invite", actions.sendFriendInvite); }}
+                  />
                   <button
-                    className="pending-banner-toggle"
+                    className="btn btn-primary"
                     type="button"
-                    onClick={() => setPendingExpanded((v) => !v)}
+                    disabled={!state.friendInviteDraft.trim() || !!pendingAction}
+                    onClick={() => run("invite", actions.sendFriendInvite)}
                   >
-                    {pendingExpanded ? "Hide" : "Review"}
+                    {pendingAction === "invite" ? "Sending…" : "Invite"}
                   </button>
                 </div>
-                {pendingExpanded && (
-                  <div className="pending-banner-list">
-                    {state.friends.pending.map((request) => (
-                      <div className="pending-request-row" key={request.username}>
-                        <div>
-                          <strong>{request.name}</strong>
-                          <span className="caption">
-                            {" "}{request.username} - {request.direction}
-                          </span>
+
+                <input
+                  type="search"
+                  className="fp-input fp-discovery-input"
+                  placeholder="Or search by name…"
+                  value={discoveryQuery}
+                  onChange={(e) => setDiscoveryQuery(e.currentTarget.value)}
+                />
+
+                {discoveryQuery.trim().length >= 2 && (
+                  <div className="fp-discovery-results">
+                    {discoveryLoading ? (
+                      <p className="caption" style={{ padding: "8px 0" }}>Searching…</p>
+                    ) : discoveryResults.length ? (
+                      discoveryResults.map((p) => (
+                        <div key={p.id} className="fp-discovery-row">
+                          <Avatar name={p.name} size="sm" />
+                          <div style={{ flex: 1 }}>
+                            <div className="fp-name">{p.name}</div>
+                            <div className="caption">{p.username}</div>
+                          </div>
+                          <button
+                            className={`btn btn-sm ${p.status === "not_connected" ? "btn-secondary" : "btn-ghost"}`}
+                            type="button"
+                            disabled={p.status !== "not_connected" || pendingAction === `invite-${p.username}`}
+                            onClick={() => run(`invite-${p.username}`, () => actions.sendFriendInvite(p.username))}
+                          >
+                            {p.status === "friends" ? "Friends" : p.status === "pending_outgoing" ? "Sent" : pendingAction === `invite-${p.username}` ? "…" : "Invite"}
+                          </button>
                         </div>
-                        <div className="inline-actions">
-                          {request.direction === "incoming" ? (
-                            <>
-                              <button
-                                className="btn btn-secondary"
-                                type="button"
-                                disabled={!!pendingAction}
-                                onClick={() => runFriendAction(`accept-${request.username}`, () => actions.handleFriendRequest(request.username, "accept"))}
-                              >
-                                {pendingAction === `accept-${request.username}` ? "Accepting..." : "Accept"}
-                              </button>
-                              <button
-                                className="btn btn-ghost"
-                                type="button"
-                                disabled={!!pendingAction}
-                                onClick={() => runFriendAction(`decline-${request.username}`, () => actions.handleFriendRequest(request.username, "decline"))}
-                              >
-                                {pendingAction === `decline-${request.username}` ? "Declining..." : "Decline"}
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              className="btn btn-ghost"
-                              type="button"
-                              disabled={!!pendingAction}
-                              onClick={() => runFriendAction(`cancel-${request.username}`, () => actions.handleFriendRequest(request.username, "cancel"))}
-                            >
-                              {pendingAction === `cancel-${request.username}` ? "Canceling..." : "Cancel"}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="caption" style={{ padding: "8px 0" }}>No accounts found.</p>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
-            <div className="friends-search-row">
-              <label className="visually-hidden" htmlFor="friend-invite-input">
-                Friend username
-              </label>
-              <input
-                id="friend-invite-input"
-                type="text"
-                placeholder="Invite by @username"
-                value={state.friendInviteDraft}
-                onChange={(e) => actions.updateFriendInviteDraft(e.currentTarget.value)}
-              />
-              <button
-                className="btn btn-primary"
-                type="button"
-                disabled={!!pendingAction}
-                onClick={() => runFriendAction("invite", actions.sendFriendInvite)}
-              >
-                {pendingAction === "invite" ? "Sending..." : "Invite"}
-              </button>
-            </div>
+                <p className="caption fp-demo-note">Demo: test@example.com / taylor@example.com · password123</p>
+              </div>
 
-            <div className="friends-demo-note">
-              Test accounts: test@example.com / password123 and taylor@example.com / password123.
-            </div>
-
-            <div className="friends-stat-bar">
-              <div className="friends-stat-chip">
-                <strong>{state.friends.list.length}</strong>
-                <span>Friends</span>
-              </div>
-              <div className="friends-stat-divider" aria-hidden="true" />
-              <div className="friends-stat-chip">
-                <strong>{pendingCount}</strong>
-                <span>Pending</span>
-              </div>
-              <div className="friends-stat-divider" aria-hidden="true" />
-              <div className="friends-stat-chip">
-                <strong>{incomingCount}</strong>
-                <span>Incoming</span>
-              </div>
-              <div className="friends-stat-divider" aria-hidden="true" />
-              <div className="friends-stat-chip">
-                <strong>{totalBoosts}</strong>
-                <span>Active boosts</span>
-              </div>
-              <div className="friends-stat-divider" aria-hidden="true" />
-              <div className="friends-stat-chip friends-stat-chip--accent">
-                <strong>{bestMultiplier.toFixed(2)}x</strong>
-                <span>Best multiplier</span>
-              </div>
-            </div>
-
-            <div className="friends-hero-list">
+              {/* Friends list */}
               {hasFriends ? (
-                state.friends.list.map((friend) => {
-                  const boostName = selectors.getFriendBoostName(friend);
-                  const isBoosting = selectedMarket.friendGroup.includes(boostName);
-                  const disabled = !isBoosting && boostSlotsRemaining <= 0;
-                  return (
-                    <FriendCard
-                      key={friend.username}
-                      friend={friend}
-                      isBoosting={isBoosting}
-                      disabled={disabled}
-                      pendingAction={pendingAction}
-                      onBoost={() => setBoostPanelFriend(friend)}
-                      onH2H={() => setH2hPanelFriend(friend)}
+                <div className="fp-friend-list">
+                  {state.friends.list.map((f) => (
+                    <FriendRow
+                      key={f.username}
+                      friend={f}
+                      onInvite={() => { setTab("together"); setInviteSelectedFriends([f]); }}
                     />
-                  );
-                })
+                  ))}
+                </div>
               ) : (
-                <div className="friends-empty">
-                  <strong>No friends yet.</strong>
-                  <p>Send an invite to @taylor above to get started.</p>
+                <div className="fp-empty">
+                  <div className="fp-empty-icon">👥</div>
+                  <strong>No friends yet</strong>
+                  <p>Invite someone above to get started.</p>
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Right column: activity feed */}
-        <aside className="friends-feed-aside">
-          <div className="friends-feed-card">
-            <div className="friends-feed-header">
-              <h4 className="friends-feed-title">Friend Activity</h4>
-              <span className="friends-feed-subtitle caption">Last 24 hours</span>
-            </div>
+          {/* ════════════════ BET TOGETHER TAB ════════════════ */}
+          {tab === "together" && (
+            <div className="fp-stack">
+              {/* Received invites */}
+              {pendingReceived.length > 0 && (
+                <div className="fp-invites-section">
+                  <div className="fp-section-label">
+                    <span className="fp-pulse" />
+                    {pendingReceived.length} invite{pendingReceived.length !== 1 ? "s" : ""} waiting for you
+                  </div>
+                  {pendingReceived.map((inv) => (
+                    <ReceivedInviteCard key={inv.id} invite={inv} onRespond={respondToInvite} />
+                  ))}
+                </div>
+              )}
 
-            {feedLoading ? (
-              <div className="friends-feed-body">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="friends-feed-skeleton">
-                    <div className="friends-feed-skeleton-avatar" />
-                    <div className="friends-feed-skeleton-lines">
-                      <div className="skeleton-line skeleton-line--long" />
-                      <div className="skeleton-line skeleton-line--short" />
+              {/* Invite composer */}
+              {inviteSent ? (
+                <div className="fp-invite-success">
+                  <div className="fp-success-icon">🎉</div>
+                  <strong>Invites sent!</strong>
+                  <p className="caption">
+                    {inviteSelectedFriends.map((f) => f.name.split(" ")[0]).join(", ")} will see your invite next time they check their Bet Together tab.
+                  </p>
+                  <button className="btn btn-secondary btn-sm" type="button" onClick={resetInviteFlow}>
+                    Send another invite
+                  </button>
+                </div>
+              ) : (
+                <div className="fp-composer">
+                  <div className="fp-composer-title">
+                    Send a bet invite
+                    <span className="fp-composer-subtitle caption">Pick a market, choose friends, send it</span>
+                  </div>
+
+                  {/* Step 1: Market */}
+                  <div className={`fp-step${inviteMarket ? " fp-step--done" : ""}`}>
+                    <div className="fp-step-num">1</div>
+                    <div className="fp-step-body">
+                      <div className="fp-step-label">Choose a market</div>
+                      {inviteMarket ? (
+                        <div className="fp-selected-market">
+                          <div className="fp-selected-market-inner">
+                            <span className="caption fp-market-cat">{inviteMarket.category}</span>
+                            <strong className="fp-market-name">{inviteMarket.title}</strong>
+                          </div>
+                          <button className="btn btn-ghost btn-sm" type="button" onClick={() => setInviteMarket(null)}>Change</button>
+                        </div>
+                      ) : (
+                        <>
+                          <input
+                            type="search"
+                            className="fp-input"
+                            placeholder="Search markets…"
+                            value={marketSearch}
+                            onChange={(e) => setMarketSearch(e.currentTarget.value)}
+                          />
+                          <div className="fp-market-picker">
+                            {filteredMarkets.slice(0, 15).map((m) => (
+                              <button
+                                key={m.id}
+                                className="fp-market-option"
+                                type="button"
+                                onClick={() => setInviteMarket(m)}
+                              >
+                                <span className="fp-market-option-cat caption">{m.category}</span>
+                                <span className="fp-market-option-title">{m.title}</span>
+                                <span className="fp-market-option-odds caption">YES {Math.round(m.yesPrice * 100)}¢</span>
+                              </button>
+                            ))}
+                            {filteredMarkets.length === 0 && (
+                              <p className="caption" style={{ padding: "8px" }}>No markets match.</p>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : feedItems.length === 0 ? (
-              <div className="friends-feed-empty">
-                {hasFriends ? (
-                  <>
-                    <span className="friends-feed-empty-icon" aria-hidden="true">!</span>
-                    <p>No bets in the last 24 hours.</p>
-                  </>
-                ) : (
-                  <>
-                    <span className="friends-feed-empty-icon" aria-hidden="true">+</span>
-                    <p>Add friends to see their activity here.</p>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="friends-feed-body">
-                {feedItems.map((item) => (
-                  <Link key={item.id} className="friends-feed-item" href={`/markets/${item.marketId}`}>
-                    <div className="friends-feed-avatar" aria-hidden="true">
-                      {getInitials(item.friendName)}
-                    </div>
-                    <div className="friends-feed-item-body">
-                      <p className="friends-feed-item-text">
-                        <strong>{item.friendName}</strong>
-                        {" bet "}
-                        <span className={`friends-feed-side friends-feed-side--${item.side.toLowerCase()}`}>
-                          {item.side}
-                        </span>
-                      </p>
-                      <p className="friends-feed-item-market caption">{item.marketTitle}</p>
-                      <span className="friends-feed-time caption">{timeAgo(item.placedAt)}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
 
-            <div className="friends-feed-footer caption">
-              Refreshes every 30s
+                  {/* Step 2: Side */}
+                  {inviteMarket && (
+                    <div className="fp-step fp-step--done">
+                      <div className="fp-step-num">2</div>
+                      <div className="fp-step-body">
+                        <div className="fp-step-label">Your side (optional signal)</div>
+                        <div className="fp-side-toggle">
+                          <button
+                            className={`fp-side-btn${inviteSide === "YES" ? " fp-side-btn--yes" : ""}`}
+                            type="button"
+                            onClick={() => setInviteSide("YES")}
+                          >
+                            YES {Math.round((inviteMarket.yesPrice ?? 0.5) * 100)}¢
+                          </button>
+                          <button
+                            className={`fp-side-btn${inviteSide === "NO" ? " fp-side-btn--no" : ""}`}
+                            type="button"
+                            onClick={() => setInviteSide("NO")}
+                          >
+                            NO {Math.round((inviteMarket.noPrice ?? 0.5) * 100)}¢
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 3: Friends */}
+                  {inviteMarket && (
+                    <div className="fp-step">
+                      <div className="fp-step-num">3</div>
+                      <div className="fp-step-body">
+                        <div className="fp-step-label">Who to invite</div>
+                        {!hasFriends ? (
+                          <p className="caption">Add friends first.</p>
+                        ) : (
+                          <div className="fp-friend-checkboxes">
+                            {state.friends.list.map((f) => {
+                              const checked = inviteSelectedFriends.some((x) => x.id === f.id);
+                              return (
+                                <button
+                                  key={f.id || f.username}
+                                  className={`fp-friend-check${checked ? " fp-friend-check--on" : ""}`}
+                                  type="button"
+                                  onClick={() => setInviteSelectedFriends((prev) =>
+                                    checked ? prev.filter((x) => x.id !== f.id) : [...prev, f]
+                                  )}
+                                >
+                                  <Avatar name={f.name} size="sm" />
+                                  <span>{f.name.split(" ")[0]}</span>
+                                  {checked && <span className="fp-check-tick">✓</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 4: Message + send */}
+                  {inviteMarket && inviteSelectedFriends.length > 0 && (
+                    <div className="fp-step">
+                      <div className="fp-step-num">4</div>
+                      <div className="fp-step-body">
+                        <div className="fp-step-label">Add a message (optional)</div>
+                        <input
+                          type="text"
+                          className="fp-input"
+                          placeholder="e.g. This one's a lock 🔥"
+                          maxLength={120}
+                          value={inviteMessage}
+                          onChange={(e) => setInviteMessage(e.currentTarget.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Preview card */}
+                  {inviteMarket && inviteSelectedFriends.length > 0 && (
+                    <div className="fp-invite-preview">
+                      <div className="fp-preview-label caption">Preview</div>
+                      <InvitePreviewCard
+                        market={inviteMarket}
+                        side={inviteSide}
+                        from={state.currentUser}
+                        message={inviteMessage}
+                      />
+                      <button
+                        className="btn btn-primary fp-send-btn"
+                        type="button"
+                        disabled={inviteSending}
+                        onClick={sendInvites}
+                      >
+                        {inviteSending
+                          ? "Sending…"
+                          : `Send to ${inviteSelectedFriends.length} friend${inviteSelectedFriends.length !== 1 ? "s" : ""}`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sent invites */}
+              {sentInvites.length > 0 && (
+                <div className="fp-sent-invites">
+                  <div className="fp-section-label">Sent</div>
+                  {sentInvites.map((inv) => (
+                    <div key={inv.id} className="fp-sent-row">
+                      <div className={`fp-sent-dot fp-sent-dot--${inv.status}`} />
+                      <div style={{ flex: 1 }}>
+                        <div className="fp-name" style={{ fontSize: "0.85rem" }}>{inv.marketTitle}</div>
+                        <div className="caption">{timeAgo(inv.createdAt)} · {inv.status}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+          )}
+
+          {/* ════════════════ PENDING TAB ════════════════ */}
+          {tab === "pending" && (
+            <div className="fp-stack">
+              {pendingCount === 0 ? (
+                <div className="fp-empty">
+                  <div className="fp-empty-icon">✓</div>
+                  <strong>All caught up</strong>
+                  <p>No pending requests.</p>
+                </div>
+              ) : (
+                <>
+                  {incomingCount > 0 && (
+                    <div className="fp-pending-section">
+                      <div className="fp-section-label">Incoming</div>
+                      {state.friends.pending.filter((r) => r.direction === "incoming").map((req) => (
+                        <PendingRow key={req.username} req={req} pendingAction={pendingAction}
+                          onAccept={() => run(`accept-${req.username}`, () => actions.handleFriendRequest(req.username, "accept"))}
+                          onDecline={() => run(`decline-${req.username}`, () => actions.handleFriendRequest(req.username, "decline"))}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {state.friends.pending.filter((r) => r.direction === "outgoing").length > 0 && (
+                    <div className="fp-pending-section">
+                      <div className="fp-section-label">Sent</div>
+                      {state.friends.pending.filter((r) => r.direction === "outgoing").map((req) => (
+                        <PendingRow key={req.username} req={req} pendingAction={pendingAction}
+                          onCancel={() => run(`cancel-${req.username}`, () => actions.handleFriendRequest(req.username, "cancel"))}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Feed sidebar ──────────────────────────────────────────────────── */}
+        <aside className="fp-feed-aside">
+          <div className="fp-feed-card">
+            <div className="fp-feed-hd">
+              <span className="fp-feed-title">Friend Activity</span>
+              <span className="caption">Last 24h</span>
+            </div>
+            {feedLoading ? (
+              [1,2,3].map((i) => <div key={i} className="fp-feed-skeleton" />)
+            ) : feedItems.length === 0 ? (
+              <div className="fp-feed-empty">
+                {hasFriends ? "No bets in the last 24 hours." : "Add friends to see their activity."}
+              </div>
+            ) : feedItems.map((item) => (
+              <Link key={item.id} href={`/markets/${item.marketId}`} className="fp-feed-row">
+                <Avatar name={item.friendName} size="sm" side={item.side} />
+                <div>
+                  <div className="fp-name" style={{ fontSize: "0.83rem" }}>
+                    <strong>{item.friendName.split(" ")[0]}</strong> bet{" "}
+                    <span className={`fp-side fp-side--${item.side.toLowerCase()}`}>{item.side}</span>
+                  </div>
+                  <div className="caption fp-feed-mkt">{item.marketTitle}</div>
+                  <div className="caption" style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>{timeAgo(item.placedAt)}</div>
+                </div>
+              </Link>
+            ))}
+            <div className="fp-feed-footer caption">Refreshes every 30s</div>
           </div>
         </aside>
       </div>
-
-      {h2hPanelFriend && (
-        <H2HPanel
-          friend={h2hPanelFriend}
-          onClose={() => setH2hPanelFriend(null)}
-        />
-      )}
-
-      {boostPanelFriend && (
-        <BoostPanel
-          friend={boostPanelFriend}
-          selectedMarket={selectedMarket}
-          boostSlotsRemaining={boostSlotsRemaining}
-          state={state}
-          actions={actions}
-          selectors={selectors}
-          pendingAction={pendingAction}
-          runFriendAction={runFriendAction}
-          onClose={() => setBoostPanelFriend(null)}
-        />
-      )}
     </section>
   );
 }
 
-function FriendCard({ friend, isBoosting, disabled, pendingAction, onBoost, onH2H }) {
-  const initials = getInitials(friend.name);
-  const actionKey = `boost-${friend.username}`;
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
+function FriendRow({ friend, onInvite }) {
   return (
-    <div className={`friend-card${isBoosting ? " friend-card--boosting" : ""}`}>
-      <div className="friend-avatar" aria-hidden="true">
-        {initials}
+    <div className="fp-friend-row">
+      <Avatar name={friend.name} />
+      <div className="fp-friend-info">
+        <div className="fp-name">{friend.name}</div>
+        <div className="caption">{friend.username}{friend.boostCount > 0 ? ` · ${friend.boostCount} boosts` : ""}</div>
       </div>
-      <div className="friend-card-body">
-        <strong className="friend-card-name">{friend.name}</strong>
-        <div className="friend-card-username caption">{friend.username}</div>
-        {friend.boostCount > 0 && (
-          <div className="friend-card-boosts caption">
-            {friend.boostCount} market{friend.boostCount !== 1 ? "s" : ""} together
-          </div>
+      <button className="btn btn-secondary btn-sm fp-invite-btn" type="button" onClick={onInvite}>
+        Invite to bet
+      </button>
+    </div>
+  );
+}
+
+function PendingRow({ req, pendingAction, onAccept, onDecline, onCancel }) {
+  return (
+    <div className="fp-pending-row">
+      <Avatar name={req.name} size="sm" />
+      <div className="fp-friend-info">
+        <div className="fp-name">{req.name}</div>
+        <div className="caption">{req.username}</div>
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {req.direction === "incoming" ? (
+          <>
+            <button className="btn btn-secondary btn-sm" type="button" disabled={!!pendingAction} onClick={onAccept}>
+              {pendingAction === `accept-${req.username}` ? "…" : "Accept"}
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" disabled={!!pendingAction} onClick={onDecline}>
+              Decline
+            </button>
+          </>
+        ) : (
+          <button className="btn btn-ghost btn-sm" type="button" disabled={!!pendingAction} onClick={onCancel}>
+            {pendingAction === `cancel-${req.username}` ? "…" : "Cancel"}
+          </button>
         )}
-      </div>
-      <div className="friend-card-actions">
-        <button
-          className="btn btn-ghost friend-h2h-btn"
-          type="button"
-          onClick={onH2H}
-        >
-          Record
-        </button>
-        <button
-          className={`btn friend-boost-btn ${isBoosting ? "btn-secondary" : "btn-ghost"}`}
-          type="button"
-          disabled={disabled || pendingAction === actionKey}
-          onClick={onBoost}
-        >
-          {isBoosting ? "Boosting" : "Boost"}
-        </button>
       </div>
     </div>
   );
 }
 
-function H2HPanel({ friend, onClose }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const initials = getInitials(friend.name);
-
-  const fetchH2H = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/friends/h2h?friendId=${encodeURIComponent(friend.id)}`);
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.message || "Failed to load record.");
-      setData(json);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [friend.id]);
-
-  useEffect(() => {
-    fetchH2H();
-  }, [fetchH2H]);
-
-  const record = data?.record ?? { wins: 0, losses: 0, pushes: 0 };
-  const netAmount = data?.netAmount ?? 0;
-  const recentMatchups = data?.recentMatchups ?? [];
-  const hasMatchups = record.wins + record.losses + record.pushes > 0;
-
+function InvitePreviewCard({ market, side, from, message }) {
+  const sideColor = side === "YES" ? "#38a169" : "#e53e3e";
   return (
-    <>
-      <div className="boost-panel-overlay" onClick={onClose} aria-hidden="true" />
-      <div className="boost-panel h2h-panel" role="dialog" aria-label={`Head-to-head with ${friend.name}`}>
-        <div className="boost-panel-header">
-          <div className="boost-panel-friend">
-            <div className="friend-avatar friend-avatar--lg" aria-hidden="true">{initials}</div>
-            <div>
-              <strong>{friend.name}</strong>
-              <div className="caption">{friend.username}</div>
-            </div>
-          </div>
-          <button className="btn btn-ghost boost-panel-close" type="button" onClick={onClose}>Close</button>
+    <div className="fp-preview-card">
+      <div className="fp-preview-card-header">
+        <Avatar name={from.name} size="sm" side={side} />
+        <div>
+          <span className="fp-name" style={{ fontSize: "0.85rem" }}>{from.name}</span>
+          <span className="caption"> is betting </span>
+          <span style={{ fontWeight: 700, color: sideColor }}>{side}</span>
         </div>
-
-        {loading ? (
-          <div className="h2h-loading caption">Loading record...</div>
-        ) : error ? (
-          <div className="h2h-error caption">{error}</div>
-        ) : !hasMatchups ? (
-          <div className="h2h-empty">
-            <strong>No matchups yet.</strong>
-            <p className="caption">A matchup happens when you and {friend.name.split(" ")[0]} bet on opposite sides of the same market.</p>
-          </div>
-        ) : (
-          <>
-            <div className="h2h-record-row">
-              <div className="h2h-stat h2h-stat--win">
-                <strong>{record.wins}</strong>
-                <span className="caption">Wins</span>
-              </div>
-              <div className="h2h-stat-divider" aria-hidden="true">/</div>
-              <div className="h2h-stat h2h-stat--loss">
-                <strong>{record.losses}</strong>
-                <span className="caption">Losses</span>
-              </div>
-              {record.pushes > 0 && (
-                <>
-                  <div className="h2h-stat-divider" aria-hidden="true">/</div>
-                  <div className="h2h-stat">
-                    <strong>{record.pushes}</strong>
-                    <span className="caption">Push</span>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className={`h2h-net ${netAmount >= 0 ? "h2h-net--up" : "h2h-net--down"}`}>
-              {netAmount >= 0
-                ? `You're up ${formatMoney(netAmount)} lifetime`
-                : `You're down ${formatMoney(netAmount)} lifetime`}
-            </div>
-            {recentMatchups.length > 0 && (
-              <div className="h2h-recent">
-                <div className="h2h-recent-label caption">Last {recentMatchups.length} matchup{recentMatchups.length !== 1 ? "s" : ""}</div>
-                {recentMatchups.map((m, i) => (
-                  <div key={i} className="h2h-matchup-row">
-                    <span className={`h2h-matchup-result h2h-matchup-result--${(m.myStatus || "open").toLowerCase()}`}>
-                      {m.myStatus === "WON" ? "W" : m.myStatus === "LOST" ? "L" : "P"}
-                    </span>
-                    <span className="h2h-matchup-title caption">{m.title}</span>
-                    <span className="h2h-matchup-sides caption">{m.mySide} vs {m.friendSide}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
       </div>
-    </>
+      <div className="fp-preview-market">
+        <div className="caption" style={{ color: "var(--text-muted)" }}>{market.category}</div>
+        <div className="fp-name" style={{ fontSize: "0.9rem" }}>{market.title}</div>
+        <div className="fp-preview-odds">
+          <span style={{ color: "#38a169", fontWeight: 600 }}>YES {Math.round((market.yesPrice ?? 0.5) * 100)}¢</span>
+          <span style={{ color: "var(--text-muted)" }}> · </span>
+          <span style={{ color: "#e53e3e", fontWeight: 600 }}>NO {Math.round((market.noPrice ?? 0.5) * 100)}¢</span>
+        </div>
+      </div>
+      {message && <div className="fp-preview-msg">"{message}"</div>}
+      <div className="fp-preview-cta">Bet on this market →</div>
+    </div>
   );
 }
 
-function BoostPanel({ friend, selectedMarket, boostSlotsRemaining, state, actions, selectors, pendingAction, runFriendAction, onClose }) {
-  const boostName = selectors.getFriendBoostName(friend);
-  const isBoosting = selectedMarket.friendGroup.includes(boostName);
-  const disabled = !isBoosting && boostSlotsRemaining <= 0;
-  const multiplierNow = getMultiplier(selectedMarket, state.adminConfig);
-  const friendsAfter = isBoosting
-    ? Math.max(0, selectedMarket.friendsBoosting - 1)
-    : selectedMarket.friendsBoosting + 1;
-  const multiplierAfter = getMultiplier(
-    { ...selectedMarket, friendsBoosting: friendsAfter },
-    state.adminConfig,
-  );
-
-  const initials = getInitials(friend.name);
-
+function ReceivedInviteCard({ invite, onRespond }) {
+  const sideColor = invite.side === "YES" ? "#38a169" : "#e53e3e";
   return (
-    <>
-      <div className="boost-panel-overlay" onClick={onClose} aria-hidden="true" />
-      <div className="boost-panel" role="dialog" aria-label={`Boost with ${friend.name}`}>
-        <div className="boost-panel-header">
-          <div className="boost-panel-friend">
-            <div className="friend-avatar friend-avatar--lg" aria-hidden="true">{initials}</div>
-            <div>
-              <strong>{friend.name}</strong>
-              <div className="caption">{friend.username}</div>
-            </div>
-          </div>
-          <button className="btn btn-ghost boost-panel-close" type="button" onClick={onClose}>Close</button>
+    <div className="fp-received-card">
+      <div className="fp-received-header">
+        <Avatar name={invite.fromName} size="sm" side={invite.side} />
+        <div style={{ flex: 1 }}>
+          <span className="fp-name" style={{ fontSize: "0.85rem" }}>{invite.fromName}</span>
+          <span className="caption"> invited you to bet on</span>
         </div>
-
-        <div className="boost-panel-market">
-          <div className="boost-panel-market-label caption">Boosting on</div>
-          <strong>{selectedMarket.title}</strong>
-          <div className="boost-panel-market-meta caption">
-            {selectedMarket.friendGroup.length} / {state.adminConfig.maxGroupSize} boosters
-            {boostSlotsRemaining > 0 && !isBoosting && (
-              <> - {boostSlotsRemaining} slot{boostSlotsRemaining !== 1 ? "s" : ""} left</>
-            )}
-          </div>
-        </div>
-
-        <div className="boost-panel-multiplier">
-          <div className="boost-panel-multiplier-row">
-            <span className="caption">Current multiplier</span>
-            <strong>{multiplierNow.toFixed(2)}x</strong>
-          </div>
-          {multiplierAfter !== multiplierNow && (
-            <div className="boost-panel-multiplier-row boost-panel-multiplier-after">
-              <span className="caption">After this boost</span>
-              <strong className="accent">{multiplierAfter.toFixed(2)}x</strong>
-            </div>
-          )}
-        </div>
-
-        {disabled ? (
-          <div className="boost-panel-full-note caption">
-            This market's boost group is full ({state.adminConfig.maxGroupSize} / {state.adminConfig.maxGroupSize}).
-          </div>
-        ) : (
-          <button
-            className={`btn boost-panel-cta ${isBoosting ? "btn-ghost" : "btn-primary"}`}
-            type="button"
-            disabled={!!pendingAction}
-            onClick={() =>
-              runFriendAction(`boost-${friend.username}`, () =>
-                actions.toggleFriendBoost(friend.username),
-              )
-            }
-          >
-            {pendingAction === `boost-${friend.username}`
-              ? "Updating..."
-              : isBoosting
-                ? `Remove ${friend.name.split(" ")[0]} from boost`
-                : `Add ${friend.name.split(" ")[0]} to boost`}
-          </button>
+        <span className="caption" style={{ flexShrink: 0 }}>{timeAgo(invite.createdAt)}</span>
+      </div>
+      <div className="fp-received-market">
+        <strong style={{ fontSize: "0.875rem" }}>{invite.marketTitle}</strong>
+        {invite.side && (
+          <span className="fp-received-side" style={{ color: sideColor }}>They bet {invite.side}</span>
         )}
       </div>
-    </>
+      {invite.message && <div className="fp-received-msg">"{invite.message}"</div>}
+      <div className="fp-received-actions">
+        <Link href={`/markets/${invite.marketId}`} className="btn btn-primary btn-sm"
+          onClick={() => onRespond(invite.id, "accepted", invite.marketId)}>
+          View &amp; Bet →
+        </Link>
+        <button className="btn btn-ghost btn-sm" type="button"
+          onClick={() => onRespond(invite.id, "declined", invite.marketId)}>
+          Dismiss
+        </button>
+      </div>
+    </div>
   );
 }

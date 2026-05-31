@@ -7,13 +7,19 @@ import {
   createRefundLedgerEntries,
   createSettlementLedgerEntries,
 } from "../lib/accounting.js";
-import { calculatePayout, getMultiplier, normalizeFunding } from "../lib/marketMath.js";
+import {
+  calculateOrderPreview,
+  calculatePayout,
+  getMultiplier,
+  normalizeFunding,
+} from "../lib/marketMath.js";
 import {
   hasValidationErrors,
   validateBetDraft,
   validateCreateMarketDraft,
 } from "../lib/validation.js";
 import {
+  buildExportFilename,
   buildLedgerExportRows,
   buildRiskReviewExportRows,
   ledgerExportColumns,
@@ -34,9 +40,22 @@ import {
   getMarketPipelineSummary,
   rankMarketsBySignal,
 } from "../lib/marketAlgorithms.js";
-import { applyRiskSignalsToUser, getBoostRiskSignals } from "../lib/riskEngine.js";
+import {
+  applyRiskSignalsToUser,
+  getBoostRiskSignals,
+  getRiskBand,
+  getRiskExplanation,
+} from "../lib/riskEngine.js";
 import { getSourceAdapter, validateSourceAdapterConfig } from "../lib/sourceAdapters.js";
-import { getSessionFromRequest, requireAdmin } from "../lib/server/auth.js";
+import { buildAdminAuditWhere } from "../lib/server/adminDataService.js";
+import { buildLedgerExportWhere } from "../lib/server/exportService.js";
+import {
+  getSessionFromRequest,
+  requireAdmin,
+  requireAdminPermission,
+  requireAuthenticated,
+} from "../lib/server/auth.js";
+import { ADMIN_PERMISSIONS } from "../lib/server/adminPermissions.js";
 
 const baseAdminConfig = {
   socialBoostsEnabled: true,
@@ -150,6 +169,38 @@ test("social bonus payout respects admin and market caps", () => {
   assert.equal(payout.uncappedSocialBonus, 160);
   assert.equal(payout.socialBonus, 12);
   assert.equal(payout.boostedPayout, 212);
+});
+
+test("order preview estimates contracts entry spread and pool fees", () => {
+  const preview = calculateOrderPreview({
+    stake: 25,
+    side: "YES",
+    market: {
+      yesPrice: 0.58,
+      noPrice: 0.45,
+      liquidityPool: { feeBps: 50 },
+    },
+  });
+
+  assert.equal(preview.entryPrice, 0.58);
+  assert.equal(preview.feeAmount, 0.125);
+  assert.equal(preview.netStake, 24.875);
+  assert.equal(Math.round(preview.estimatedContracts * 100), 4289);
+  assert.equal(Math.round(preview.spread * 100), 3);
+  assert.equal(Math.round(preview.breakevenPrice * 1000), 583);
+});
+
+test("order preview falls back to sane prices and ignores negative fees", () => {
+  const preview = calculateOrderPreview({
+    stake: "10",
+    side: "NO",
+    market: { yesPrice: 0, noPrice: null, feeBps: -20 },
+  });
+
+  assert.equal(preview.entryPrice, 0.5);
+  assert.equal(preview.feeBps, 0);
+  assert.equal(preview.estimatedContracts, 20);
+  assert.equal(preview.spread, 0);
 });
 
 test("bet placement ledger entries debit each funding currency", () => {
@@ -317,6 +368,19 @@ test("CSV exporter quotes commas, quotes, and newlines", () => {
   assert.equal(csv, 'Name,Metadata\n"Maya ""Ace""","Line one\nLine two, with comma"');
 });
 
+test("export filenames include date and active filters", () => {
+  const filename = buildExportFilename(
+    "Agora Ledger Export",
+    { filter: "withdrawable", sort: "amount_desc", action: "all" },
+    new Date("2026-05-12T10:15:00Z"),
+  );
+
+  assert.equal(
+    filename,
+    "agora-ledger-export_2026-05-12_filter-withdrawable_sort-amount-desc.csv",
+  );
+});
+
 test("ledger and risk exports map operational fields", () => {
   const ledgerRows = buildLedgerExportRows([
     {
@@ -348,6 +412,12 @@ test("ledger and risk exports map operational fields", () => {
   assert.equal(ledgerRows[0].market_id, "");
   assert.equal(riskRows[0].risk_signals, "High bonus velocity; Dense friend boosting");
   assert.equal(toCsv(riskRows, riskReviewExportColumns).includes("Theo Nguyen"), true);
+});
+
+test("database ledger export filters map UI filters to Prisma where clauses", () => {
+  assert.deepEqual(buildLedgerExportWhere("withdrawable"), { currency: "WITHDRAWABLE" });
+  assert.deepEqual(buildLedgerExportWhere("deposit"), { source: "DEPOSIT" });
+  assert.deepEqual(buildLedgerExportWhere("all"), {});
 });
 
 test("ledger view filters, sorts, and paginates audit rows", () => {
@@ -398,6 +468,35 @@ test("ledger view filters, sorts, and paginates audit rows", () => {
   assert.equal(userView.entries[0].source, "deposit");
 });
 
+test("admin audit filters combine action actor market and date bounds", () => {
+  const where = buildAdminAuditWhere({
+    action: "market.resolved",
+    actorId: "admin_1",
+    marketId: "market_1",
+    dateFrom: "2026-05-01",
+    dateTo: "2026-05-12",
+  });
+
+  assert.equal(where.action, "market.resolved");
+  assert.equal(where.actorId, "admin_1");
+  assert.equal(where.marketId, "market_1");
+  assert.equal(where.createdAt.gte.toISOString(), "2026-05-01T00:00:00.000Z");
+  assert.equal(where.createdAt.lte.toISOString(), "2026-05-12T23:59:59.999Z");
+});
+
+test("admin audit filters ignore empty defaults and invalid dates", () => {
+  assert.deepEqual(
+    buildAdminAuditWhere({
+      action: "all",
+      actorId: " ",
+      marketId: "",
+      dateFrom: "soon",
+      dateTo: "2026-13-40",
+    }),
+    {},
+  );
+});
+
 test("risk engine flags repeated and dense friend boosts", () => {
   const friend = { name: "Maya Patel", username: "@maya", boostCount: 6 };
   const market = { friendGroup: ["Maya", "Jordan", "Theo", "Ava"] };
@@ -423,6 +522,22 @@ test("risk engine flags repeated and dense friend boosts", () => {
 
   assert.equal(user.risk_status, "monitor");
   assert.equal(user.risk_signals.length, signals.length);
+});
+
+test("risk engine explains score bands and user signals", () => {
+  assert.equal(getRiskBand(12).label, "Clear");
+  assert.equal(getRiskBand(48).label, "Monitor");
+  assert.equal(getRiskBand(71).label, "High");
+
+  const explanation = getRiskExplanation({
+    risk_score: 71,
+    frozen: true,
+    risk_signals: ["High bonus velocity", "Dense friend boosting", "Repeat device"],
+  });
+
+  assert.equal(explanation.includes("High risk (70+)"), true);
+  assert.equal(explanation.includes("High bonus velocity; Dense friend boosting; Repeat device"), true);
+  assert.equal(explanation.includes("Account is frozen"), true);
 });
 
 test("market taxonomy covers sport-specific categories", () => {
@@ -459,12 +574,12 @@ test("source adapters define required settlement fields by category", () => {
 });
 
 test("request auth helper recognizes dev admin shortcut header when enabled", async () => {
-  const previousShortcut = process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
-  process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = "1";
-  const userRequest = new Request("http://friendmarket.test/api/admin/config");
-  const adminRequest = new Request("http://friendmarket.test/api/admin/config", {
+  const previousShortcut = process.env.AGORA_DEV_ADMIN_SHORTCUT;
+  process.env.AGORA_DEV_ADMIN_SHORTCUT = "1";
+  const userRequest = new Request("http://agora.test/api/admin/config");
+  const adminRequest = new Request("http://agora.test/api/admin/config", {
     headers: {
-      "x-friendmarket-role": "admin",
+      "x-agora-role": "admin",
     },
   });
 
@@ -479,21 +594,66 @@ test("request auth helper recognizes dev admin shortcut header when enabled", as
   assert.equal(allowed.response, null);
   assert.equal(allowed.session.role, "admin");
   if (previousShortcut === undefined) {
-    delete process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
+    delete process.env.AGORA_DEV_ADMIN_SHORTCUT;
   } else {
-    process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = previousShortcut;
+    process.env.AGORA_DEV_ADMIN_SHORTCUT = previousShortcut;
   }
 });
 
-test("default market seeds include sport-specific markets only", async () => {
+test("authenticated guard rejects anonymous requests", async () => {
+  const request = new Request("http://agora.test/api/funds/deposit");
+  const guarded = await requireAuthenticated(request);
+
+  assert.equal(guarded.session.authenticated, false);
+  assert.equal(guarded.response.status, 401);
+  assert.equal((await guarded.response.json()).message, "Sign in before continuing.");
+});
+
+test("admin permission guard rejects scoped-out admins", async () => {
+  const previousShortcut = process.env.AGORA_DEV_ADMIN_SHORTCUT;
+  const previousDatabase = process.env.DATABASE_URL;
+  const previousLevels = process.env.AGORA_ADMIN_LEVELS_JSON;
+  process.env.AGORA_DEV_ADMIN_SHORTCUT = "1";
+  process.env.DATABASE_URL = "postgresql://example/test";
+  process.env.AGORA_ADMIN_LEVELS_JSON = JSON.stringify({ user_1: "viewer" });
+
+  const request = new Request("http://agora.test/api/admin/config", {
+    headers: {
+      "x-agora-role": "admin",
+    },
+  });
+  const guarded = await requireAdminPermission(request, ADMIN_PERMISSIONS.CONFIG);
+
+  assert.equal(guarded.session.isAdmin, true);
+  assert.equal(guarded.response.status, 403);
+  assert.equal((await guarded.response.json()).message, "Your admin role does not allow this action.");
+
+  if (previousShortcut === undefined) {
+    delete process.env.AGORA_DEV_ADMIN_SHORTCUT;
+  } else {
+    process.env.AGORA_DEV_ADMIN_SHORTCUT = previousShortcut;
+  }
+  if (previousDatabase === undefined) {
+    delete process.env.DATABASE_URL;
+  } else {
+    process.env.DATABASE_URL = previousDatabase;
+  }
+  if (previousLevels === undefined) {
+    delete process.env.AGORA_ADMIN_LEVELS_JSON;
+  } else {
+    process.env.AGORA_ADMIN_LEVELS_JSON = previousLevels;
+  }
+});
+
+test("default market seeds are sports-only", async () => {
   const { defaultState } = await import("../lib/defaultState.js");
+  const { NON_SPORT_MARKET_CATEGORY_LABELS } = await import("../lib/marketTaxonomy.js");
   const categories = new Set(defaultState.markets.map((market) => market.category));
 
   assert.equal(categories.has("NBA"), true);
   assert.equal(categories.has("NFL"), true);
   assert.equal(categories.has("MLB"), true);
-  assert.equal(categories.has("Crypto"), false);
-  assert.equal(categories.has("Finance"), false);
+  assert.equal(defaultState.markets.every((m) => !NON_SPORT_MARKET_CATEGORY_LABELS.has(m.category)), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionTemplate), true);
   assert.equal(defaultState.markets.every((market) => market.closeTime), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionRule), true);
@@ -506,16 +666,31 @@ test("default market seeds include sport-specific markets only", async () => {
 test("market algorithms expose live tracking and signal summaries", async () => {
   const { defaultState } = await import("../lib/defaultState.js");
   const knicks = defaultState.markets.find((market) => market.id === "market_1");
-  const snapshot = getMarketAlgorithmSnapshot(knicks, defaultState.liveGames);
+  const fixedNow = new Date("2026-04-29T19:00:00Z");
+  const snapshot = getMarketAlgorithmSnapshot(knicks, defaultState.liveGames, fixedNow);
   const summary = getMarketPipelineSummary(defaultState.markets, defaultState.liveGames);
   const linkedGame = getLinkedLiveGame(knicks, defaultState.liveGames);
-  const ranked = rankMarketsBySignal(defaultState.markets, defaultState.liveGames);
+  const ranked = rankMarketsBySignal(defaultState.markets, defaultState.liveGames, fixedNow);
 
   assert.equal(linkedGame.id, "game_knicks_celtics");
-  assert.equal(getLiveGameClock(linkedGame), "Q3 - 6:42");
+  assert.equal(getLiveGameClock(linkedGame, fixedNow), "Q3 - 6:42");
   assert.equal(snapshot.model, "Live sports tracker");
   assert.equal(snapshot.movementScore > 0, true);
   assert.equal(summary.liveLinked >= 3, true);
   assert.equal(summary.algorithmic >= 4, true);
   assert.equal(ranked[0].snapshot.movementScore >= ranked.at(-1).snapshot.movementScore, true);
+});
+
+test("getLinkedLiveGame matches seeded liveGameId to ESPN payload via matchingLegacyIds", async () => {
+  const { defaultState } = await import("../lib/defaultState.js");
+  const market = defaultState.markets.find((m) => m.id === "market_nba_cavs_raptors_live");
+  const stub = {
+    id: "espn_nba_stub",
+    matchingLegacyIds: [market.liveGameId],
+    status: "live",
+    period: "Q4",
+    clock: "2:00",
+    shortName: "Raptors",
+  };
+  assert.equal(getLinkedLiveGame(market, [stub])?.id, "espn_nba_stub");
 });

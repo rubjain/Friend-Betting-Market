@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
 import PortfolioLedger from "../PortfolioLedger";
 import { InfoRow, SectionHead } from "../ui";
@@ -9,15 +9,23 @@ import { InfoRow, SectionHead } from "../ui";
 const settingsSections = [
   ["#account", "Account"],
   ["#balances", "Balances"],
+  ["#compliance", "Compliance"],
   ["#appearance", "Appearance"],
   ["#referrals", "Referrals"],
   ["#ledger", "Transaction history"],
 ];
 
+function statusText(value) {
+  return String(value || "not started")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
 export default function SettingsPage() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [pendingAction, setPendingAction] = useState("");
   const [loginIdentifier, setLoginIdentifier] = useState(state.currentUser.email);
+  const [loginPassword, setLoginPassword] = useState("password123");
 
   async function run(actionKey, callback) {
     if (pendingAction) return;
@@ -52,15 +60,36 @@ export default function SettingsPage() {
             <InfoRow label="Email" value={state.currentUser.email} />
             <InfoRow label="Username" value={state.currentUser.username} />
           </div>
-          {state.auth.authenticated ? (
-            <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => run("logout", actions.logout)}>
-              {pendingAction === "logout" ? "Logging out..." : "Log out"}
+          <div className="settings-inline-actions">
+            <button
+              className="btn btn-secondary"
+              type="button"
+              disabled={!!pendingAction}
+              onClick={() =>
+                run("sync", async () => {
+                  const ok = await actions.refreshSessionFromServer();
+                  if (ok) {
+                    actions.setFlashMessage("Synced latest data from the server.");
+                  }
+                })
+              }
+            >
+              {pendingAction === "sync" ? "Syncing..." : "Sync latest data"}
             </button>
-          ) : (
-            <form className="settings-inline-form" onSubmit={(event) => {
-              event.preventDefault();
-              run("login", () => actions.login(loginIdentifier));
-            }}>
+            {state.auth.authenticated ? (
+              <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => run("logout", actions.logout)}>
+                {pendingAction === "logout" ? "Logging out..." : "Log out"}
+              </button>
+            ) : null}
+          </div>
+          {!state.auth.authenticated ? (
+            <form
+              className="settings-inline-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                run("login", () => actions.login(loginIdentifier, loginPassword));
+              }}
+            >
               <label className="field" htmlFor="settings-login">
                 <span className="label">Email or username</span>
                 <input
@@ -69,11 +98,21 @@ export default function SettingsPage() {
                   onChange={(event) => setLoginIdentifier(event.currentTarget.value)}
                 />
               </label>
+              <label className="field" htmlFor="settings-login-password">
+                <span className="label">Password</span>
+                <input
+                  id="settings-login-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={loginPassword}
+                  onChange={(event) => setLoginPassword(event.currentTarget.value)}
+                />
+              </label>
               <button className="btn btn-primary" type="submit" disabled={!!pendingAction}>
                 {pendingAction === "login" ? "Logging in..." : "Log in"}
               </button>
             </form>
-          )}
+          ) : null}
         </div>
 
         <div className="list-card settings-anchor" id="appearance">
@@ -98,12 +137,57 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <div className="list-card settings-anchor" id="paper-trading">
+          <h3>Paper trading</h3>
+          <p className="settings-section-body">Practice prediction markets with $10,000 of virtual money. Your paper P&amp;L is tracked separately from your real account — no real funds at risk.</p>
+          <div className="paper-settings-row">
+            <div className="paper-settings-info">
+              <span className="label">Paper balance</span>
+              <strong className="paper-balance-value">{money(state.currentUser.paper_balance ?? 0)}</strong>
+            </div>
+            <div className="inline-actions">
+              <button
+                className={`btn ${state.paperMode ? "paper-mode-exit" : "btn-primary paper-start-btn"}`}
+                type="button"
+                onClick={actions.togglePaperMode}
+              >
+                {state.paperMode ? "Exit paper mode" : "Start paper trading"}
+              </button>
+              <button className="btn btn-ghost" type="button" onClick={actions.resetPaperBalance}>
+                Reset to $10,000
+              </button>
+            </div>
+          </div>
+          {state.paperMode && (
+            <p className="paper-mode-active-note">
+              <span className="paper-mode-pill" style={{ marginRight: 6 }}>ACTIVE</span>
+              Paper mode is on. All bets placed use your virtual balance.
+            </p>
+          )}
+        </div>
+
         <div className="list-card settings-anchor" id="balances">
           <h3>Balances</h3>
           <div className="balance-mini-grid">
             <InfoRow label="Withdrawable" value={money(state.currentUser.withdrawable_balance)} />
             <InfoRow label="Bonus" value={money(state.currentUser.bonus_balance)} />
             <InfoRow label="Total play credit" value={money(state.currentUser.play_credit_balance)} />
+          </div>
+        </div>
+
+        <div className="list-card settings-anchor" id="compliance">
+          <h3>Compliance gates</h3>
+          <div className="balance-mini-grid">
+            <InfoRow label="Email" value={statusText(state.currentUser.settings.emailVerificationStatus)} />
+            <InfoRow label="Age" value={statusText(state.currentUser.settings.ageVerificationStatus)} />
+            <InfoRow label="Identity" value={statusText(state.currentUser.settings.identityVerificationStatus)} />
+            <InfoRow label="Location" value={statusText(state.currentUser.settings.locationVerificationStatus)} />
+            <InfoRow label="Sanctions" value={statusText(state.currentUser.settings.sanctionsVerificationStatus)} />
+            <InfoRow label="Daily deposit limit" value={money(state.currentUser.settings.dailyDepositLimit)} />
+            <InfoRow
+              label="Self-exclusion"
+              value={state.currentUser.settings.selfExcludedUntil ? "Cooling off" : "Off"}
+            />
           </div>
         </div>
 

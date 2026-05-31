@@ -13,6 +13,7 @@ import {
   removeDemoUserBonus,
   resetDemoStore,
   resolveDemoMarket,
+  searchDemoFriends,
   sendDemoFriendInvite,
   submitDemoMarket,
   toggleDemoFriendBoost,
@@ -215,6 +216,20 @@ test("server friend invites normalize usernames and reject duplicates", () => {
 
   assert.equal(duplicate.ok, false);
   assert.match(duplicate.message, /already/);
+});
+
+test("server friend search reports relationship status", () => {
+  resetDemoStore();
+  const found = searchDemoFriends({ query: "tay", userId: "user_1" });
+
+  assert.equal(found.ok, true);
+  assert.equal(found.results[0].username, "@taylor");
+  assert.equal(found.results[0].status, "not_connected");
+
+  sendDemoFriendInvite({ username: "@taylor", userId: "user_1" });
+  const pending = searchDemoFriends({ query: "taylor", userId: "user_1" });
+
+  assert.equal(pending.results[0].status, "pending_outgoing");
 });
 
 test("server friend request actions accept incoming requests", () => {

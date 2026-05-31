@@ -7,6 +7,480 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                  String               @id @default(cuid())
+  name                String
+  username            String               @unique
+  email               String               @unique
+  role                UserRole             @default(USER)
+  riskStatus          String               @default("clear")
+  riskScore           Int                  @default(0)
+  frozen              Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  passwordHash        String?
+  auditEntries        AuditTrail[]
+  authTokens          AuthToken[]
+  apiKeys             ApiKey[]
+  strategies          Strategy[]
+  strategyExecutions  StrategyExecution[]
+  balanceAccounts     BalanceAccount[]
+  bets                Bet[]
+  boostsGiven         FriendBoost[]        @relation("BoostActor")
+  friendshipsTo       Friendship[]         @relation("FriendshipAddressee")
+  friendshipsFrom     Friendship[]         @relation("FriendshipRequester")
+  ledgerEntries       LedgerEntry[]
+  submitted           Market[]             @relation("SubmittedMarkets")
+  disputes            MarketDispute[]
+  orders              Order[]
+  paymentTransactions PaymentTransaction[]
+  rateLimitBuckets    RateLimitBucket[]
+  riskReviews         RiskReview[]
+  sessions            UserSession[]
+  verificationChecks  VerificationCheck[]
+  comments            MarketComment[]
+  ownedGroups         Group[]              @relation("OwnedGroups")
+  groupMemberships    GroupMember[]
+}
+
+model ApiKey {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String   @default("API key")
+  scopes     String[]
+  keyHash    String   @unique
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([revokedAt])
+}
+
+enum StrategyMode {
+  PAPER
+  REAL
+}
+
+enum StrategyStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+enum StrategyType {
+  RULES
+  ML
+}
+
+model Strategy {
+  id             String         @id @default(cuid())
+  userId         String
+  name           String
+  mode           StrategyMode   @default(PAPER)
+  status         StrategyStatus @default(DRAFT)
+  type           StrategyType   @default(RULES)
+  config         Json
+  promotedFromId String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promotedFrom Strategy?   @relation("StrategyPromotion", fields: [promotedFromId], references: [id])
+  promotedTo   Strategy[]  @relation("StrategyPromotion")
+  executions   StrategyExecution[]
+
+  @@index([userId, createdAt])
+  @@index([mode, status])
+}
+
+model StrategyExecution {
+  id         String   @id @default(cuid())
+  strategyId String
+  userId     String
+  marketId   String?
+  side       String?
+  stake      Decimal? @db.Decimal(14, 2)
+  isPaper    Boolean  @default(true)
+  status     String   @default("CREATED")
+  message    String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  strategy Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([strategyId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model UserSession {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Market {
+  id                 String               @id @default(cuid())
+  title              String
+  description        String
+  category           String
+  status             MarketStatus         @default(PENDING)
+  closeAt            DateTime?
+  settlementAt       DateTime?
+  yesPrice           Decimal              @default(0.5) @db.Decimal(8, 4)
+  noPrice            Decimal              @default(0.5) @db.Decimal(8, 4)
+  volume             Decimal              @default(0) @db.Decimal(14, 2)
+  eligibleForBonus   Boolean              @default(false)
+  bonusUseLimitPct   Decimal?             @db.Decimal(5, 2)
+  bonusPayoutCap     Decimal?             @db.Decimal(14, 2)
+  resolutionTemplate String
+  submittedById      String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  closeTime          DateTime?
+  createdBy          MarketCreatedBy      @default(USER)
+  externalSourceId   String?
+  externalSourceName String?
+  metadata           Json?
+  normalizedQuestion String?
+  outcomeType        MarketOutcomeType    @default(BINARY)
+  question           String               @default("")
+  resolutionRules    String               @default("")
+  resolutionSource   String?
+  resolutionTime     DateTime?
+  auditEntries       AuditTrail[]
+  bets               Bet[]
+  boosts             FriendBoost[]
+  ledgerEntries      LedgerEntry[]
+  liquidityPool      LiquidityPool?
+  submittedBy        User?                @relation("SubmittedMarkets", fields: [submittedById], references: [id])
+  disputes           MarketDispute[]
+  resolution         MarketResolution?
+  priceSnapshots     OddsSnapshot[]
+  orders             Order[]
+  evidenceLinks      ResolutionEvidence[]
+  riskReviews        RiskReview[]
+  comments           MarketComment[]
+
+  @@unique([externalSourceName, externalSourceId])
+  @@index([status, createdAt])
+  @@index([normalizedQuestion])
+}
+
+model Bet {
+  id                 String          @id @default(cuid())
+  userId             String
+  marketId           String
+  side               BetSide
+  status             BetStatus       @default(OPEN)
+  stake              Decimal         @db.Decimal(14, 2)
+  withdrawableStake  Decimal         @db.Decimal(14, 2)
+  bonusStake         Decimal         @db.Decimal(14, 2)
+  expectedMultiplier Decimal         @db.Decimal(8, 4)
+  placedAt           DateTime        @default(now())
+  settledAt          DateTime?
+  isPaper            Boolean         @default(false)
+  market             Market          @relation(fields: [marketId], references: [id])
+  user               User            @relation(fields: [userId], references: [id])
+  ledgerEntries      LedgerEntry[]
+  disputes           MarketDispute[]
+}
+
+model OddsSnapshot {
+  id        String   @id @default(cuid())
+  marketId  String
+  yesPrice  Decimal  @db.Decimal(8, 4)
+  noPrice   Decimal  @db.Decimal(8, 4)
+  volume    Decimal  @default(0) @db.Decimal(14, 2)
+  source    String   @default("internal")
+  createdAt DateTime @default(now())
+  market    Market   @relation(fields: [marketId], references: [id])
+
+  @@index([marketId, createdAt])
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  userId     String
+  marketId   String
+  side       OrderSide
+  status     OrderStatus @default(OPEN)
+  quantity   Decimal     @db.Decimal(14, 4)
+  limitPrice Decimal     @db.Decimal(8, 4)
+  filledQty  Decimal     @default(0) @db.Decimal(14, 4)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  expiresAt  DateTime?
+  isPaper    Boolean     @default(false)
+  market     Market      @relation(fields: [marketId], references: [id])
+  user       User        @relation(fields: [userId], references: [id])
+
+  @@index([marketId, status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model LiquidityPool {
+  id         String   @id @default(cuid())
+  marketId   String   @unique
+  yesReserve Decimal  @default(0) @db.Decimal(18, 6)
+  noReserve  Decimal  @default(0) @db.Decimal(18, 6)
+  invariant  Decimal? @db.Decimal(18, 6)
+  feeBps     Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  market     Market   @relation(fields: [marketId], references: [id])
+}
+
+model BalanceAccount {
+  id        String          @id @default(cuid())
+  userId    String
+  currency  BalanceCurrency
+  balance   Decimal         @default(0) @db.Decimal(14, 2)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  user      User            @relation(fields: [userId], references: [id])
+
+  @@unique([userId, currency])
+}
+
+model LedgerEntry {
+  id              String                @id @default(cuid())
+  userId          String
+  marketId        String?
+  betId           String?
+  transactionType LedgerTransactionType
+  amount          Decimal               @db.Decimal(14, 2)
+  currency        BalanceCurrency
+  source          LedgerSource
+  metadata        Json?
+  createdAt       DateTime              @default(now())
+  bet             Bet?                  @relation(fields: [betId], references: [id])
+  market          Market?               @relation(fields: [marketId], references: [id])
+  user            User                  @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([marketId, createdAt])
+}
+
+model Friendship {
+  id          String           @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  addressee   User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id])
+  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id])
+
+  @@unique([requesterId, addresseeId])
+}
+
+model FriendBoost {
+  id        String   @id @default(cuid())
+  marketId  String
+  actorId   String
+  createdAt DateTime @default(now())
+  actor     User     @relation("BoostActor", fields: [actorId], references: [id])
+  market    Market   @relation(fields: [marketId], references: [id])
+
+  @@unique([marketId, actorId])
+}
+
+model AdminConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+model RiskReview {
+  id        String           @id @default(cuid())
+  userId    String
+  marketId  String?
+  status    RiskReviewStatus @default(OPEN)
+  score     Int
+  signals   Json
+  notes     String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  market    Market?          @relation(fields: [marketId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
+}
+
+model MarketResolution {
+  id         String               @id @default(cuid())
+  marketId   String               @unique
+  result     BetSide?
+  status     ResolutionStatus     @default(DRAFT)
+  resolverId String?
+  notes      String?
+  resolvedAt DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  market     Market               @relation(fields: [marketId], references: [id])
+  evidence   ResolutionEvidence[]
+}
+
+model MarketDispute {
+  id        String        @id @default(cuid())
+  userId    String
+  marketId  String
+  betId     String?
+  status    DisputeStatus @default(OPEN)
+  reason    String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  bet       Bet?          @relation(fields: [betId], references: [id])
+  market    Market        @relation(fields: [marketId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@index([marketId, status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model ResolutionEvidence {
+  id           String            @id @default(cuid())
+  marketId     String
+  resolutionId String?
+  label        String
+  url          String
+  sourceType   String
+  capturedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  market       Market            @relation(fields: [marketId], references: [id])
+  resolution   MarketResolution? @relation(fields: [resolutionId], references: [id])
+}
+
+model AuditTrail {
+  id        String   @id @default(cuid())
+  actorId   String?
+  marketId  String?
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id])
+  market    Market?  @relation(fields: [marketId], references: [id])
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+}
+
+model VerificationCheck {
+  id          String             @id @default(cuid())
+  userId      String
+  type        VerificationType
+  status      VerificationStatus @default(PENDING)
+  provider    String?
+  referenceId String?
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  user        User               @relation(fields: [userId], references: [id])
+
+  @@unique([userId, type])
+  @@index([type, status])
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  metadata  Json?
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, createdAt])
+  @@index([expiresAt])
+}
+
+model RateLimitBucket {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  userId    String?
+  scope     String
+  count     Int      @default(0)
+  resetAt   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([scope, resetAt])
+  @@index([userId, scope])
+}
+
+model PaymentTransaction {
+  id           String                   @id @default(cuid())
+  userId       String
+  type         PaymentTransactionType
+  status       PaymentTransactionStatus @default(PENDING_REVIEW)
+  amount       Decimal                  @db.Decimal(14, 2)
+  currency     BalanceCurrency          @default(WITHDRAWABLE)
+  provider     String                   @default("demo-ledger")
+  providerRef  String?
+  method       String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  metadata     Json?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([type, status, createdAt])
+  @@index([provider, providerRef])
+}
+
+model MarketComment {
+  id        String   @id @default(cuid())
+  userId    String
+  marketId  String
+  content   String
+  createdAt DateTime @default(now())
+  market    Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([marketId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String
+  inviteCode  String        @unique @default(cuid())
+  createdAt   DateTime      @default(now())
+  owner       User          @relation("OwnedGroups", fields: [ownerId], references: [id])
+  members     GroupMember[]
+
+  @@index([ownerId])
+}
+
+model GroupMember {
+  id       String   @id @default(cuid())
+  groupId  String
+  userId   String
+  joinedAt DateTime @default(now())
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -15,6 +489,7 @@ enum UserRole {
 enum BalanceCurrency {
   WITHDRAWABLE
   BONUS
+  PAPER
 }
 
 enum LedgerTransactionType {
@@ -31,6 +506,7 @@ enum LedgerSource {
   ADMIN_ADJUSTMENT
   REFUND
   VOID
+  WITHDRAWAL
 }
 
 enum MarketStatus {
@@ -38,14 +514,14 @@ enum MarketStatus {
   PENDING
   APPROVED
   ACTIVE
-  OPEN
-  CLOSED
   PAUSED
   RESOLVING
   DISPUTED
   RESOLVED
-  REJECTED
   VOIDED
+  OPEN
+  CLOSED
+  REJECTED
 }
 
 enum MarketOutcomeType {
@@ -131,299 +607,25 @@ enum VerificationStatus {
   REQUIRED
 }
 
-model User {
-  id                 String              @id @default(cuid())
-  name               String
-  username           String              @unique
-  email              String              @unique
-  passwordHash       String?
-  role               UserRole            @default(USER)
-  riskStatus         String              @default("clear")
-  riskScore          Int                 @default(0)
-  frozen             Boolean             @default(false)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  balanceAccounts    BalanceAccount[]
-  bets               Bet[]
-  ledgerEntries      LedgerEntry[]
-  orders             Order[]
-  submitted          Market[]            @relation("SubmittedMarkets")
-  friendshipsFrom    Friendship[]        @relation("FriendshipRequester")
-  friendshipsTo      Friendship[]        @relation("FriendshipAddressee")
-  boostsGiven        FriendBoost[]       @relation("BoostActor")
-  riskReviews        RiskReview[]
-  auditEntries       AuditTrail[]
-  disputes           MarketDispute[]
-  verificationChecks VerificationCheck[]
-  sessions           UserSession[]
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  ACCOUNT_RECOVERY
 }
 
-model UserSession {
-  id        String   @id
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([expiresAt])
+enum PaymentTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  REFUND
+  CHARGEBACK
 }
 
-model Market {
-  id                 String               @id @default(cuid())
-  title              String
-  question           String               @default("")
-  description        String
-  category           String
-  status             MarketStatus         @default(PENDING)
-  closeAt            DateTime?
-  closeTime          DateTime?
-  settlementAt       DateTime?
-  resolutionTime     DateTime?
-  resolutionSource   String?
-  resolutionRules    String               @default("")
-  yesPrice           Decimal              @default(0.5) @db.Decimal(8, 4)
-  noPrice            Decimal              @default(0.5) @db.Decimal(8, 4)
-  outcomeType        MarketOutcomeType    @default(BINARY)
-  createdBy          MarketCreatedBy      @default(USER)
-  externalSourceName String?
-  externalSourceId   String?
-  normalizedQuestion String?
-  metadata           Json?
-  volume             Decimal              @default(0) @db.Decimal(14, 2)
-  eligibleForBonus   Boolean              @default(false)
-  bonusUseLimitPct   Decimal?             @db.Decimal(5, 2)
-  bonusPayoutCap     Decimal?             @db.Decimal(14, 2)
-  resolutionTemplate String
-  submittedById      String?
-  submittedBy        User?                @relation("SubmittedMarkets", fields: [submittedById], references: [id])
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  bets               Bet[]
-  boosts             FriendBoost[]
-  ledgerEntries      LedgerEntry[]
-  orders             Order[]
-  priceSnapshots     OddsSnapshot[]
-  liquidityPool      LiquidityPool?
-  resolution         MarketResolution?
-  evidenceLinks      ResolutionEvidence[]
-  disputes           MarketDispute[]
-  riskReviews        RiskReview[]
-  auditEntries       AuditTrail[]
-
-  @@unique([externalSourceName, externalSourceId])
-  @@index([status, createdAt])
-  @@index([normalizedQuestion])
-}
-
-model Bet {
-  id                 String          @id @default(cuid())
-  userId             String
-  marketId           String
-  side               BetSide
-  status             BetStatus       @default(OPEN)
-  stake              Decimal         @db.Decimal(14, 2)
-  withdrawableStake  Decimal         @db.Decimal(14, 2)
-  bonusStake         Decimal         @db.Decimal(14, 2)
-  expectedMultiplier Decimal         @db.Decimal(8, 4)
-  placedAt           DateTime        @default(now())
-  settledAt          DateTime?
-  user               User            @relation(fields: [userId], references: [id])
-  market             Market          @relation(fields: [marketId], references: [id])
-  ledgerEntries      LedgerEntry[]
-  disputes           MarketDispute[]
-}
-
-model OddsSnapshot {
-  id        String   @id @default(cuid())
-  marketId  String
-  yesPrice  Decimal  @db.Decimal(8, 4)
-  noPrice   Decimal  @db.Decimal(8, 4)
-  volume    Decimal  @default(0) @db.Decimal(14, 2)
-  source    String   @default("internal")
-  createdAt DateTime @default(now())
-  market    Market   @relation(fields: [marketId], references: [id])
-
-  @@index([marketId, createdAt])
-}
-
-model Order {
-  id         String      @id @default(cuid())
-  userId     String
-  marketId   String
-  side       OrderSide
-  status     OrderStatus @default(OPEN)
-  quantity   Decimal     @db.Decimal(14, 4)
-  limitPrice Decimal     @db.Decimal(8, 4)
-  filledQty  Decimal     @default(0) @db.Decimal(14, 4)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  user       User        @relation(fields: [userId], references: [id])
-  market     Market      @relation(fields: [marketId], references: [id])
-
-  @@index([marketId, status, createdAt])
-  @@index([userId, createdAt])
-}
-
-model LiquidityPool {
-  id         String   @id @default(cuid())
-  marketId   String   @unique
-  yesReserve Decimal  @default(0) @db.Decimal(18, 6)
-  noReserve  Decimal  @default(0) @db.Decimal(18, 6)
-  invariant  Decimal? @db.Decimal(18, 6)
-  feeBps     Int      @default(0)
-  updatedAt  DateTime @updatedAt
-  market     Market   @relation(fields: [marketId], references: [id])
-}
-
-model BalanceAccount {
-  id        String          @id @default(cuid())
-  userId    String
-  currency  BalanceCurrency
-  balance   Decimal         @default(0) @db.Decimal(14, 2)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  user      User            @relation(fields: [userId], references: [id])
-
-  @@unique([userId, currency])
-}
-
-model LedgerEntry {
-  id              String                @id @default(cuid())
-  userId          String
-  marketId        String?
-  betId           String?
-  transactionType LedgerTransactionType
-  amount          Decimal               @db.Decimal(14, 2)
-  currency        BalanceCurrency
-  source          LedgerSource
-  metadata        Json?
-  createdAt       DateTime              @default(now())
-  user            User                  @relation(fields: [userId], references: [id])
-  market          Market?               @relation(fields: [marketId], references: [id])
-  bet             Bet?                  @relation(fields: [betId], references: [id])
-
-  @@index([userId, createdAt])
-  @@index([marketId, createdAt])
-}
-
-model Friendship {
-  id          String           @id @default(cuid())
-  requesterId String
-  addresseeId String
-  status      FriendshipStatus @default(PENDING)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id])
-  addressee   User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id])
-
-  @@unique([requesterId, addresseeId])
-}
-
-model FriendBoost {
-  id        String   @id @default(cuid())
-  marketId  String
-  actorId   String
-  createdAt DateTime @default(now())
-  market    Market   @relation(fields: [marketId], references: [id])
-  actor     User     @relation("BoostActor", fields: [actorId], references: [id])
-
-  @@unique([marketId, actorId])
-}
-
-model AdminConfig {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  value       Json
-  updatedById String?
-  updatedAt   DateTime @updatedAt
-}
-
-model RiskReview {
-  id        String           @id @default(cuid())
-  userId    String
-  marketId  String?
-  status    RiskReviewStatus @default(OPEN)
-  score     Int
-  signals   Json
-  notes     String?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  user      User             @relation(fields: [userId], references: [id])
-  market    Market?          @relation(fields: [marketId], references: [id])
-}
-
-model MarketResolution {
-  id         String               @id @default(cuid())
-  marketId   String               @unique
-  result     BetSide?
-  status     ResolutionStatus     @default(DRAFT)
-  resolverId String?
-  notes      String?
-  resolvedAt DateTime?
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime             @updatedAt
-  market     Market               @relation(fields: [marketId], references: [id])
-  evidence   ResolutionEvidence[]
-}
-
-model MarketDispute {
-  id        String        @id @default(cuid())
-  userId    String
-  marketId  String
-  betId     String?
-  status    DisputeStatus @default(OPEN)
-  reason    String
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  user      User          @relation(fields: [userId], references: [id])
-  market    Market        @relation(fields: [marketId], references: [id])
-  bet       Bet?          @relation(fields: [betId], references: [id])
-
-  @@index([marketId, status, createdAt])
-  @@index([userId, createdAt])
-}
-
-model ResolutionEvidence {
-  id           String            @id @default(cuid())
-  marketId     String
-  resolutionId String?
-  label        String
-  url          String
-  sourceType   String
-  capturedAt   DateTime?
-  createdAt    DateTime          @default(now())
-  market       Market            @relation(fields: [marketId], references: [id])
-  resolution   MarketResolution? @relation(fields: [resolutionId], references: [id])
-}
-
-model AuditTrail {
-  id        String   @id @default(cuid())
-  actorId   String?
-  marketId  String?
-  action    String
-  metadata  Json?
-  createdAt DateTime @default(now())
-  actor     User?    @relation(fields: [actorId], references: [id])
-  market    Market?  @relation(fields: [marketId], references: [id])
-
-  @@index([createdAt])
-  @@index([actorId, createdAt])
-}
-
-model VerificationCheck {
-  id          String             @id @default(cuid())
-  userId      String
-  type        VerificationType
-  status      VerificationStatus @default(PENDING)
-  provider    String?
-  referenceId String?
-  metadata    Json?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  user        User               @relation(fields: [userId], references: [id])
-
-  @@unique([userId, type])
-  @@index([type, status])
+enum PaymentTransactionStatus {
+  PENDING_REVIEW
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  CANCELED
+  FAILED
 }

@@ -20,6 +20,12 @@ if (!hasDatabaseUrl()) {
     markets: await prisma.market.count(),
     bets: await prisma.bet.count(),
     ledgerEntries: await prisma.ledgerEntry.count(),
+    apiKeys: await prisma.apiKey.count(),
+    strategies: await prisma.strategy.count(),
+    strategyExecutions: await prisma.strategyExecution.count(),
+    groups: await prisma.group.count(),
+    groupMembers: await prisma.groupMember.count(),
+    marketComments: await prisma.marketComment.count(),
   };
 
   assertMinimum("users", counts.users, 3);

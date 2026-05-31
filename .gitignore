@@ -5,3 +5,6 @@ next-build/
 *.err
 .env
 .env*.local
+/playwright-report/
+/test-results/
+/playwright/.cache/
