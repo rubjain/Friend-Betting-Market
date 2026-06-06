@@ -16,6 +16,11 @@ const SCOPES = [
   { key: "friends", label: "Friends" },
 ];
 
+const MODES = [
+  { key: "real", label: "Real" },
+  { key: "paper", label: "Paper" },
+];
+
 function money(n) {
   const abs = Math.abs(n);
   const formatted =
@@ -58,7 +63,9 @@ function LeaderboardRow({ row, isCurrentUser, isSelf }) {
         </div>
         <div className="leaderboard-user-info">
           <span className="leaderboard-name">
-            {row.name}
+            <Link href={`/profile/${row.username}`} className="leaderboard-name-link">
+              {row.name}
+            </Link>
             {isSelf && <span className="leaderboard-you-badge">You</span>}
           </span>
           <span className="leaderboard-username caption">{row.username}</span>
@@ -83,6 +90,8 @@ export default function LeaderboardPage() {
 
   const [period, setPeriod] = useState("alltime");
   const [scope, setScope] = useState("global");
+  const [mode, setMode] = useState("real");
+  const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -91,7 +100,7 @@ export default function LeaderboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/leaderboard?period=${period}&scope=${scope}`);
+      const res = await fetch(`/api/leaderboard?period=${period}&scope=${scope}&mode=${mode}&page=${page}`);
       const json = await res.json();
       if (!json.ok) throw new Error(json.message || "Failed to load leaderboard.");
       setData(json);
@@ -100,16 +109,24 @@ export default function LeaderboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [period, scope]);
+  }, [period, scope, mode, page]);
 
   useEffect(() => {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [period, scope, mode]);
+
   const rows = data?.rows ?? [];
   const currentUserRow = data?.currentUserRow ?? null;
   const currentUserRank = data?.currentUserRank ?? null;
   const friendCount = data?.friendCount ?? 0;
+  const total = data?.total ?? 0;
+  const hasMore = data?.hasMore ?? false;
+  const PAGE_SIZE = 25;
 
   const isCurrentUserInTop = rows.some((r) => r.userId === currentUserId);
   const showPinnedSelf = currentUserRow && !isCurrentUserInTop;
@@ -137,18 +154,34 @@ export default function LeaderboardPage() {
             </button>
           ))}
         </div>
-        <div className="scope-toggle" role="tablist" aria-label="Scope">
-          {SCOPES.map((s) => (
-            <button
-              key={s.key}
-              role="tab"
-              aria-selected={scope === s.key}
-              className={`scope-btn${scope === s.key ? " scope-btn--active" : ""}`}
-              onClick={() => setScope(s.key)}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div style={{ display: "flex", gap: 8 }}>
+          <div className="scope-toggle" role="tablist" aria-label="Mode">
+            {MODES.map((m) => (
+              <button
+                key={m.key}
+                role="tab"
+                aria-selected={mode === m.key}
+                className={`scope-btn${mode === m.key ? " scope-btn--active" : ""}${m.key === "paper" && mode === "paper" ? " scope-btn--paper" : ""}`}
+                onClick={() => setMode(m.key)}
+              >
+                {m.key === "paper" && <span className="paper-dot" aria-hidden="true" />}
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <div className="scope-toggle" role="tablist" aria-label="Scope">
+            {SCOPES.map((s) => (
+              <button
+                key={s.key}
+                role="tab"
+                aria-selected={scope === s.key}
+                className={`scope-btn${scope === s.key ? " scope-btn--active" : ""}`}
+                onClick={() => setScope(s.key)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -225,6 +258,28 @@ export default function LeaderboardPage() {
           {scope === "friends" && !loading && friendCount > 0 && (
             <div className="leaderboard-footer caption">
               Ranked among {friendCount} friend{friendCount !== 1 ? "s" : ""}
+            </div>
+          )}
+
+          {!loading && total > PAGE_SIZE && (
+            <div className="leaderboard-pagination">
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                ← Previous
+              </button>
+              <span className="caption leaderboard-pagination-info">
+                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+              </span>
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={!hasMore}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next →
+              </button>
             </div>
           )}
         </div>

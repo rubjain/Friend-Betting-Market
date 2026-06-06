@@ -100,14 +100,16 @@ export default function PortfolioPage() {
                   />
                 )}
               </div>
-              <div className="inline-actions">
-                <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("deposit", actions.addDemoDeposit)}>
-                  {pendingAction === "deposit" ? "Adding..." : "Add $25 Deposit"}
-                </button>
-                <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("bonus", actions.grantDemoBonus)}>
-                  {pendingAction === "bonus" ? "Granting..." : "Grant $10 Bonus"}
-                </button>
-              </div>
+              {state.currentUser.isAdmin && (
+                <div className="inline-actions">
+                  <button className="btn btn-secondary" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("deposit", actions.addDemoDeposit)}>
+                    {pendingAction === "deposit" ? "Adding..." : "Add $25 Deposit"}
+                  </button>
+                  <button className="btn btn-ghost" type="button" disabled={!!pendingAction} onClick={() => runPortfolioAction("bonus", actions.grantDemoBonus)}>
+                    {pendingAction === "bonus" ? "Granting..." : "Grant $10 Bonus"}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="list-card open-bets-hero">
@@ -276,8 +278,30 @@ export default function PortfolioPage() {
 }
 
 function BetRow({ bet, isPaper }) {
+  const { state, actions } = useAgora();
+  const [confirming, setConfirming] = useState(false);
+  const [selling, setSelling] = useState(false);
+
+  const market = state.markets?.find((m) => m.id === bet.marketId);
+  const currentPrice = market
+    ? (bet.side === "YES" ? (market.yesPrice ?? 0.5) : (market.noPrice ?? 0.5))
+    : null;
+  const shares = (bet.stake ?? 0) * (bet.oddsMultiplier ?? 2);
+  const sellValue = currentPrice !== null ? shares * currentPrice : null;
+  const sellPnl = sellValue !== null ? sellValue - (bet.stake ?? 0) : null;
+
+  async function handleSell() {
+    setSelling(true);
+    try {
+      await actions.sellBet(bet.id);
+    } finally {
+      setSelling(false);
+      setConfirming(false);
+    }
+  }
+
   return (
-    <div className="bet-row" key={bet.id}>
+    <div className="bet-row">
       <div className="bet-row-left">
         <Link className="bet-row-market" href={`/markets/${bet.marketId}`}>
           {bet.market}
@@ -288,12 +312,53 @@ function BetRow({ bet, isPaper }) {
           {isPaper && <span className="order-paper-tag">PAPER</span>}
           {bet.placedAt && <> · {bet.placedAt}</>}
         </div>
+        {sellValue !== null && (
+          <div className="caption" style={{ marginTop: 2 }}>
+            Sell now:{" "}
+            <strong className={sellPnl >= 0 ? "pnl-positive" : "pnl-negative"}>
+              {money(sellValue)}
+            </strong>
+            <span style={{ color: "var(--text-muted)" }}>
+              {" "}({sellPnl >= 0 ? "+" : ""}{money(sellPnl)})
+            </span>
+          </div>
+        )}
       </div>
       <div className="bet-row-right">
         <span className="bet-potential-payout">
-          If wins: <strong>{money(bet.potentialPayout ?? bet.stake * (bet.oddsMultiplier ?? 2))}</strong>
+          If wins: <strong>{money(bet.potentialPayout ?? shares)}</strong>
         </span>
-        <span className={`pill${isPaper ? " pill--paper" : ""}`}>{bet.status}</span>
+        {confirming ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span className="caption" style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+              Sell for {sellValue !== null ? money(sellValue) : "—"}?
+            </span>
+            <button
+              className="btn btn-ghost btn-xs"
+              type="button"
+              disabled={selling}
+              onClick={handleSell}
+            >
+              {selling ? "…" : "Yes"}
+            </button>
+            <button
+              className="btn btn-ghost btn-xs"
+              type="button"
+              disabled={selling}
+              onClick={() => setConfirming(false)}
+            >
+              No
+            </button>
+          </div>
+        ) : (
+          <button
+            className={`btn btn-ghost btn-xs${isPaper ? " btn-paper" : ""}`}
+            type="button"
+            onClick={() => setConfirming(true)}
+          >
+            Sell
+          </button>
+        )}
       </div>
     </div>
   );

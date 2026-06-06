@@ -280,7 +280,6 @@ export default function FriendsPage() {
                   </div>
                 )}
 
-                <p className="caption fp-demo-note">Demo: test@example.com / taylor@example.com · password123</p>
               </div>
 
               {/* Friends list */}
@@ -291,6 +290,7 @@ export default function FriendsPage() {
                       key={f.username}
                       friend={f}
                       onInvite={() => { setTab("together"); setInviteSelectedFriends([f]); }}
+                      onRemove={(username) => run(`remove-${username}`, () => actions.removeFriend(username))}
                     />
                   ))}
                 </div>
@@ -577,17 +577,36 @@ export default function FriendsPage() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function FriendRow({ friend, onInvite }) {
+function FriendRow({ friend, onInvite, onRemove }) {
+  const [confirming, setConfirming] = useState(false);
+
   return (
     <div className="fp-friend-row">
       <Avatar name={friend.name} />
       <div className="fp-friend-info">
-        <div className="fp-name">{friend.name}</div>
+        <Link href={`/profile/${friend.username}`} className="fp-name fp-friend-name-link">{friend.name}</Link>
         <div className="caption">{friend.username}{friend.boostCount > 0 ? ` · ${friend.boostCount} boosts` : ""}</div>
       </div>
-      <button className="btn btn-secondary btn-sm fp-invite-btn" type="button" onClick={onInvite}>
-        Invite to bet
-      </button>
+      {confirming ? (
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <span className="caption" style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>Remove?</span>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={() => { setConfirming(false); onRemove(friend.username); }}>
+            Yes
+          </button>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={() => setConfirming(false)}>
+            No
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="btn btn-secondary btn-sm fp-invite-btn" type="button" onClick={onInvite}>
+            Invite to bet
+          </button>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={() => setConfirming(true)}>
+            Remove
+          </button>
+        </div>
+      )}
     </div>
   );
 }

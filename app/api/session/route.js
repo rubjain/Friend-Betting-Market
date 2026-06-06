@@ -29,8 +29,15 @@ async function stateForSession(session) {
         email: "admin@example.com",
       }
     : {};
+
+  // Non-admins only receive their own user row — not every user's balances and risk data.
+  const safeUsers = session.isAdmin
+    ? state.users
+    : state.users.filter((u) => u.id === session.userId);
+
   return {
     ...state,
+    users: safeUsers,
     currentUser: {
       ...state.currentUser,
       ...demoAdminProfile,

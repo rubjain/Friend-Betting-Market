@@ -834,6 +834,61 @@ export function AgoraProvider({ children }) {
           next.flashMessage = "Order cancelled.";
         });
       },
+      async sellBet(betId) {
+        try {
+          const { payload } = await requestJson(`/api/bets/${betId}/sell`, { method: "POST" });
+          if (payload.state) {
+            setState({
+              ...payload.state,
+              auth: state.auth,
+              theme: state.theme,
+              paperMode: state.paperMode,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            });
+            return { ok: true, proceeds: payload.proceeds };
+          }
+        } catch {
+          // Fall through to local demo reducer.
+        }
+
+        // Local fallback
+        updateState((next) => {
+          const idx = next.portfolio.openBets.findIndex((b) => b.id === betId);
+          if (idx === -1) { next.flashMessage = "Bet not found."; return; }
+          const bet = next.portfolio.openBets[idx];
+          const oddsMultiplier = bet.oddsMultiplier ?? 2;
+          const shares = (bet.stake ?? 0) * oddsMultiplier;
+          const market = next.markets.find((m) => m.id === bet.marketId);
+          const currentPrice = market
+            ? (bet.side === "YES" ? (market.yesPrice ?? 0.5) : (market.noPrice ?? 0.5))
+            : 0.5;
+          const proceeds = Math.max(0, shares * currentPrice);
+          const pnl = proceeds - (bet.stake ?? 0);
+          if (bet.isPaper) {
+            next.currentUser.paper_balance = (next.currentUser.paper_balance ?? 0) + proceeds;
+          } else {
+            next.currentUser.withdrawable_balance = (next.currentUser.withdrawable_balance ?? 0) + proceeds;
+          }
+          next.portfolio.openBets.splice(idx, 1);
+          next.portfolio.pastBets.unshift({
+            id: bet.id,
+            marketId: bet.marketId,
+            market: bet.market,
+            side: bet.side,
+            stake: bet.stake,
+            isPaper: bet.isPaper,
+            status: "SOLD",
+            payout: proceeds,
+            pnl,
+            settlement: `Sold · $${proceeds.toFixed(2)} returned`,
+            settledAt: new Date().toISOString().slice(0, 10),
+          });
+          next.flashMessage = `Sold position for $${proceeds.toFixed(2)}.`;
+        });
+        return { ok: true };
+      },
+
       async placeBet(marketId, side) {
         const isPaper = state.paperMode;
         try {
@@ -1228,6 +1283,33 @@ export function AgoraProvider({ children }) {
           } else {
             next.flashMessage = `Canceled the pending invite to ${request.username}.`;
           }
+        });
+      },
+
+      async removeFriend(username) {
+        try {
+          const { payload } = await requestJson("/api/friends/requests", {
+            method: "DELETE",
+            body: JSON.stringify({ username }),
+          });
+
+          if (payload.state) {
+            setState({
+              ...payload.state,
+              auth: state.auth,
+              theme: state.theme,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            });
+            return;
+          }
+        } catch {
+          // Fall through to local state update.
+        }
+
+        updateState((next) => {
+          next.friends.list = next.friends.list.filter((f) => f.username !== username);
+          next.flashMessage = `Removed ${username} from your friends.`;
         });
       },
       async toggleFriendBoost(username) {

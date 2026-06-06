@@ -545,6 +545,7 @@ enum BetStatus {
   LOST
   VOIDED
   REFUNDED
+  SOLD
 }
 
 enum FriendshipStatus {

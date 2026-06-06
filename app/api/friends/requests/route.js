@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { handleDatabaseFriendRequest } from "../../../../lib/server/friendService.js";
-import { handleDemoFriendRequest } from "../../../../lib/server/demoStore.js";
+import { handleDatabaseFriendRequest, removeDatabaseFriend } from "../../../../lib/server/friendService.js";
+import { handleDemoFriendRequest, removeDemoFriend } from "../../../../lib/server/demoStore.js";
 import { getSessionFromRequest } from "../../../../lib/server/auth.js";
 
 export async function POST(request) {
@@ -20,5 +20,14 @@ export async function POST(request) {
       userId,
     });
 
+  return NextResponse.json(result, { status: result.ok ? 200 : 404 });
+}
+
+export async function DELETE(request) {
+  const payload = await request.json();
+  const session = await getSessionFromRequest(request);
+  const userId = session.userId;
+  const databaseResult = await removeDatabaseFriend({ username: payload.username, userId });
+  const result = databaseResult ?? removeDemoFriend({ username: payload.username, userId });
   return NextResponse.json(result, { status: result.ok ? 200 : 404 });
 }
