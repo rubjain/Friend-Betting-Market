@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSessionFromRequest } from "../../../../../lib/server/auth.js";
+import { requireAuthenticated } from "../../../../../lib/server/auth.js";
 import { sellDatabaseBet } from "../../../../../lib/server/betService.js";
 import { sellDemoBet } from "../../../../../lib/server/demoStore.js";
 
 export async function POST(request, { params }) {
-  const session = await getSessionFromRequest(request);
+  const { session, response } = await requireAuthenticated(request);
+  if (response) return response;
+
   const userId = session.userId;
   const { betId } = params;
 

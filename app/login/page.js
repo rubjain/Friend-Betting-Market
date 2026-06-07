@@ -34,12 +34,16 @@ export default function LoginPage() {
     setError("");
     setPending(true);
     try {
-      const ok = await actions.login(identifier, password);
-      if (ok) {
+      const result = await actions.login(identifier, password);
+      if (result.ok) {
         router.push("/");
-      } else {
-        setError("Invalid email or password.");
+        return;
       }
+      if (result.emailUnverified && result.email) {
+        router.push(`/check-email?email=${encodeURIComponent(result.email)}`);
+        return;
+      }
+      setError(result.message || "Invalid email or password.");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {

@@ -25,7 +25,7 @@ export async function POST(request, context) {
     return NextResponse.json(realMoneyDisabledPayload(), { status: 403 });
   }
 
-  const strategyId = context?.params?.strategyId;
+  const { strategyId } = await context.params;
   const result = await promoteStrategyToReal({ userId, strategyId });
   if (!result?.ok) {
     return NextResponse.json(

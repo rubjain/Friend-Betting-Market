@@ -219,7 +219,7 @@ export default function DeveloperPage() {
         body: JSON.stringify({
           name: strategyDraft.name,
           mode: "PAPER",
-          type: strategyDraft.type,
+          type: "RULES",
           status: strategyDraft.status,
           config,
         }),
@@ -279,8 +279,8 @@ export default function DeveloperPage() {
     setPending("demo-login");
     setFlash("");
     try {
-      const ok = await actions.login("test@example.com", "password123");
-      setFlash(ok ? "Signed in as the test user. You can create an API key now." : "Could not sign in.");
+      const result = await actions.login("test@example.com", "password123");
+      setFlash(result.ok ? "Signed in as the test user. You can create an API key now." : "Could not sign in.");
       await refreshAll();
     } finally {
       setPending("");
@@ -437,13 +437,20 @@ export default function DeveloperPage() {
             <div className="developer-card-head">
               <div>
                 <h3>Built-in strategy sandbox</h3>
-                <p>This is a small in-app rules tester. Use it to sanity-check simple logic; serious AI models should connect through the API above.</p>
+                <p>This is a small in-app rules tester. Use it to sanity-check simple logic; ML strategies are not supported in-app—run external models against the API above with <code>POST /api/v1/bets</code>.</p>
               </div>
             </div>
             <form onSubmit={createStrategy} className="developer-form-grid">
               <div className="field">
                 <label className="label" htmlFor="strategy-name">Name</label>
-                <input id="strategy-name" value={strategyDraft.name} onChange={(e) => setStrategyDraft((d) => ({ ...d, name: e.currentTarget.value }))} />
+                <input
+                  id="strategy-name"
+                  value={strategyDraft.name}
+                  onChange={(e) => {
+                    const value = e.currentTarget?.value;
+                    if (value != null) setStrategyDraft((d) => ({ ...d, name: value }));
+                  }}
+                />
               </div>
               <div className="developer-3col-row">
                 <div className="field">
@@ -454,14 +461,21 @@ export default function DeveloperPage() {
                 </div>
                 <div className="field">
                   <label className="label" htmlFor="strategy-type">Type</label>
-                  <select id="strategy-type" value={strategyDraft.type} onChange={(e) => setStrategyDraft((d) => ({ ...d, type: e.currentTarget.value }))}>
+                  <select id="strategy-type" value="RULES" disabled aria-describedby="strategy-type-hint">
                     <option value="RULES">RULES</option>
-                    <option value="ML">ML</option>
                   </select>
+                  <p className="caption" id="strategy-type-hint">ML strategies are not available in-app; use the API for model-driven paper trades.</p>
                 </div>
                 <div className="field">
                   <label className="label" htmlFor="strategy-status">Status</label>
-                  <select id="strategy-status" value={strategyDraft.status} onChange={(e) => setStrategyDraft((d) => ({ ...d, status: e.currentTarget.value }))}>
+                  <select
+                    id="strategy-status"
+                    value={strategyDraft.status}
+                    onChange={(e) => {
+                      const value = e.currentTarget?.value;
+                      if (value != null) setStrategyDraft((d) => ({ ...d, status: value }));
+                    }}
+                  >
                     <option value="DRAFT">DRAFT</option>
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="PAUSED">PAUSED</option>
@@ -474,7 +488,10 @@ export default function DeveloperPage() {
                   id="strategy-config"
                   rows={8}
                   value={strategyDraft.config}
-                  onChange={(e) => setStrategyDraft((d) => ({ ...d, config: e.currentTarget.value }))}
+                  onChange={(e) => {
+                    const value = e.currentTarget?.value;
+                    if (value != null) setStrategyDraft((d) => ({ ...d, config: value }));
+                  }}
                 />
               </div>
               <button className="btn btn-primary" type="submit" disabled={!!pending}>

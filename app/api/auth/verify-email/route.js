@@ -35,8 +35,20 @@ export async function POST(request) {
   const payload = await request.json();
 
   if (payload.code && payload.email) {
-    return buildVerifyResponse(await verifyEmailCode({ email: payload.email, code: payload.code }));
+    return buildVerifyResponse(
+      await verifyEmailCode({
+        email: payload.email,
+        code: payload.code,
+        rateLimitKey: getRequestRateLimitKey(request),
+      }),
+    );
   }
 
   return buildVerifyResponse(await verifyEmailToken(payload.token));
+}
+
+function getRequestRateLimitKey(request) {
+  const forwardedFor = request.headers.get("x-forwarded-for") || "";
+  const clientIp = forwardedFor.split(",")[0].trim();
+  return clientIp || request.headers.get("x-real-ip") || "local";
 }

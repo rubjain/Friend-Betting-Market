@@ -41,7 +41,8 @@ When your domain DNS is pointed at Vercel:
 1. Run `npm ci`.
 2. Run `npm run prisma:validate`.
 3. Run `npm test`.
-4. Run `npm run build`.
+4. Run `npm run test:e2e` (demo mode). Optionally run database e2e with `E2E_USE_DATABASE=1 npm run test:e2e:db` when Postgres is configured.
+5. Run `npm run build`.
 5. Run `npm run prisma:migrate:deploy` against Supabase.
 6. Run `npm run prisma:seed` only for non-production seed/reset environments.
 7. Run `npm run db:verify`.
@@ -57,6 +58,7 @@ When your domain DNS is pointed at Vercel:
 - Use Supabase backups before migrations and before any bulk admin operation.
 - Keep `DATABASE_URL` and `DIRECT_URL` out of logs, screenshots, and support messages.
 - If ESPN is unavailable, the app may fall back to demo live games; admin-created markets and manual resolution remain the dependable path.
+- Schedule `GET /api/cron/espn-sync` (Bearer `CRON_SECRET`) every few minutes instead of enabling `AGORA_ESPN_SYNC_INLINE=1` in production.
 
 ## Bot and API operating model
 

@@ -31,6 +31,21 @@ This is a responsive Next.js MVP for a social prediction market product: a sport
 - Mixed-fund winnings split normal payout proportionally between withdrawable and bonus balances
 - Social boost excess always credits to bonus balance
 
+## Database-first operation
+
+When `DATABASE_URL` is set, the app uses Supabase Postgres via Prisma for users, sessions, bets, markets, verification checks, and audit trails. Without it, the app falls back to in-memory demo state for local development.
+
+### Migrations
+
+Run `npm run prisma:migrate:deploy` before deploy. Recent migrations add `AGE`/`SANCTIONS` verification types (`0010`) and responsible-use user fields (`0011`).
+
+### Auth & compliance
+
+- Signup → email verification → login (`/check-email`, `/verify-email`)
+- Forgot/reset password, change password in Settings
+- Identity and location verification in Settings → Compliance (U.S. state rules)
+- Configure `EMAIL_USER`, `EMAIL_PASS`, `AGORA_SESSION_SECRET`, and `AGORA_APP_URL` for production
+
 ## Prototype behaviors
 
 - New market submissions move into a pending approval queue

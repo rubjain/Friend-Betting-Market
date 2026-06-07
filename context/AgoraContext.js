@@ -209,6 +209,8 @@ const PUBLIC_AUTH_ROUTES = new Set([
   "/login",
   "/signup",
   "/forgot-password",
+  "/reset-password",
+  "/check-email",
   "/account-recovery",
   "/verify-email",
 ]);
@@ -453,9 +455,8 @@ export function AgoraProvider({ children }) {
           setState(savedState || createInitialState());
         }
       } finally {
-        if (!canceled) {
-          setHydrated(true);
-        }
+        // Always unblock the shell even if this effect was canceled (e.g. Fast Refresh).
+        setHydrated(true);
       }
     }
 
@@ -608,7 +609,12 @@ export function AgoraProvider({ children }) {
             next.flashMessage = payload.message || "Unable to sign in.";
           });
         }
-        return response.ok;
+        return {
+          ok: response.ok,
+          message: payload.message,
+          emailUnverified: payload.emailUnverified,
+          email: payload.email,
+        };
       },
       async signup(account) {
         const { response, payload } = await requestJson("/api/session", {
@@ -1073,6 +1079,54 @@ export function AgoraProvider({ children }) {
           next.flashMessage = "Profile updated.";
         });
         return ok;
+      },
+      async updateResponsibleUse({ dailyDepositLimit, selfExcludedDays }) {
+        const { response, payload } = await requestJson("/api/profile/responsible-use", {
+          method: "PATCH",
+          body: JSON.stringify({ dailyDepositLimit, selfExcludedDays }),
+        });
+        if (payload.state) {
+          setState({
+            ...payload.state,
+            auth: state.auth,
+            theme: state.theme,
+            flashMessage: payload.message,
+            mobileNavOpen: false,
+          });
+        }
+        return { ok: response.ok, message: payload.message };
+      },
+      async submitIdentityVerification(form) {
+        const { response, payload } = await requestJson("/api/profile/verification/identity", {
+          method: "POST",
+          body: JSON.stringify(form),
+        });
+        if (payload.state) {
+          setState({
+            ...payload.state,
+            auth: state.auth,
+            theme: state.theme,
+            flashMessage: payload.message,
+            mobileNavOpen: false,
+          });
+        }
+        return { ok: response.ok, message: payload.message };
+      },
+      async submitLocationVerification(form) {
+        const { response, payload } = await requestJson("/api/profile/verification/location", {
+          method: "POST",
+          body: JSON.stringify(form),
+        });
+        if (payload.state) {
+          setState({
+            ...payload.state,
+            auth: state.auth,
+            theme: state.theme,
+            flashMessage: payload.message,
+            mobileNavOpen: false,
+          });
+        }
+        return { ok: response.ok, message: payload.message };
       },
       async updateVerification(type) {
         try {

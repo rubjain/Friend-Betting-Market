@@ -25,7 +25,9 @@ if (!hasDatabaseUrl()) {
     strategyExecutions: await prisma.strategyExecution.count(),
     groups: await prisma.group.count(),
     groupMembers: await prisma.groupMember.count(),
-    marketComments: await prisma.marketComment.count(),
+    verificationChecks: await prisma.verificationCheck.count(),
+    authTokens: await prisma.authToken.count(),
+    rateLimitBuckets: await prisma.rateLimitBucket.count(),
   };
 
   assertMinimum("users", counts.users, 3);
@@ -34,6 +36,8 @@ if (!hasDatabaseUrl()) {
   assertMinimum("markets", counts.markets, 3);
   assertMinimum("bets", counts.bets, 1);
   assertMinimum("ledger entries", counts.ledgerEntries, 1);
+  assertMinimum("verification checks", counts.verificationChecks, 6);
+  assertMinimum("auth tokens", counts.authTokens, 0);
 
   const firstState = await getDatabaseState(prisma, "user_2");
   const secondState = await getDatabaseState(prisma, "user_2");

@@ -20,7 +20,7 @@ export async function GET(request, context) {
   }
   const userId = caller.userId;
 
-  const marketId = context?.params?.marketId;
+  const { marketId } = await context.params;
   const state = hasDatabaseUrl()
     ? await getDatabaseState(undefined, userId)
     : getDemoState(userId);

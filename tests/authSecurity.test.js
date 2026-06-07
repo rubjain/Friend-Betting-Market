@@ -39,9 +39,23 @@ test("memory rate limiter blocks after configured failures and can be cleared", 
   assert.equal(cleared.ok, true);
 });
 
+import { createEmailVerificationCode } from "../lib/server/auth.js";
+
+test("verification codes are six digits", () => {
+  for (let index = 0; index < 20; index += 1) {
+    const code = createEmailVerificationCode();
+    assert.match(code, /^\d{6}$/);
+    assert.equal(Number(code) >= 100000, true);
+    assert.equal(Number(code) <= 999999, true);
+  }
+});
+
 test("auth security exports production rate-limit policies", () => {
   assert.equal(RATE_LIMITS.login.max, 5);
   assert.equal(RATE_LIMITS.signup.max, 3);
   assert.equal(RATE_LIMITS.passwordReset.max, 3);
   assert.equal(RATE_LIMITS.accountRecovery.max, 3);
+  assert.equal(RATE_LIMITS.resendVerification.max, 3);
+  assert.equal(RATE_LIMITS.emailVerification.max, 10);
+  assert.equal(RATE_LIMITS.changePassword.max, 5);
 });

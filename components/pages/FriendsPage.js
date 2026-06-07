@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAgora } from "../../context/AgoraContext";
 import { SectionHead } from "../ui";
 
@@ -36,6 +37,7 @@ function Avatar({ name, size = "md", side }) {
 }
 
 export default function FriendsPage() {
+  const router = useRouter();
   const { state, actions } = useAgora();
   const [tab, setTab] = useState("friends");
 
@@ -139,21 +141,36 @@ export default function FriendsPage() {
       if (json.ok) {
         setInviteSent(true);
         fetchInvites();
+      } else {
+        actions.setFlashMessage(json.message || "Could not send bet invites. Try again.");
       }
+    } catch {
+      actions.setFlashMessage("Could not send bet invites. Check your connection and try again.");
     } finally {
       setInviteSending(false);
     }
   }
 
   async function respondToInvite(inviteId, status, marketId) {
-    await fetch("/api/friends/bet-invite", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteId, status }),
-    });
-    fetchInvites();
-    if (status === "accepted") {
-      window.location.href = `/markets/${marketId}`;
+    try {
+      const res = await fetch("/api/friends/bet-invite", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteId, status }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        actions.setFlashMessage(json.message || "Could not update that invite.");
+        return false;
+      }
+      fetchInvites();
+      if (status === "accepted") {
+        router.push(`/markets/${marketId}`);
+      }
+      return true;
+    } catch {
+      actions.setFlashMessage("Could not update that invite. Try again.");
+      return false;
     }
   }
 
@@ -667,7 +684,20 @@ function InvitePreviewCard({ market, side, from, message }) {
 }
 
 function ReceivedInviteCard({ invite, onRespond }) {
+  const [accepting, setAccepting] = useState(false);
   const sideColor = invite.side === "YES" ? "#38a169" : "#e53e3e";
+
+  async function handleAccept(event) {
+    event.preventDefault();
+    if (accepting) return;
+    setAccepting(true);
+    try {
+      await onRespond(invite.id, "accepted", invite.marketId);
+    } finally {
+      setAccepting(false);
+    }
+  }
+
   return (
     <div className="fp-received-card">
       <div className="fp-received-header">
@@ -686,10 +716,14 @@ function ReceivedInviteCard({ invite, onRespond }) {
       </div>
       {invite.message && <div className="fp-received-msg">"{invite.message}"</div>}
       <div className="fp-received-actions">
-        <Link href={`/markets/${invite.marketId}`} className="btn btn-primary btn-sm"
-          onClick={() => onRespond(invite.id, "accepted", invite.marketId)}>
-          View &amp; Bet →
-        </Link>
+        <button
+          className="btn btn-primary btn-sm"
+          type="button"
+          disabled={accepting}
+          onClick={handleAccept}
+        >
+          {accepting ? "Opening…" : "View & Bet →"}
+        </button>
         <button className="btn btn-ghost btn-sm" type="button"
           onClick={() => onRespond(invite.id, "declined", invite.marketId)}>
           Dismiss

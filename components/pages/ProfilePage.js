@@ -54,7 +54,10 @@ export default function ProfilePage() {
     if (pendingAction) return;
     setPendingAction("login");
     try {
-      await actions.login(loginIdentifier, loginPassword);
+      const result = await actions.login(loginIdentifier, loginPassword);
+      if (result.emailUnverified && result.email) {
+        router.push(`/check-email?email=${encodeURIComponent(result.email)}`);
+      }
     } finally {
       setPendingAction("");
     }

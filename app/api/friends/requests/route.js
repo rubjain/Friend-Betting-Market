@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { handleDatabaseFriendRequest, removeDatabaseFriend } from "../../../../lib/server/friendService.js";
 import { handleDemoFriendRequest, removeDemoFriend } from "../../../../lib/server/demoStore.js";
-import { getSessionFromRequest } from "../../../../lib/server/auth.js";
+import { requireAuthenticated } from "../../../../lib/server/auth.js";
 
 export async function POST(request) {
+  const { session, response } = await requireAuthenticated(request);
+  if (response) return response;
+
   const payload = await request.json();
-  const session = await getSessionFromRequest(request);
   const userId = session.userId;
   const databaseResult = await handleDatabaseFriendRequest({
     username: payload.username,
@@ -24,8 +26,10 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
+  const { session, response } = await requireAuthenticated(request);
+  if (response) return response;
+
   const payload = await request.json();
-  const session = await getSessionFromRequest(request);
   const userId = session.userId;
   const databaseResult = await removeDatabaseFriend({ username: payload.username, userId });
   const result = databaseResult ?? removeDemoFriend({ username: payload.username, userId });

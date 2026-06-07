@@ -119,7 +119,13 @@ export async function PATCH(request) {
 }
 
 export async function POST(request) {
-  const payload = await request.json();
+  let payload = {};
+  try {
+    const raw = await request.text();
+    payload = raw ? JSON.parse(raw) : {};
+  } catch {
+    return NextResponse.json({ ok: false, message: "Invalid request body." }, { status: 400 });
+  }
   const result =
     payload.mode === "signup"
       ? await signupUser({ ...payload, rateLimitKey: getRequestRateLimitKey(request) })

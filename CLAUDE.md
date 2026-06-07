@@ -64,10 +64,17 @@ Runs on `http://localhost:3000`. If port conflict: `lsof -ti :3000 | xargs kill 
 | `components/pages/LandingPage.js` | Home page with Popular Markets grid |
 
 ## Known remaining gaps / next priorities
-1. **ESPN sync runs in request path** (getDatabaseState debounced 3 min) — should move to a background cron/job for better performance. This is the main source of lag.
+1. **Schedule `/api/cron/espn-sync`** — inline sync is off by default (`AGORA_ESPN_SYNC_INLINE=0`); configure Vercel cron + `CRON_SECRET`.
 2. **ML strategy inference is stubbed** — rule-based bots work, ML doesn't (`lib/strategies/mlInference.js`).
-3. **No real email provider** — verification/reset tokens only appear in dev console responses.
-4. **Stripe/real-money gated** — withdrawal queue exists but no payout path.
+3. **Configure production email** — set `EMAIL_USER`/`EMAIL_PASS`; nodemailer sends verification/reset/recovery mail when configured.
+4. **Real-money vendors** — replace beta identity/location flows with certified KYC + geolocation providers before `AGORA_REAL_MONEY_MODE=1` (`lib/server/complianceProviders.js`).
+5. **Stripe reconciliation** — checkout webhooks exist; chargeback/dispute and payout reconciliation still need ops tooling.
+
+## Auth & compliance (implemented)
+- Email verification (6-digit code + link), forgot/reset password, change password in Settings
+- Identity + location verification with U.S. state rules in Settings → Compliance (`lib/stateCompliance.js`)
+- Responsible-use settings persisted on User: daily deposit limit + self-exclusion (`/api/profile/responsible-use`)
+- Mutating API routes require authenticated sessions; admin-only DB reset in hosted beta
 
 ## What NOT to do
 - **Never push to git unless user explicitly says to push**

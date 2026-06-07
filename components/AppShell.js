@@ -13,6 +13,8 @@ const STANDALONE_AUTH_ROUTES = new Set([
   "/login",
   "/signup",
   "/forgot-password",
+  "/reset-password",
+  "/check-email",
   "/account-recovery",
   "/verify-email",
 ]);
@@ -442,7 +444,7 @@ export default function AppShell({ children }) {
           </div>
         ) : null}
         {state.flashMessage ? (
-          <div className="note-banner flash-banner">
+          <div className="note-banner flash-banner" role="status" aria-live="polite">
             <div className="row-between">
               <span>{state.flashMessage}</span>
               <button className="btn btn-ghost" type="button" onClick={actions.dismissFlashMessage}>

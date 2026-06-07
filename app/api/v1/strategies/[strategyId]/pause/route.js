@@ -15,7 +15,7 @@ export async function POST(request, context) {
   if (!scopeCheck.ok) return scopeCheck.response;
 
   const userId = caller.userId;
-  const strategyId = context?.params?.strategyId;
+  const { strategyId } = await context.params;
 
   const result = await updateStrategy({
     userId,

@@ -27,7 +27,7 @@ export async function PATCH(request, context) {
   if (!scopeCheck.ok) return scopeCheck.response;
 
   const userId = caller.userId;
-  const strategyId = context?.params?.strategyId;
+  const { strategyId } = await context.params;
 
   // Confirm ownership early for clearer error codes.
   const existing = await getStrategy({ userId, strategyId });
@@ -77,7 +77,7 @@ export async function DELETE(request, context) {
   if (!scopeCheck.ok) return scopeCheck.response;
 
   const userId = caller.userId;
-  const strategyId = context?.params?.strategyId;
+  const { strategyId } = await context.params;
 
   const result = await deleteStrategy({ userId, strategyId });
   if (!result?.ok) {

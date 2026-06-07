@@ -16,6 +16,8 @@ model User {
   riskStatus          String               @default("clear")
   riskScore           Int                  @default(0)
   frozen              Boolean              @default(false)
+  dailyDepositLimit   Decimal?             @db.Decimal(14, 2)
+  selfExcludedUntil   DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   passwordHash        String?
@@ -598,6 +600,8 @@ enum VerificationType {
   PAYMENT
   DEVICE
   LOCATION
+  AGE
+  SANCTIONS
 }
 
 enum VerificationStatus {
