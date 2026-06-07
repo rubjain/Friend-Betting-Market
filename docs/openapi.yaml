@@ -120,6 +120,7 @@ components:
           type: string
           enum: [RULES, ML]
           example: RULES
+          description: ML strategies are reserved; use RULES or external inference via bets/orders API.
         status:
           type: string
           enum: [DRAFT, ACTIVE, PAUSED]
