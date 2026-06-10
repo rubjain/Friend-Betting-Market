@@ -20,13 +20,15 @@ function sessionLooksAdmin(request) {
 }
 
 export default function proxy(request) {
-  if (request.nextUrl.pathname === "/admin" && !sessionLooksAdmin(request)) {
-    return NextResponse.redirect(new URL("/profile", request.url));
+  if (request.nextUrl.pathname.startsWith("/admin") && !sessionLooksAdmin(request)) {
+    const url = new URL("/profile", request.url);
+    url.searchParams.set("reason", "admin-required");
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin"],
+  matcher: ["/admin/:path*"],
 };

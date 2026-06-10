@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuthenticated } from "../../../../lib/server/auth.js";
-import { submitIdentityVerification } from "../../../../lib/server/verificationService.js";
+import { requireAuthenticated } from "../../../../../lib/server/auth.js";
+import { submitIdentityVerification } from "../../../../../lib/server/verificationService.js";
 
 export async function POST(request) {
   const { session, response } = await requireAuthenticated(request);

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireApiKeyScopes, resolvePublicApiCaller } from "../../../../lib/server/auth.js";
 import { placeBet } from "../../../../lib/server/betService.js";
+import { recordStrategySignalFromBet } from "../../../../lib/server/copyTradingService.js";
 import { placeDemoBet } from "../../../../lib/server/demoStore.js";
+import { getStrategy } from "../../../../lib/server/strategyService.js";
 import { inferV1ErrorCode } from "../../../../lib/server/v1ErrorCodes.js";
 import {
   betaRuntimeError,
@@ -52,7 +54,27 @@ export async function POST(request) {
   if (!scopeCheck.ok) {
     return scopeCheck.response;
   }
+  if (payload.strategyId) {
+    const strategyScopeCheck = requireApiKeyScopes(caller.apiKeyScopes, "manage:strategies");
+    if (!strategyScopeCheck.ok) {
+      return strategyScopeCheck.response;
+    }
+  }
   const userId = caller.userId;
+
+  let taggedStrategy = null;
+  if (payload.strategyId) {
+    taggedStrategy = await getStrategy({ userId, strategyId: String(payload.strategyId) });
+    if (!taggedStrategy) {
+      return NextResponse.json(
+        { ok: false, message: "Strategy not found.", code: "NOT_FOUND" },
+        { status: 404 },
+      );
+    }
+    if (!isPaper) {
+      return NextResponse.json(realMoneyDisabledPayload(), { status: 403 });
+    }
+  }
 
   const databaseResult = await placeBet({
     marketId: payload.marketId,
@@ -76,6 +98,15 @@ export async function POST(request) {
       { ...result, code: inferV1ErrorCode(result?.message) },
       { status: 400 },
     );
+  }
+
+  if (taggedStrategy && databaseResult?.betId) {
+    await recordStrategySignalFromBet({
+      strategyId: taggedStrategy.id,
+      sourceBetId: databaseResult.betId,
+      creatorId: userId,
+      accountMode: isPaper ? "PAPER" : "REAL",
+    }).catch(() => null);
   }
 
   return NextResponse.json(result, { status: 201 });

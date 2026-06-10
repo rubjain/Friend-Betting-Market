@@ -72,6 +72,7 @@ const settingsRoutes = [
 const navigationItems = [
   ["/markets", "Markets"],
   ["/portfolio", "Portfolio"],
+  ["/strategies", "Strategies"],
   groupedRoutes[0],
   groupedRoutes[1],
   ["/create", "Create"],

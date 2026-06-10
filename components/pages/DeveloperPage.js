@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useAgora } from "../../context/AgoraContext";
 import { SectionHead } from "../ui";
 
@@ -99,6 +100,11 @@ export default function DeveloperPage() {
         title: "3. Read portfolio",
         description: "Check paper balances, open bets, and results.",
         text: `curl -X GET "${apiBaseUrl}/api/v1/portfolio?mode=paper" \\\n  -H "Authorization: Bearer ${apiKeyPlaceholder}"`,
+      },
+      {
+        title: "4. Trigger marketplace copying",
+        description: "Tag an owned published strategy so subscribers receive copied paper trades.",
+        text: `curl -X POST ${apiBaseUrl}/api/v1/bets \\\n  -H "Authorization: Bearer ${apiKeyPlaceholder}" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "strategyId": "strat_123",\n    "marketId": "market_1",\n    "side": "YES",\n    "stake": 5,\n    "mode": "paper"\n  }'`,
       },
     ],
     [apiBaseUrl, apiKeyPlaceholder],
@@ -439,6 +445,7 @@ export default function DeveloperPage() {
                 <h3>Built-in strategy sandbox</h3>
                 <p>This is a small in-app rules tester. Use it to sanity-check simple logic; ML strategies are not supported in-app—run external models against the API above with <code>POST /api/v1/bets</code>.</p>
               </div>
+              <Link className="btn btn-secondary" href="/strategies/creator">Publish to marketplace</Link>
             </div>
             <form onSubmit={createStrategy} className="developer-form-grid">
               <div className="field">
@@ -528,6 +535,7 @@ export default function DeveloperPage() {
                           {pending === `strategy-pause-${strategy.id}` ? "Pausing..." : "Pause"}
                         </button>
                       )}
+                      <Link className="btn btn-ghost" href="/strategies/creator">Publish</Link>
                     </div>
                   </div>
                 ))}

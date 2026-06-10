@@ -25,6 +25,10 @@ model User {
   authTokens          AuthToken[]
   apiKeys             ApiKey[]
   strategies          Strategy[]
+  strategyMarketplaceProfiles StrategyMarketplaceProfile[]
+  strategySubscriptions StrategySubscription[]
+  strategyTradeSignals StrategyTradeSignal[]
+  copyTrades          CopyTrade[]
   strategyExecutions  StrategyExecution[]
   balanceAccounts     BalanceAccount[]
   bets                Bet[]
@@ -93,6 +97,8 @@ model Strategy {
   promotedFrom Strategy?   @relation("StrategyPromotion", fields: [promotedFromId], references: [id])
   promotedTo   Strategy[]  @relation("StrategyPromotion")
   executions   StrategyExecution[]
+  marketplaceProfile StrategyMarketplaceProfile?
+  tradeSignals StrategyTradeSignal[]
 
   @@index([userId, createdAt])
   @@index([mode, status])
@@ -116,6 +122,131 @@ model StrategyExecution {
 
   @@index([strategyId, createdAt])
   @@index([userId, createdAt])
+}
+
+enum AccountMode {
+  PAPER
+  REAL
+}
+
+enum StrategyProfileStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+}
+
+enum StrategySubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELED
+}
+
+enum CopyTradeStatus {
+  COPIED
+  SKIPPED
+  FAILED
+}
+
+model StrategyMarketplaceProfile {
+  id               String                @id @default(cuid())
+  strategyId       String                @unique
+  creatorId        String
+  slug             String                @unique
+  name             String
+  description      String
+  marketsSupported String[]
+  riskLevel        String
+  priceCents       Int                   @default(0)
+  status           StrategyProfileStatus @default(DRAFT)
+  roiPct           Decimal               @default(0) @db.Decimal(8, 2)
+  winRatePct       Decimal               @default(0) @db.Decimal(8, 2)
+  maxDrawdownPct   Decimal               @default(0) @db.Decimal(8, 2)
+  subscriberCount  Int                   @default(0)
+  copiedVolume     Decimal               @default(0) @db.Decimal(14, 2)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  strategy      Strategy               @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  creator       User                   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  subscriptions StrategySubscription[]
+  tradeSignals  StrategyTradeSignal[]
+
+  @@index([creatorId, status])
+  @@index([status, updatedAt])
+}
+
+model StrategySubscription {
+  id               String                     @id @default(cuid())
+  profileId        String
+  userId           String
+  accountMode      AccountMode                @default(PAPER)
+  status           StrategySubscriptionStatus @default(ACTIVE)
+  allocationPct    Decimal                    @db.Decimal(5, 2)
+  maxTradeSize     Decimal?                   @db.Decimal(14, 2)
+  maxDailyLoss     Decimal?                   @db.Decimal(14, 2)
+  maxOpenPositions Int?
+  allowedMarketIds String[]
+  autoCopyEnabled  Boolean                    @default(true)
+  startedAt        DateTime                   @default(now())
+  canceledAt       DateTime?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  profile    StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  user       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  copyTrades CopyTrade[]
+
+  @@unique([profileId, userId, accountMode])
+  @@index([userId, status])
+  @@index([profileId, status])
+}
+
+model StrategyTradeSignal {
+  id                String          @id @default(cuid())
+  strategyId        String
+  profileId         String
+  creatorId         String
+  sourceBetId       String?
+  sourceExecutionId String?
+  accountMode       AccountMode     @default(PAPER)
+  marketId          String
+  side              BetSide
+  sourceStake       Decimal         @db.Decimal(14, 2)
+  idempotencyKey    String          @unique
+  status            String          @default("CREATED")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  strategy   Strategy                   @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  profile    StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  creator    User                       @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  copyTrades CopyTrade[]
+
+  @@index([strategyId, createdAt])
+  @@index([profileId, createdAt])
+}
+
+model CopyTrade {
+  id             String          @id @default(cuid())
+  signalId       String
+  subscriptionId String
+  subscriberId   String
+  accountMode    AccountMode     @default(PAPER)
+  status         CopyTradeStatus
+  skipReason     String?
+  stake          Decimal         @default(0) @db.Decimal(14, 2)
+  copiedBetId    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  signal       StrategyTradeSignal  @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  subscription StrategySubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriber   User                 @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@unique([signalId, subscriptionId])
+  @@index([subscriberId, createdAt])
+  @@index([subscriptionId, createdAt])
 }
 
 model UserSession {
@@ -191,6 +322,8 @@ model Bet {
   placedAt           DateTime        @default(now())
   settledAt          DateTime?
   isPaper            Boolean         @default(false)
+  copiedFromProfileId String?
+  copyTradeId        String?
   market             Market          @relation(fields: [marketId], references: [id])
   user               User            @relation(fields: [userId], references: [id])
   ledgerEntries      LedgerEntry[]

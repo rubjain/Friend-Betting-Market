@@ -2044,6 +2044,49 @@ export function AgoraProvider({ children }) {
           next.flashMessage = `Removed ${money(amount)} of bonus balance from ${user.name}.`;
         });
       },
+      async listStrategyMarketplace() {
+        const { payload } = await requestJson("/api/strategies");
+        return payload;
+      },
+      async getStrategyMarketplaceProfile(profileId) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}`);
+        return payload;
+      },
+      async subscribeToStrategy(profileId, draft) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/subscribe`, {
+          method: "POST",
+          body: JSON.stringify(draft || {}),
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Paper strategy subscription active."
+            : payload.message || "Could not subscribe to strategy.";
+        });
+        return payload;
+      },
+      async updateStrategySubscription(profileId, draft) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/subscription`, {
+          method: "PATCH",
+          body: JSON.stringify(draft || {}),
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Strategy subscription updated."
+            : payload.message || "Could not update subscription.";
+        });
+        return payload;
+      },
+      async unsubscribeFromStrategy(profileId) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/subscription`, {
+          method: "DELETE",
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Strategy subscription canceled."
+            : payload.message || "Could not cancel subscription.";
+        });
+        return payload;
+      },
     }),
     [state],
   );

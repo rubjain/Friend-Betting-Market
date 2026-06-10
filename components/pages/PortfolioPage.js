@@ -142,6 +142,7 @@ export default function PortfolioPage() {
                           {" "}· {money(bet.stake)} staked · {bet.settlement}
                           {bet.settledAt && <> · {bet.settledAt}</>}
                         </div>
+                        <CopiedFrom bet={bet} />
                         {disputeDraft.betId === bet.id ? (
                           <div className="dispute-box">
                             <label className="label" htmlFor={`dispute-${bet.id}`}>Dispute reason</label>
@@ -260,6 +261,7 @@ export default function PortfolioPage() {
                             <span className={`order-side-badge order-side-badge--${bet.side.toLowerCase()}`}>{bet.side}</span>
                             {" "}· {money(bet.stake ?? 0)} staked · {bet.settlement}
                           </div>
+                          <CopiedFrom bet={bet} />
                         </div>
                         <strong className={pnl > 0 ? "pnl-positive" : pnl < 0 ? "pnl-negative" : ""}>
                           {pnl > 0 ? "+" : ""}{money(pnl)}
@@ -312,6 +314,7 @@ function BetRow({ bet, isPaper }) {
           {isPaper && <span className="order-paper-tag">PAPER</span>}
           {bet.placedAt && <> · {bet.placedAt}</>}
         </div>
+        <CopiedFrom bet={bet} />
         {sellValue !== null && (
           <div className="caption" style={{ marginTop: 2 }}>
             Sell now:{" "}
@@ -362,6 +365,11 @@ function BetRow({ bet, isPaper }) {
       </div>
     </div>
   );
+}
+
+function CopiedFrom({ bet }) {
+  if (!bet?.copiedFromStrategyName) return null;
+  return <div className="caption copied-strategy-tag">Copied from {bet.copiedFromStrategyName}</div>;
 }
 
 function BalanceBox({ label, value, body, isPaper, highlight }) {

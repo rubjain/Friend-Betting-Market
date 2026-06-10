@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { kycWebhookHandler } from "../../../../lib/server/complianceProviders.js";
-import { adminUpdateVerification } from "../../../../lib/server/adminComplianceService.js";
+import { kycWebhookHandler } from "../../../../../lib/server/complianceProviders.js";
+import { adminUpdateVerification } from "../../../../../lib/server/adminComplianceService.js";
 
 export async function POST(request, { params }) {
   const provider = params.provider || "unknown";

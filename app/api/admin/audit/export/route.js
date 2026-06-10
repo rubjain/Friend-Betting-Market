@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAdminPermission } from "../../../../lib/server/auth.js";
-import { ADMIN_PERMISSIONS } from "../../../../lib/server/adminPermissions.js";
-import { exportAuditTrail } from "../../../../lib/server/adminComplianceService.js";
+import { requireAdminPermission } from "../../../../../lib/server/auth.js";
+import { ADMIN_PERMISSIONS } from "../../../../../lib/server/adminPermissions.js";
+import { exportAuditTrail } from "../../../../../lib/server/adminComplianceService.js";
 
 export async function GET(request) {
   const { response } = await requireAdminPermission(request, ADMIN_PERMISSIONS.READ);

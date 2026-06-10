@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuthenticated } from "../../../lib/server/auth.js";
-import { updateResponsibleUseSettings } from "../../../lib/server/responsibleUseService.js";
+import { requireAuthenticated } from "../../../../lib/server/auth.js";
+import { updateResponsibleUseSettings } from "../../../../lib/server/responsibleUseService.js";
 
 export async function PATCH(request) {
   const { session, response } = await requireAuthenticated(request);
