@@ -140,7 +140,7 @@ export default function StrategyCreatorDashboardPage() {
                   <div className="bet-row-left">
                     <strong>{profile.name}</strong>
                     <div className="caption">
-                      {profile.status} / {profile.activeSubscriberCount || 0} active / {money(profile.copiedVolume || 0)} copied volume
+                      {profile.status} / {profile.activeSubscriberCount || 0} active / ROI {profile.roiPct ?? 0}% / win {profile.winRatePct ?? 0}% / {money(profile.copiedVolume || 0)} copied
                     </div>
                   </div>
                   <div className="inline-actions">

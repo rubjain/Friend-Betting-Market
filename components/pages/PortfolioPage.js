@@ -13,6 +13,7 @@ export default function PortfolioPage() {
   const [disputeDraft, setDisputeDraft] = useState({ betId: "", reason: "" });
   const [pendingAction, setPendingAction] = useState("");
   const [showTxHistory, setShowTxHistory] = useState(false);
+  const [paperCopiedOnly, setPaperCopiedOnly] = useState(false);
 
   async function runPortfolioAction(actionKey, callback) {
     if (pendingAction) return;
@@ -36,9 +37,12 @@ export default function PortfolioPage() {
   }
 
   const realOpenBets = state.portfolio.openBets.filter((b) => !b.isPaper);
-  const paperOpenBets = state.portfolio.openBets.filter((b) => b.isPaper);
+  const paperOpenBetsAll = state.portfolio.openBets.filter((b) => b.isPaper);
   const realPastBets = state.portfolio.pastBets.filter((b) => !b.isPaper);
-  const paperPastBets = state.portfolio.pastBets.filter((b) => b.isPaper);
+  const paperPastBetsAll = state.portfolio.pastBets.filter((b) => b.isPaper);
+  const copiedFilter = (bet) => !paperCopiedOnly || Boolean(bet.copiedFromStrategyName || bet.copiedFromProfileId);
+  const paperOpenBets = paperOpenBetsAll.filter(copiedFilter);
+  const paperPastBets = paperPastBetsAll.filter(copiedFilter);
   const realOpenOrders = (state.openOrders || []).filter((o) => !o.isPaper);
   const paperOpenOrders = (state.openOrders || []).filter((o) => o.isPaper);
 
@@ -228,6 +232,15 @@ export default function PortfolioPage() {
             </div>
 
             <OpenOrdersList orders={paperOpenOrders} onCancel={actions.cancelOrder} pendingAction={pendingAction} runAction={runPortfolioAction} isPaper />
+
+            <div className="portfolio-tabs strategy-filter-tabs">
+              <button className={`portfolio-tab${!paperCopiedOnly ? " active" : ""}`} type="button" onClick={() => setPaperCopiedOnly(false)}>
+                All paper bets
+              </button>
+              <button className={`portfolio-tab${paperCopiedOnly ? " active" : ""}`} type="button" onClick={() => setPaperCopiedOnly(true)}>
+                Copied only
+              </button>
+            </div>
 
             {/* Paper open bets */}
             <div className="list-card list-card--paper open-bets-hero">

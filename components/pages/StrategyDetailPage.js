@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import CopyTradeList from "../CopyTradeList";
 import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
 import { SectionHead } from "../ui";
@@ -12,6 +13,7 @@ function draftFromSubscription(subscription) {
     maxTradeSize: subscription?.maxTradeSize ?? "",
     maxDailyLoss: subscription?.maxDailyLoss ?? "",
     maxOpenPositions: subscription?.maxOpenPositions ?? "",
+    allowedMarketIds: subscription?.allowedMarketIds || [],
     autoCopyEnabled: subscription?.autoCopyEnabled ?? true,
     status: subscription?.status === "PAUSED" ? "PAUSED" : "ACTIVE",
   };
@@ -23,6 +25,12 @@ export default function StrategyDetailPage({ profileId }) {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState("");
   const [draft, setDraft] = useState(draftFromSubscription(null));
+  const [copyTrades, setCopyTrades] = useState([]);
+  const [copyTradesLoading, setCopyTradesLoading] = useState(false);
+  const activeMarkets = useMemo(
+    () => actions.getMergedMarkets().filter((market) => market.status === "ACTIVE").slice(0, 40),
+    [actions, state.markets, state.liveGames],
+  );
 
   async function load() {
     setLoading(true);
@@ -38,6 +46,26 @@ export default function StrategyDetailPage({ profileId }) {
     load();
   }, [profileId]);
 
+  useEffect(() => {
+    let active = true;
+    async function loadCopyTrades() {
+      if (!profile?.subscription || profile.subscription.status === "CANCELED") {
+        setCopyTrades([]);
+        return;
+      }
+      setCopyTradesLoading(true);
+      const payload = await actions.getStrategyCopyTrades(profileId);
+      if (active) {
+        setCopyTrades(payload.ok ? payload.copyTrades || [] : []);
+        setCopyTradesLoading(false);
+      }
+    }
+    if (profile) loadCopyTrades();
+    return () => {
+      active = false;
+    };
+  }, [profileId, profile?.subscription?.id, profile?.subscription?.status, actions]);
+
   const subscribed = Boolean(profile?.subscription && profile.subscription.status !== "CANCELED");
   const paperBalance = state.currentUser.paper_balance ?? 0;
   const allocated = useMemo(() => money(paperBalance * (Number(draft.allocationPct) || 0) / 100), [paperBalance, draft.allocationPct]);
@@ -50,7 +78,11 @@ export default function StrategyDetailPage({ profileId }) {
       const result = subscribed
         ? await actions.updateStrategySubscription(profile.id, draft)
         : await actions.subscribeToStrategy(profile.id, draft);
-      if (result.ok) await load();
+      if (result.ok) {
+        await load();
+        const copyPayload = await actions.getStrategyCopyTrades(profile.id);
+        if (copyPayload.ok) setCopyTrades(copyPayload.copyTrades || []);
+      }
     } finally {
       setPending("");
     }
@@ -118,6 +150,32 @@ export default function StrategyDetailPage({ profileId }) {
             <span className="label">Max open copied positions</span>
             <input type="number" min="0" step="1" value={draft.maxOpenPositions} placeholder="No cap" onChange={(e) => setDraft((d) => ({ ...d, maxOpenPositions: e.currentTarget.value }))} />
           </label>
+          <fieldset className="field strategy-market-filter">
+            <legend className="label">Allowed markets (optional)</legend>
+            <p className="caption">Leave empty to copy all markets. Select specific markets to restrict copies.</p>
+            <div className="strategy-market-checkboxes">
+              {activeMarkets.map((market) => {
+                const checked = draft.allowedMarketIds.includes(market.id);
+                return (
+                  <label className="strategy-market-checkbox" key={market.id}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        setDraft((d) => {
+                          const next = new Set(d.allowedMarketIds || []);
+                          if (e.currentTarget.checked) next.add(market.id);
+                          else next.delete(market.id);
+                          return { ...d, allowedMarketIds: [...next] };
+                        });
+                      }}
+                    />
+                    <span>{market.title}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
           <label className="toggle strategy-toggle">
             <input type="checkbox" checked={draft.autoCopyEnabled && draft.status !== "PAUSED"} onChange={(e) => setDraft((d) => ({ ...d, autoCopyEnabled: e.currentTarget.checked, status: e.currentTarget.checked ? "ACTIVE" : "PAUSED" }))} />
             <span>{draft.autoCopyEnabled && draft.status !== "PAUSED" ? "Auto-copy enabled" : "Auto-copy paused"}</span>
@@ -132,6 +190,8 @@ export default function StrategyDetailPage({ profileId }) {
             </button>
           ) : null}
         </form>
+
+        {subscribed ? <CopyTradeList trades={copyTrades} loading={copyTradesLoading} /> : null}
       </div>
     </section>
   );

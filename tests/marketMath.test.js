@@ -14,6 +14,12 @@ import {
   normalizeFunding,
 } from "../lib/marketMath.js";
 import {
+  buildTradeExecution,
+  calculateFee,
+  feeRevenueLedgerData,
+} from "../lib/tradeExecution.js";
+import { LMSRMarket } from "../lib/lmsrMarket.js";
+import {
   hasValidationErrors,
   validateBetDraft,
   validateCreateMarketDraft,
@@ -76,6 +82,47 @@ const boostedMarket = {
   eligibleForBonus: true,
   friendsBoosting: 4,
 };
+
+test("LMSR market starts at 50/50 with zero quantities", () => {
+  const market = new LMSRMarket();
+  const probabilities = market.getProbability();
+
+  assert.equal(probabilities.yes, 0.5);
+  assert.equal(probabilities.no, 0.5);
+  assert.equal(probabilities.yes + probabilities.no, 1);
+});
+
+test("buying YES increases YES probability smoothly", () => {
+  const market = new LMSRMarket({ b: 100 });
+  const trade = market.buyYes(10);
+  const probabilities = market.getProbability();
+
+  assert.equal(probabilities.yes > 0.5, true);
+  assert.equal(probabilities.no < 0.5, true);
+  assert.equal(Math.abs(probabilities.yes + probabilities.no - 1) < 1e-12, true);
+  assert.equal(trade.cost > 0, true);
+  assert.equal(probabilities.yes < 1, true);
+});
+
+test("buying NO increases NO probability smoothly", () => {
+  const market = new LMSRMarket({ b: 100 });
+  market.buyNo(10);
+  const probabilities = market.getProbability();
+
+  assert.equal(probabilities.no > 0.5, true);
+  assert.equal(probabilities.yes < 0.5, true);
+  assert.equal(Math.abs(probabilities.yes + probabilities.no - 1) < 1e-12, true);
+  assert.equal(probabilities.no < 1, true);
+});
+
+test("LMSR liquidity parameter controls price movement", () => {
+  const liquid = new LMSRMarket({ b: 200 });
+  const thin = new LMSRMarket({ b: 20 });
+  liquid.buyYes(10);
+  thin.buyYes(10);
+
+  assert.equal(thin.getProbability().yes > liquid.getProbability().yes, true);
+});
 
 test("social multiplier respects friend count and admin cap", () => {
   assert.equal(getMultiplier(boostedMarket, baseAdminConfig), 1.2);
@@ -171,23 +218,96 @@ test("social bonus payout respects admin and market caps", () => {
   assert.equal(payout.boostedPayout, 212);
 });
 
-test("order preview estimates contracts entry spread and pool fees", () => {
+test("order preview estimates LMSR contracts cost and pool fees", () => {
   const preview = calculateOrderPreview({
     stake: 25,
     side: "YES",
     market: {
       yesPrice: 0.58,
       noPrice: 0.45,
-      liquidityPool: { feeBps: 50 },
+      liquidityPool: { qYes: 0, qNo: 0, liquidityParameter: 100, feeBps: 50 },
     },
   });
 
-  assert.equal(preview.entryPrice, 0.58);
+  assert.equal(preview.currentPrice, 0.5);
   assert.equal(preview.feeAmount, 0.125);
   assert.equal(preview.netStake, 24.875);
-  assert.equal(Math.round(preview.estimatedContracts * 100), 4289);
-  assert.equal(Math.round(preview.spread * 100), 3);
-  assert.equal(Math.round(preview.breakevenPrice * 1000), 583);
+  assert.equal(Math.round(preview.estimatedContracts * 100), 4478);
+  assert.equal(preview.spread, 0);
+  assert.equal(Math.round(preview.estimatedCost * 100), 2500);
+  assert.equal(preview.newYesPrice > 0.5, true);
+  assert.equal(Math.abs(preview.newYesPrice + preview.newNoPrice - 1) < 1e-12, true);
+});
+
+test("shared fee engine is deterministic across paper and real trades", () => {
+  const paper = buildTradeExecution({ tradingMode: "paper", grossAmount: 100, feeBps: 125 });
+  const real = buildTradeExecution({ tradingMode: "real", grossAmount: 100, feeBps: 125 });
+
+  assert.equal(calculateFee({ grossAmount: 100, feeBps: 125 }), 1.25);
+  assert.equal(paper.feeAmount, real.feeAmount);
+  assert.equal(paper.netAmount, real.netAmount);
+  assert.equal(paper.feeDestination, "paper_burned");
+  assert.equal(real.feeDestination, "platform_revenue");
+});
+
+test("paper fees reduce simulated balance while real fees are revenue only", () => {
+  const paper = buildTradeExecution({ tradingMode: "paper", grossAmount: 101.25, feeBps: 125 });
+  const real = buildTradeExecution({ tradingMode: "real", grossAmount: 101.25, feeBps: 125 });
+  const startingBalance = 1000;
+
+  assert.equal(startingBalance - paper.grossAmount, 898.75);
+  assert.equal(startingBalance - real.grossAmount, 898.75);
+  assert.equal(feeRevenueLedgerData({ userId: "u1", marketId: "m1", betId: "b1", feeAmount: paper.feeAmount, tradingMode: "paper" }), null);
+
+  const revenue = feeRevenueLedgerData({
+    userId: "u1",
+    marketId: "m1",
+    betId: "b1",
+    feeAmount: real.feeAmount,
+    tradingMode: "real",
+  });
+  assert.equal(revenue.source, "PLATFORM_FEE");
+  assert.equal(revenue.amount, real.feeAmount);
+});
+
+test("API paper and real executions expose the same response fields", () => {
+  const sharedShape = (execution) => Object.keys({
+    ok: true,
+    betId: "bet_1",
+    tradingMode: execution.tradingMode,
+    isPaper: execution.isPaperTrade,
+    grossAmount: execution.grossAmount,
+    feeAmount: execution.feeAmount,
+    netAmount: execution.netAmount,
+    feeDestination: execution.feeDestination,
+  }).sort();
+
+  const paper = buildTradeExecution({ tradingMode: "paper", grossAmount: 50, feeBps: 50 });
+  const real = buildTradeExecution({ tradingMode: "real", grossAmount: 50, feeBps: 50 });
+
+  assert.deepEqual(sharedShape(paper), sharedShape(real));
+  assert.equal(paper.grossAmount, real.grossAmount);
+  assert.equal(paper.netAmount, real.netAmount);
+  assert.equal(paper.feeAmount, real.feeAmount);
+});
+
+test("switching paper to real keeps strategy execution amounts unchanged", () => {
+  const strategyTrade = { grossAmount: 75, feeBps: 75 };
+  const paper = buildTradeExecution({ tradingMode: "paper", ...strategyTrade });
+  const real = buildTradeExecution({ tradingMode: "real", ...strategyTrade });
+
+  assert.deepEqual(
+    {
+      grossAmount: paper.grossAmount,
+      netAmount: paper.netAmount,
+      feeAmount: paper.feeAmount,
+    },
+    {
+      grossAmount: real.grossAmount,
+      netAmount: real.netAmount,
+      feeAmount: real.feeAmount,
+    },
+  );
 });
 
 test("order preview falls back to sane prices and ignores negative fees", () => {

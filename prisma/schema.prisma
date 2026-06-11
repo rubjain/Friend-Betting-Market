@@ -322,6 +322,14 @@ model Bet {
   placedAt           DateTime        @default(now())
   settledAt          DateTime?
   isPaper            Boolean         @default(false)
+  tradingMode        AccountMode     @default(REAL)
+  grossAmount        Decimal         @default(0) @db.Decimal(14, 2)
+  feeAmount          Decimal         @default(0) @db.Decimal(14, 2)
+  netAmount          Decimal         @default(0) @db.Decimal(14, 2)
+  isPaperTrade       Boolean         @default(false)
+  feeDestination     String          @default("none")
+  realizedPnL        Decimal         @default(0) @db.Decimal(14, 2)
+  unrealizedPnL      Decimal         @default(0) @db.Decimal(14, 2)
   copiedFromProfileId String?
   copyTradeId        String?
   market             Market          @relation(fields: [marketId], references: [id])
@@ -356,6 +364,12 @@ model Order {
   updatedAt  DateTime    @updatedAt
   expiresAt  DateTime?
   isPaper    Boolean     @default(false)
+  tradingMode AccountMode @default(REAL)
+  grossAmount Decimal     @default(0) @db.Decimal(14, 2)
+  feeAmount   Decimal     @default(0) @db.Decimal(14, 2)
+  netAmount   Decimal     @default(0) @db.Decimal(14, 2)
+  isPaperTrade Boolean    @default(false)
+  feeDestination String   @default("none")
   market     Market      @relation(fields: [marketId], references: [id])
   user       User        @relation(fields: [userId], references: [id])
 
@@ -369,6 +383,7 @@ model LiquidityPool {
   yesReserve Decimal  @default(0) @db.Decimal(18, 6)
   noReserve  Decimal  @default(0) @db.Decimal(18, 6)
   invariant  Decimal? @db.Decimal(18, 6)
+  liquidityParameter Decimal @default(100) @db.Decimal(18, 6)
   feeBps     Int      @default(0)
   updatedAt  DateTime @updatedAt
   market     Market   @relation(fields: [marketId], references: [id])
@@ -378,6 +393,7 @@ model BalanceAccount {
   id        String          @id @default(cuid())
   userId    String
   currency  BalanceCurrency
+  accountMode AccountMode   @default(REAL)
   balance   Decimal         @default(0) @db.Decimal(14, 2)
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
@@ -635,6 +651,7 @@ enum LedgerTransactionType {
 enum LedgerSource {
   DEPOSIT
   BET_PLACED
+  PLATFORM_FEE
   MARKET_PAYOUT
   SOCIAL_BOOST
   REFERRAL_BONUS

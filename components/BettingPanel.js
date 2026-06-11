@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 import { useAgora } from "../context/AgoraContext";
 import { money } from "../lib/formatters";
 import { getContractSideLabels } from "../lib/marketLabels";
-import { calculateOrderPreview, calculatePayout, dollarsToShares, sharesToDollars, priceForSideExported } from "../lib/marketMath";
+import { calculateOrderPreview, calculatePayout, priceForSideExported } from "../lib/marketMath";
+import { buildTradeAmounts } from "../lib/tradeExecution";
 import { hasValidationErrors, validateBetDraft } from "../lib/validation";
 
 function cents(value) {
@@ -29,14 +30,24 @@ export default function BettingPanel({ market, linkedGame = null }) {
   const isPaper = state.paperMode;
 
   const currentPrice = priceForSideExported(market, side);
+  const requestedShareCount = Number(draft.shareCount) || 0;
+  const requestedDollarStake = Number(draft.stake) || 0;
 
+  const orderPreview = useMemo(
+    () => calculateOrderPreview({
+      stake: inputMode === "shares" ? 0 : requestedDollarStake,
+      shares: inputMode === "shares" ? requestedShareCount : undefined,
+      side,
+      market,
+    }),
+    [inputMode, requestedDollarStake, requestedShareCount, side, market],
+  );
   const dollarStake = inputMode === "shares"
-    ? sharesToDollars(draft.shareCount || 0, currentPrice)
-    : Number(draft.stake) || 0;
-
+    ? orderPreview.estimatedCost
+    : requestedDollarStake;
   const shareCount = inputMode === "dollars"
-    ? dollarsToShares(draft.stake, currentPrice)
-    : Number(draft.shareCount) || 0;
+    ? orderPreview.estimatedContracts
+    : requestedShareCount;
 
   const limitPriceDecimal = Number(draft.limitPrice) / 100 || currentPrice;
 
@@ -55,10 +66,6 @@ export default function BettingPanel({ market, linkedGame = null }) {
   const { yesLabel, noLabel } = useMemo(
     () => getContractSideLabels(market, linkedGame, { shortSides: true }),
     [market, linkedGame],
-  );
-  const orderPreview = useMemo(
-    () => calculateOrderPreview({ stake: dollarStake, side, market }),
-    [dollarStake, side, market],
   );
   const marketAcceptsBets = !market.status || market.status === "active";
   const sideLabel = side === "YES" ? yesLabel : noLabel;
@@ -128,6 +135,7 @@ export default function BettingPanel({ market, linkedGame = null }) {
         dollarStake={dollarStake}
         shareCount={shareCount}
         payout={payout}
+        orderPreview={orderPreview}
         limitPrice={draft.limitPrice}
         limitExpiry={draft.limitExpiry}
         isPaper={isPaper}
@@ -305,8 +313,20 @@ export default function BettingPanel({ market, linkedGame = null }) {
           ) : null}
           <div className="order-preview" aria-label="Execution estimate">
             <div className="order-preview-row">
-              <span>Entry price</span>
-              <strong>{cents(orderPreview.entryPrice)}</strong>
+              <span>YES probability</span>
+              <strong>{Math.round(orderPreview.newYesPrice * 100)}%</strong>
+            </div>
+            <div className="order-preview-row">
+              <span>NO probability</span>
+              <strong>{Math.round(orderPreview.newNoPrice * 100)}%</strong>
+            </div>
+            <div className="order-preview-row">
+              <span>Current price</span>
+              <strong>{cents(orderPreview.currentPrice ?? orderPreview.entryPrice)}</strong>
+            </div>
+            <div className="order-preview-row">
+              <span>Estimated cost</span>
+              <strong>{money(orderPreview.estimatedCost ?? dollarStake)}</strong>
             </div>
             <div className="order-preview-row">
               <span>Contracts</span>
@@ -347,10 +367,17 @@ export default function BettingPanel({ market, linkedGame = null }) {
   );
 }
 
-function ReviewScreen({ market, side, sideLabel, orderType, dollarStake, shareCount, payout, limitPrice, limitExpiry, isPaper, pending, onConfirm, onBack }) {
+function ReviewScreen({ market, side, sideLabel, orderType, dollarStake, shareCount, payout, orderPreview, limitPrice, limitExpiry, isPaper, pending, onConfirm, onBack }) {
   const isLimit = orderType === "limit";
   const limitDec = Number(limitPrice) / 100;
-  const limitDollarCost = shareCount * limitDec;
+  const limitNetCost = shareCount * limitDec;
+  const limitAmounts = buildTradeAmounts({
+    netAmount: limitNetCost,
+    feeBps: Number(market.liquidityPool?.feeBps ?? market.feeBps ?? 0),
+  });
+  const contractCost = isLimit ? limitAmounts.netAmount : (orderPreview.netStake ?? orderPreview.estimatedCost ?? dollarStake);
+  const estimatedFee = isLimit ? limitAmounts.feeAmount : (orderPreview.feeAmount ?? 0);
+  const totalCost = isLimit ? limitAmounts.grossAmount : (orderPreview.estimatedCost ?? dollarStake);
 
   return (
     <div className={`bet-panel bet-panel--review${isPaper ? " bet-panel--paper" : ""}`}>
@@ -391,8 +418,16 @@ function ReviewScreen({ market, side, sideLabel, orderType, dollarStake, shareCo
               <strong>{limitPrice}¢</strong>
             </div>
             <div className="review-row">
-              <span>Max cost</span>
-              <strong>{money(limitDollarCost)}</strong>
+              <span>Contract cost</span>
+              <strong>{money(contractCost)}</strong>
+            </div>
+            <div className="review-row">
+              <span>Estimated fee</span>
+              <strong>{money(estimatedFee)}</strong>
+            </div>
+            <div className="review-row">
+              <span>Total cost</span>
+              <strong>{money(totalCost)}</strong>
             </div>
             <div className="review-row">
               <span>Max payout</span>
@@ -406,8 +441,28 @@ function ReviewScreen({ market, side, sideLabel, orderType, dollarStake, shareCo
         ) : (
           <>
             <div className="review-row">
+              <span>Current price</span>
+              <strong>{cents(orderPreview.currentPrice ?? orderPreview.entryPrice)}</strong>
+            </div>
+            <div className="review-row">
+              <span>Average price</span>
+              <strong>{cents(orderPreview.entryPrice)}</strong>
+            </div>
+            <div className="review-row">
+              <span>Contract cost</span>
+              <strong>{money(contractCost)}</strong>
+            </div>
+            <div className="review-row">
+              <span>Estimated fee</span>
+              <strong>{money(estimatedFee)}</strong>
+            </div>
+            <div className="review-row">
+              <span>Total cost</span>
+              <strong>{money(totalCost)}</strong>
+            </div>
+            <div className="review-row">
               <span>Amount</span>
-              <strong>{money(dollarStake)}</strong>
+              <strong>{money(totalCost)}</strong>
             </div>
             <div className="review-row">
               <span>Shares</span>
@@ -433,10 +488,10 @@ function ReviewScreen({ market, side, sideLabel, orderType, dollarStake, shareCo
       </div>
 
       <div className="review-disclaimer">
-        {isLimit
-          ? "This order will fill automatically when the market price hits your limit. You can cancel it any time from your portfolio."
-          : isPaper
-            ? "This is a paper trade. No real money will be used."
+        {isPaper
+          ? "Paper trading fee - deducted from simulated balance only."
+          : isLimit
+            ? "This order will fill automatically when the market price hits your limit. You can cancel it any time from your portfolio."
             : "By confirming you agree to the bet terms. Bets are final once placed."
         }
       </div>
@@ -453,7 +508,7 @@ function ReviewScreen({ market, side, sideLabel, orderType, dollarStake, shareCo
             ? `Place limit order`
             : isPaper
               ? `Confirm paper trade`
-              : `Confirm — ${money(dollarStake)}`
+              : `Confirm - ${money(totalCost)}`
         }
       </button>
     </div>

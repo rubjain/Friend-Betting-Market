@@ -33,6 +33,16 @@ function shouldShowHydratePlaceholder(hydrated, pathname) {
   return true;
 }
 
+const strategyRoutes = {
+  href: "/strategies",
+  label: "Strategies",
+  items: [
+    ["/strategies", "Marketplace"],
+    ["/strategies/subscriptions", "My subscriptions"],
+    ["/strategies/creator", "Creator dashboard"],
+  ],
+};
+
 const groupedRoutes = [
   {
     href: "/deposit",
@@ -72,7 +82,7 @@ const settingsRoutes = [
 const navigationItems = [
   ["/markets", "Markets"],
   ["/portfolio", "Portfolio"],
-  ["/strategies", "Strategies"],
+  strategyRoutes,
   groupedRoutes[0],
   groupedRoutes[1],
   ["/create", "Create"],

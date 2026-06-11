@@ -438,6 +438,19 @@ export default function DeveloperPage() {
           </div>
         </div>
 
+        <div className="list-card developer-panel">
+          <h3>Strategy marketplace copy-trading</h3>
+          <p>
+            Publish an active paper strategy so subscribers receive mirrored trades without access to your private config, prompts, or API keys.
+            Tag bets with <code>strategyId</code> or run a saved strategy to emit copy signals.
+          </p>
+          <div className="inline-actions">
+            <Link className="btn btn-secondary" href="/strategies">Browse marketplace</Link>
+            <Link className="btn btn-ghost" href="/strategies/creator">Creator dashboard</Link>
+            <Link className="btn btn-ghost" href="/strategies/subscriptions">My subscriptions</Link>
+          </div>
+        </div>
+
         <div className="developer-lab-grid">
           <div className="list-card developer-panel">
             <div className="developer-card-head">

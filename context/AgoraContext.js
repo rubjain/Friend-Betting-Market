@@ -13,7 +13,8 @@ import {
 import { defaultState, STORAGE_KEY } from "../lib/defaultState";
 import { mergeGameMarkets } from "../lib/gameMarkets.js";
 import { money } from "../lib/formatters";
-import { calculatePayout } from "../lib/marketMath";
+import { calculateOrderPreview, calculatePayout } from "../lib/marketMath";
+import { createLmsrMarketFromMarket } from "../lib/lmsrMarket";
 import { getResolutionTemplate, sportMarketCategories } from "../lib/marketTaxonomy";
 import { applyRiskSignalsToUser, getBoostRiskSignals, getRiskBand } from "../lib/riskEngine";
 
@@ -411,6 +412,31 @@ function addFunds(state, { amount, currencyType, source, metadata }) {
     metadata,
   }));
   refreshDerivedBalances(state);
+}
+
+function applyLocalLmsrTrade(market, side, { stake = 0, shares = undefined } = {}) {
+  market.liquidityPool = market.liquidityPool || {
+    qYes: 0,
+    qNo: 0,
+    yesReserve: 0,
+    noReserve: 0,
+    liquidityParameter: 100,
+    feeBps: 0,
+  };
+  const preview = calculateOrderPreview({ stake, shares, side, market });
+  const tradeShares = preview.estimatedContracts;
+  const lmsr = createLmsrMarketFromMarket(market);
+  const executed = side === "YES" ? lmsr.buyYes(tradeShares) : lmsr.buyNo(tradeShares);
+  market.liquidityPool.qYes = executed.qYes;
+  market.liquidityPool.qNo = executed.qNo;
+  market.liquidityPool.yesReserve = executed.qYes;
+  market.liquidityPool.noReserve = executed.qNo;
+  market.yesPrice = executed.afterProbability.yes;
+  market.noPrice = executed.afterProbability.no;
+  return {
+    oddsMultiplier: tradeShares / Math.max(0.01, preview.estimatedCost),
+    estimatedCost: preview.estimatedCost,
+  };
 }
 
 function getRiskLabel(score) {
@@ -866,10 +892,28 @@ export function AgoraProvider({ children }) {
           const oddsMultiplier = bet.oddsMultiplier ?? 2;
           const shares = (bet.stake ?? 0) * oddsMultiplier;
           const market = next.markets.find((m) => m.id === bet.marketId);
-          const currentPrice = market
-            ? (bet.side === "YES" ? (market.yesPrice ?? 0.5) : (market.noPrice ?? 0.5))
-            : 0.5;
-          const proceeds = Math.max(0, shares * currentPrice);
+          let proceeds = 0;
+          if (market) {
+            market.liquidityPool = market.liquidityPool || {
+              qYes: 0,
+              qNo: 0,
+              yesReserve: 0,
+              noReserve: 0,
+              liquidityParameter: 100,
+              feeBps: 0,
+            };
+            const lmsr = createLmsrMarketFromMarket(market);
+            const executed = bet.side === "YES" ? lmsr.sellYes(shares) : lmsr.sellNo(shares);
+            proceeds = Math.max(0, executed.proceeds);
+            market.liquidityPool.qYes = executed.qYes;
+            market.liquidityPool.qNo = executed.qNo;
+            market.liquidityPool.yesReserve = executed.qYes;
+            market.liquidityPool.noReserve = executed.qNo;
+            market.yesPrice = executed.afterProbability.yes;
+            market.noPrice = executed.afterProbability.no;
+          } else {
+            proceeds = Math.max(0, shares * 0.5);
+          }
           const pnl = proceeds - (bet.stake ?? 0);
           if (bet.isPaper) {
             next.currentUser.paper_balance = (next.currentUser.paper_balance ?? 0) + proceeds;
@@ -932,23 +976,35 @@ export function AgoraProvider({ children }) {
             return;
           }
           const stake = Number(next.betDraft.stake) || 0;
+          const tradePreview = calculateOrderPreview({
+            stake: next.betDraft.inputMode === "shares" ? 0 : stake,
+            shares: next.betDraft.inputMode === "shares" ? next.betDraft.shareCount : undefined,
+            side,
+            market,
+          });
+          const totalCost = tradePreview.estimatedCost;
 
           if (isPaper) {
-            if (stake <= 0) {
+            if (totalCost <= 0) {
               next.flashMessage = "Enter a valid stake before placing a bet.";
               return;
             }
-            if (stake > (next.currentUser.paper_balance ?? 0)) {
+            if (totalCost > (next.currentUser.paper_balance ?? 0)) {
               next.flashMessage = "Insufficient paper balance for this bet.";
               return;
             }
             const result = calculatePayout({
-              stake,
-              withdrawableShare: stake,
+              stake: totalCost,
+              withdrawableShare: totalCost,
               bonusShare: 0,
               market,
               adminConfig: next.adminConfig,
             });
+            const trade = applyLocalLmsrTrade(market, side, {
+              stake: next.betDraft.inputMode === "shares" ? 0 : result.totalStake,
+              shares: next.betDraft.inputMode === "shares" ? tradePreview.estimatedContracts : undefined,
+            });
+            const oddsMultiplier = trade.oddsMultiplier;
             next.currentUser.paper_balance = (next.currentUser.paper_balance ?? 0) - result.totalStake;
             const betId = `bet_paper_${Date.now()}`;
             market.recentActivity?.unshift({
@@ -968,6 +1024,8 @@ export function AgoraProvider({ children }) {
               isPaper: true,
               withdrawableStake: 0,
               bonusStake: 0,
+              oddsMultiplier,
+              potentialPayout: result.totalStake * oddsMultiplier,
               placedAt: new Date().toISOString().slice(0, 10),
             });
             next.flashMessage = `Paper trade: ${side} on "${market.title}" for ${money(result.totalStake)}.`;
@@ -975,9 +1033,9 @@ export function AgoraProvider({ children }) {
           }
 
           const result = calculatePayout({
-            stake: next.betDraft.stake,
-            withdrawableShare: next.betDraft.withdrawableShare,
-            bonusShare: next.betDraft.bonusShare,
+            stake: totalCost,
+            withdrawableShare: next.betDraft.inputMode === "shares" ? totalCost : next.betDraft.withdrawableShare,
+            bonusShare: next.betDraft.inputMode === "shares" ? 0 : next.betDraft.bonusShare,
             market,
             adminConfig: next.adminConfig,
           });
@@ -997,6 +1055,11 @@ export function AgoraProvider({ children }) {
 
           next.currentUser.withdrawable_balance -= result.withdrawableStake;
           next.currentUser.bonus_balance -= result.bonusStake;
+          const trade = applyLocalLmsrTrade(market, side, {
+            stake: next.betDraft.inputMode === "shares" ? 0 : result.totalStake,
+            shares: next.betDraft.inputMode === "shares" ? tradePreview.estimatedContracts : undefined,
+          });
+          const oddsMultiplier = trade.oddsMultiplier;
           const betId = `bet_${Date.now()}`;
 
           market.recentActivity?.unshift({
@@ -1018,6 +1081,8 @@ export function AgoraProvider({ children }) {
             withdrawableStake: result.withdrawableStake,
             bonusStake: result.bonusStake,
             isPaper: false,
+            oddsMultiplier,
+            potentialPayout: result.totalStake * oddsMultiplier,
             placedAt: new Date().toISOString().slice(0, 10),
           });
           addLedgerEntries(
@@ -2085,6 +2150,14 @@ export function AgoraProvider({ children }) {
             ? "Strategy subscription canceled."
             : payload.message || "Could not cancel subscription.";
         });
+        return payload;
+      },
+      async listMyStrategySubscriptions() {
+        const { payload } = await requestJson("/api/strategies/subscriptions");
+        return payload;
+      },
+      async getStrategyCopyTrades(profileId) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/copy-trades`);
         return payload;
       },
     }),

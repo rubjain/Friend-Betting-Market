@@ -13,6 +13,7 @@ export default function StrategiesPage() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [riskFilter, setRiskFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("subscribers");
 
   useEffect(() => {
     let active = true;
@@ -35,9 +36,16 @@ export default function StrategiesPage() {
     () => Array.from(new Set(profiles.map((profile) => profile.riskLevel).filter(Boolean))),
     [profiles],
   );
-  const filteredProfiles = riskFilter === "all"
-    ? profiles
-    : profiles.filter((profile) => profile.riskLevel === riskFilter);
+  const filteredProfiles = useMemo(() => {
+    const filtered = riskFilter === "all"
+      ? profiles
+      : profiles.filter((profile) => profile.riskLevel === riskFilter);
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "roi") return (b.roiPct ?? 0) - (a.roiPct ?? 0);
+      if (sortBy === "volume") return (b.copiedVolume ?? 0) - (a.copiedVolume ?? 0);
+      return (b.subscriberCount ?? 0) - (a.subscriberCount ?? 0);
+    });
+  }, [profiles, riskFilter, sortBy]);
 
   return (
     <section className="page active strategy-marketplace-page">
@@ -56,7 +64,15 @@ export default function StrategiesPage() {
             </button>
           ))}
         </div>
-        <Link className="btn btn-secondary" href="/strategies/creator">Creator dashboard</Link>
+        <div className="strategy-toolbar-actions">
+          <select className="strategy-sort-select" value={sortBy} onChange={(e) => setSortBy(e.currentTarget.value)} aria-label="Sort strategies">
+            <option value="subscribers">Most followers</option>
+            <option value="roi">Highest ROI</option>
+            <option value="volume">Most copied volume</option>
+          </select>
+          <Link className="btn btn-ghost" href="/strategies/subscriptions">My subscriptions</Link>
+          <Link className="btn btn-secondary" href="/strategies/creator">Creator dashboard</Link>
+        </div>
       </div>
 
       {loading ? (
@@ -68,7 +84,9 @@ export default function StrategiesPage() {
           ))}
         </div>
       ) : (
-        <div className="list-card empty-note">No published paper strategies yet.</div>
+        <div className="list-card empty-note">
+          No published paper strategies yet. <Link href="/developer">Create a bot</Link> or <Link href="/strategies/creator">publish one</Link>.
+        </div>
       )}
     </section>
   );
