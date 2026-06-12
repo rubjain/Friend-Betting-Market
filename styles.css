@@ -10365,3 +10365,700 @@ textarea { min-height: 130px; resize: vertical; }
 }
 .profile-public-not-found { display: flex; flex-direction: column; gap: 12px; align-items: center; }
 
+
+/* ============================================================================
+   MARKET TERMINAL — high-end data dashboard for the landing page
+   Dark glass surface, display-serif probabilities, monospace market data,
+   color-tinted glows (no flat neutral shadows). Theme-independent by design.
+   ============================================================================ */
+.market-terminal {
+  --mt-yes: #ff6a14;
+  --mt-yes-glow: rgba(245, 93, 0, 0.55);
+  --mt-no: #f0455a;
+  --mt-no-glow: rgba(240, 69, 90, 0.5);
+  --mt-ink: #f5f6f8;
+  --mt-dim: #9aa0ac;
+  --mt-faint: #646b78;
+  --mt-line: rgba(255, 255, 255, 0.10);
+  --mt-line-soft: rgba(255, 255, 255, 0.055);
+  --mt-glass: linear-gradient(158deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.014));
+  --mt-mono: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --mt-display: var(--font-display), "Playfair Display", Georgia, serif;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2vw, 26px);
+  /* Full-bleed: break out of the centered page-wrap so no app background
+     shows behind the terminal (top/sides/bottom all covered). */
+  margin: -24px calc(50% - 50vw) -72px;
+  width: 100vw;
+  max-width: 100vw;
+  padding: clamp(20px, 2.6vw, 34px) clamp(18px, 5vw, 72px) clamp(48px, 6vw, 88px);
+  border-radius: 0;
+  border: none;
+  color: var(--mt-ink);
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(90% 70% at 10% -10%, rgba(245, 93, 0, 0.16), transparent 55%),
+    radial-gradient(80% 80% at 100% 0%, rgba(240, 69, 90, 0.12), transparent 50%),
+    linear-gradient(180deg, #0c0d11 0%, #0a0b0e 60%, #08090c 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+/* Faint terminal grid overlay */
+.market-terminal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 100%);
+}
+
+/* ---- Ticker rail ---- */
+.mt-ticker {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid var(--mt-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(10px);
+  font-family: var(--mt-mono);
+}
+.mt-ticker-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  color: var(--mt-ink);
+}
+.mt-ticker-brand-sub { color: var(--mt-yes); }
+.mt-ticker-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--mt-yes);
+  box-shadow: 0 0 12px 2px var(--mt-yes-glow);
+}
+.mt-ticker-feed {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 22px;
+  padding: 0 4px;
+  border-left: 1px solid var(--mt-line-soft);
+  border-right: 1px solid var(--mt-line-soft);
+}
+.mt-ticker-item { display: flex; align-items: baseline; gap: 8px; }
+.mt-ticker-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: var(--mt-faint);
+}
+.mt-ticker-value {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--mt-ink);
+  font-variant-numeric: tabular-nums;
+}
+.mt-ticker-value.is-live { color: var(--mt-yes); }
+.mt-ticker-session {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  color: var(--mt-dim);
+}
+.mt-ticker-pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--mt-yes);
+  animation: mt-pulse 1.8s ease-in-out infinite;
+}
+
+/* ---- Command bar ---- */
+.mt-command {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding: 6px 4px 18px;
+  border-bottom: 1px solid var(--mt-line-soft);
+}
+.mt-command-headline h1 {
+  margin: 0 0 8px;
+  font-family: var(--mt-display);
+  font-weight: 600;
+  font-size: clamp(2rem, 4.4vw, 3.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.mt-command-headline h1 em {
+  font-style: italic;
+  color: var(--mt-yes);
+  text-shadow: 0 0 38px var(--mt-yes-glow);
+}
+.mt-command-headline p {
+  margin: 0;
+  max-width: 46ch;
+  font-family: var(--mt-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--mt-dim);
+}
+.mt-command-actions { display: flex; gap: 10px; flex-shrink: 0; }
+.mt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 9px;
+  font-family: var(--mt-mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+.mt-btn-primary {
+  color: #1a0c00;
+  background: linear-gradient(180deg, #ff7a2e, var(--mt-yes));
+  box-shadow: 0 10px 30px -10px var(--mt-yes-glow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.mt-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 38px -10px var(--mt-yes-glow); }
+.mt-btn-ghost {
+  color: var(--mt-ink);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--mt-line);
+}
+.mt-btn-ghost:hover { background: rgba(255, 255, 255, 0.09); transform: translateY(-2px); }
+
+/* ---- Routing rail ---- */
+.mt-rail {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.mt-rail-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 12px;
+  text-decoration: none;
+  background: var(--mt-glass);
+  border: 1px solid var(--mt-line);
+  backdrop-filter: blur(12px);
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.mt-rail-cell:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 122, 46, 0.4);
+  box-shadow: 0 18px 40px -22px var(--mt-yes-glow);
+}
+.mt-rail-tag {
+  font-family: var(--mt-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.2em;
+  color: var(--mt-yes);
+}
+.mt-rail-cell strong {
+  font-family: var(--mt-mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--mt-ink);
+}
+
+/* ---- Board header ---- */
+.mt-board { display: flex; flex-direction: column; gap: 16px; margin-top: 6px; }
+.mt-board-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--mt-line-soft);
+}
+.mt-board-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--mt-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--mt-dim);
+}
+.mt-board-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 122, 46, 0.14);
+  color: var(--mt-yes);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+}
+.mt-board-all {
+  font-family: var(--mt-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  color: var(--mt-dim);
+  text-decoration: none;
+  transition: color 0.16s ease;
+}
+.mt-board-all:hover { color: var(--mt-yes); }
+
+/* ---- Grid ---- */
+.mt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(282px, 1fr));
+  gap: 14px;
+}
+
+/* ---- Market card (glassmorphism + tinted glow) ---- */
+.mt-card {
+  --lead: var(--mt-yes);
+  --lead-glow: var(--mt-yes-glow);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--mt-glass);
+  border: 1px solid var(--mt-line);
+  backdrop-filter: blur(16px) saturate(1.15);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.22s ease;
+  overflow: hidden;
+}
+.mt-card[data-lead="no"] { --lead: var(--mt-no); --lead-glow: var(--mt-no-glow); }
+/* Tinted top hairline that matches the leading outcome */
+.mt-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--lead), transparent);
+  opacity: 0.7;
+}
+.mt-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--lead) 45%, transparent);
+  box-shadow:
+    0 26px 60px -28px var(--lead-glow),
+    0 0 0 1px color-mix(in srgb, var(--lead) 22%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.mt-card.is-live {
+  box-shadow:
+    0 22px 54px -30px var(--lead-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.mt-card-link { position: absolute; inset: 0; z-index: 1; }
+
+.mt-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--mt-mono);
+}
+.mt-card-cat {
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  color: var(--mt-faint);
+  text-transform: uppercase;
+}
+.mt-card-flags { display: flex; gap: 6px; }
+.mt-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.mt-flag-live { color: var(--mt-no); background: rgba(240, 69, 90, 0.14); }
+.mt-flag-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--mt-no);
+  animation: mt-pulse 1.4s ease-in-out infinite;
+}
+.mt-flag-status {
+  color: var(--mt-dim);
+  background: rgba(255, 255, 255, 0.06);
+  text-transform: uppercase;
+}
+.mt-card-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--mt-ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.55em;
+}
+.mt-card-score {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--mt-mono);
+  min-height: 2.4em;
+}
+.mt-card-score--empty { opacity: 0; }
+.mt-card-clock {
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: var(--mt-faint);
+  text-transform: uppercase;
+}
+.mt-card-line {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--mt-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Probability-move chip (now lives in the card header row) */
+.mt-shift {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-family: var(--mt-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.mt-shift--up { color: var(--mt-yes); background: rgba(245, 93, 0, 0.13); }
+.mt-shift--down { color: var(--mt-no); background: rgba(240, 69, 90, 0.13); }
+.mt-shift--flat { color: var(--mt-faint); background: rgba(255, 255, 255, 0.05); }
+
+/* Dual outcome options — both sides buyable, serif figures */
+.mt-options {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mt-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 13px 11px;
+  border-radius: 11px;
+  cursor: pointer;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--mt-line);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.18s ease;
+}
+.mt-opt-side {
+  font-family: var(--mt-mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mt-opt-figure {
+  font-family: var(--mt-display);
+  font-weight: 700;
+  font-size: 2.1rem;
+  line-height: 0.92;
+  color: #fff;
+  font-variant-numeric: lining-nums;
+}
+.mt-opt-figure i { font-style: normal; font-size: 0.86rem; margin-left: 1px; color: var(--mt-dim); }
+.mt-opt-buy {
+  font-family: var(--mt-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.mt-opt-yes .mt-opt-side, .mt-opt-yes .mt-opt-buy { color: var(--mt-yes); }
+.mt-opt-no .mt-opt-side, .mt-opt-no .mt-opt-buy { color: var(--mt-no); }
+.mt-opt-yes.is-lead { background: rgba(245, 93, 0, 0.08); border-color: color-mix(in srgb, var(--mt-yes) 38%, transparent); }
+.mt-opt-no.is-lead { background: rgba(240, 69, 90, 0.08); border-color: color-mix(in srgb, var(--mt-no) 38%, transparent); }
+.mt-opt-yes:hover {
+  transform: translateY(-2px);
+  background: rgba(245, 93, 0, 0.16);
+  border-color: color-mix(in srgb, var(--mt-yes) 60%, transparent);
+  box-shadow: 0 14px 30px -16px var(--mt-yes-glow);
+}
+.mt-opt-no:hover {
+  transform: translateY(-2px);
+  background: rgba(240, 69, 90, 0.16);
+  border-color: color-mix(in srgb, var(--mt-no) 60%, transparent);
+  box-shadow: 0 14px 30px -16px var(--mt-no-glow);
+}
+.mt-opt:hover .mt-opt-buy { opacity: 1; transform: translateY(0); }
+
+/* Split conviction bar */
+.mt-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+.mt-bar-yes {
+  width: var(--yes, 50%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--mt-yes) 70%, transparent), var(--mt-yes));
+  box-shadow: 0 0 14px -2px var(--mt-yes-glow);
+}
+.mt-bar-no {
+  flex: 1;
+  background: linear-gradient(90deg, var(--mt-no), color-mix(in srgb, var(--mt-no) 70%, transparent));
+}
+
+/* Footer market data — pinned to the bottom so every card aligns */
+.mt-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--mt-line-soft);
+  font-family: var(--mt-mono);
+}
+.mt-foot-vol { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; }
+.mt-foot-label { font-size: 0.58rem; letter-spacing: 0.16em; color: var(--mt-faint); }
+.mt-foot-track {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  min-width: 24px;
+}
+.mt-foot-fill {
+  display: block;
+  width: var(--vol, 0%);
+  height: 100%;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--lead) 55%, transparent), var(--lead));
+}
+.mt-foot-num {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--mt-dim);
+  font-variant-numeric: tabular-nums;
+}
+.mt-foot-boosts {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: var(--mt-faint);
+  white-space: nowrap;
+}
+
+/* Empty state */
+.mt-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  padding: 48px 20px;
+  border-radius: 14px;
+  border: 1px dashed var(--mt-line);
+  background: rgba(255, 255, 255, 0.02);
+  font-family: var(--mt-mono);
+}
+.mt-empty strong { letter-spacing: 0.18em; color: var(--mt-ink); font-size: 0.9rem; }
+.mt-empty span { font-size: 0.74rem; color: var(--mt-dim); }
+
+@keyframes mt-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.82); }
+}
+
+@media (max-width: 720px) {
+  .mt-rail { grid-template-columns: 1fr; }
+  .mt-command { align-items: flex-start; }
+  .mt-ticker-feed { border: none; padding: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mt-ticker-pulse, .mt-flag-dot { animation: none; }
+  .mt-card, .mt-btn, .mt-rail-cell { transition: none; }
+}
+
+/* ============================================================================
+   >>> TERMINAL GLOBAL THEME — applies the landing-page terminal aesthetic to
+   EVERY page, in BOTH light and dark mode (the toggle still works). Surfaces
+   stay SOLID (so drawers/flyouts/modals are never see-through); only cards get
+   glass. Self-contained: to REVERT, delete this whole block AND set
+   `theme: "light"` in lib/defaultState.js.
+   ============================================================================ */
+
+/* Fonts are shared across both themes */
+:root {
+  --tg-mono: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --tg-display: var(--font-display), "Playfair Display", Georgia, serif;
+}
+
+/* ---- DARK terminal ---- */
+:root[data-theme="dark"] {
+  --bg: #0a0b0e;
+  --surface: #15171d;            /* SOLID — used by drawers, flyouts, inputs, modals */
+  --surface-alt: #1e2128;
+  --text: #f5f6f8;
+  --text-secondary: #c7ccd6;
+  --muted: #9aa0ac;
+  --muted-light: #7b818d;
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.17);
+  --accent: #ff6a14;
+  --accent-strong: #ff7a2e;
+  --accent-soft: rgba(245, 93, 0, 0.14);
+  --yes: #ff6a14;
+  --yes-soft: rgba(245, 93, 0, 0.12);
+  --no: #f0455a;
+  --no-soft: rgba(240, 69, 90, 0.12);
+  --tg-canvas:
+    radial-gradient(75% 45% at 6% -4%, rgba(245, 93, 0, 0.10), transparent 60%),
+    radial-gradient(65% 45% at 100% 0%, rgba(240, 69, 90, 0.08), transparent 55%),
+    #08090c;
+  --tg-glass: linear-gradient(158deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.014));
+  --tg-glass-border: rgba(255, 255, 255, 0.10);
+  --tg-inset: rgba(255, 255, 255, 0.05);
+  --tg-header: rgba(10, 11, 14, 0.72);
+  --tg-header-border: rgba(255, 255, 255, 0.08);
+  --tg-card-glow: rgba(245, 93, 0, 0.40);
+  --tg-drawer-shadow: 6px 0 30px rgba(0, 0, 0, 0.55);
+}
+
+/* ---- LIGHT terminal ---- */
+:root[data-theme="light"] {
+  --bg: #f3efe9;
+  --surface: #ffffff;            /* SOLID */
+  --surface-alt: #f1ece3;
+  --text: #161310;
+  --text-secondary: #3c3833;
+  --muted: #6f6862;
+  --muted-light: #928b83;
+  --border: rgba(0, 0, 0, 0.10);
+  --border-strong: rgba(0, 0, 0, 0.18);
+  --accent: #dc5200;
+  --accent-strong: #bf470a;
+  --accent-soft: rgba(220, 82, 0, 0.10);
+  --yes: #dc5200;
+  --yes-soft: rgba(220, 82, 0, 0.10);
+  --no: #cf2c40;
+  --no-soft: rgba(207, 44, 64, 0.10);
+  --tg-canvas:
+    radial-gradient(75% 45% at 6% -4%, rgba(220, 82, 0, 0.08), transparent 60%),
+    radial-gradient(65% 45% at 100% 0%, rgba(207, 44, 64, 0.06), transparent 55%),
+    #f3efe9;
+  --tg-glass: linear-gradient(158deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.62));
+  --tg-glass-border: rgba(0, 0, 0, 0.10);
+  --tg-inset: rgba(255, 255, 255, 0.6);
+  --tg-header: rgba(250, 248, 244, 0.82);
+  --tg-header-border: rgba(0, 0, 0, 0.08);
+  --tg-card-glow: rgba(220, 82, 0, 0.26);
+  --tg-drawer-shadow: 6px 0 24px rgba(0, 0, 0, 0.10);
+}
+
+/* Terminal canvas behind every page (theme-aware via --tg-canvas) */
+body {
+  background: var(--tg-canvas);
+  background-attachment: fixed;
+  color: var(--text);
+}
+
+/* Sticky header reads as part of the terminal */
+.shell .site-header {
+  background: var(--tg-header);
+  backdrop-filter: blur(14px) saturate(1.1);
+  border-bottom: 1px solid var(--tg-header-border);
+}
+
+/* Nav drawer + flyouts + notifications stay SOLID so they never bleed through */
+.shell .nav-actions {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--tg-drawer-shadow);
+}
+.shell .nav-flyout,
+.shell .notification-menu {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* Glassmorphism — cards only (these explicitly override the solid --surface) */
+.shell .card,
+.shell .list-card,
+.shell .panel,
+.shell .market-card,
+.shell .top-market-empty {
+  background: var(--tg-glass);
+  border: 1px solid var(--tg-glass-border);
+  backdrop-filter: blur(14px) saturate(1.12);
+  box-shadow: inset 0 1px 0 var(--tg-inset);
+}
+.shell .card:hover,
+.shell .list-card:hover,
+.shell .market-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  box-shadow: 0 22px 50px -28px var(--tg-card-glow), inset 0 1px 0 var(--tg-inset);
+}
+
+/* Display serif for page headings + big figures */
+.shell h1,
+.shell h2,
+.shell h3,
+.shell h4,
+.shell .section-head h3,
+.shell .hero-headline,
+.shell .landing-stat-value {
+  font-family: var(--tg-display);
+  letter-spacing: -0.01em;
+}
+
+/* Monospace for data, tickers, numbers, and meta */
+.shell .landing-stat-label,
+.shell .market-meta-item,
+.shell .price-button-value,
+.shell .market-category-kicker,
+.shell .market-live-badge,
+.shell .mini-live-card-meta,
+.shell .label,
+.shell .stat-label,
+.shell .stat-value,
+.shell .balance-amount {
+  font-family: var(--tg-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Primary buttons pick up the terminal glow */
+.shell .btn-primary {
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  color: #1a0c00;
+  box-shadow: 0 10px 30px -12px var(--tg-card-glow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+/* <<< END TERMINAL GLOBAL THEME */
