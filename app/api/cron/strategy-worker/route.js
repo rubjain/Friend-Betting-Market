@@ -2,16 +2,10 @@ import { NextResponse } from "next/server";
 import { listActiveStrategies, logStrategyExecution } from "../../../../lib/server/strategyService.js";
 import { hasDatabaseUrl } from "../../../../lib/server/prisma.js";
 import { runStrategyOnce } from "../../../../lib/strategies/strategyRunner.js";
-
-function authorized(request) {
-  const secret = process.env.CRON_SECRET || process.env.AGORA_CRON_SECRET;
-  if (!secret) return process.env.NODE_ENV !== "production";
-  const header = request.headers.get("authorization") || "";
-  return header === `Bearer ${secret}`;
-}
+import { isAuthorizedCronRequest } from "../../../../lib/server/cronAuth.js";
 
 export async function GET(request) {
-  if (!authorized(request)) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ ok: false, message: "Unauthorized." }, { status: 401 });
   }
   if (!hasDatabaseUrl()) {
