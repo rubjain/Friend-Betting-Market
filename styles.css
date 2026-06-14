@@ -130,8 +130,8 @@ a { color: inherit; text-decoration: none; }
 
 .hamburger-button span {
   display: block;
-  height: 1.5px;
-  background: var(--muted);
+  height: 2px;
+  background: var(--text);
   border-radius: 2px;
   transition: background 120ms ease;
 }
@@ -10501,7 +10501,7 @@ textarea { min-height: 130px; resize: vertical; }
   font-size: clamp(2rem, 4.4vw, 3.4rem);
   line-height: 1.02;
   letter-spacing: -0.01em;
-  color: #fff;
+  color: var(--mt-ink);
 }
 .mt-command-headline h1 em {
   font-style: italic;
@@ -10789,7 +10789,7 @@ textarea { min-height: 130px; resize: vertical; }
   font-weight: 700;
   font-size: 2.1rem;
   line-height: 0.92;
-  color: #fff;
+  color: var(--mt-ink);
   font-variant-numeric: lining-nums;
 }
 .mt-opt-figure i { font-style: normal; font-size: 0.86rem; margin-left: 1px; color: var(--mt-dim); }
@@ -11062,3 +11062,230 @@ body {
   box-shadow: 0 10px 30px -12px var(--tg-card-glow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 /* <<< END TERMINAL GLOBAL THEME */
+
+/* ============================================================================
+   >>> TERMINAL LIGHT MODE — makes the landing-page terminal theme-aware so the
+   homepage matches the rest of the app in light mode (it was hardcoded dark).
+   Part of the terminal theme; revert by deleting this block.
+   ============================================================================ */
+:root[data-theme="light"] .market-terminal {
+  --mt-yes: #dc5200;
+  --mt-yes-glow: rgba(220, 82, 0, 0.30);
+  --mt-no: #cf2c40;
+  --mt-no-glow: rgba(207, 44, 64, 0.28);
+  --mt-ink: #161310;
+  --mt-dim: #5c5650;
+  --mt-faint: #8a847d;
+  --mt-line: rgba(0, 0, 0, 0.12);
+  --mt-line-soft: rgba(0, 0, 0, 0.06);
+  --mt-glass: linear-gradient(158deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.6));
+  background:
+    radial-gradient(90% 70% at 10% -10%, rgba(220, 82, 0, 0.10), transparent 55%),
+    radial-gradient(80% 80% at 100% 0%, rgba(207, 44, 64, 0.07), transparent 50%),
+    linear-gradient(180deg, #f7f3ee 0%, #f3efe9 60%, #efeae2 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+:root[data-theme="light"] .market-terminal::before {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.025) 1px, transparent 1px);
+}
+/* Light fills for the elements that hardcode white-translucent surfaces */
+:root[data-theme="light"] .mt-ticker { background: rgba(0, 0, 0, 0.03); }
+:root[data-theme="light"] .mt-opt { background: rgba(0, 0, 0, 0.03); }
+:root[data-theme="light"] .mt-bar { background: rgba(0, 0, 0, 0.08); }
+:root[data-theme="light"] .mt-foot-track { background: rgba(0, 0, 0, 0.08); }
+:root[data-theme="light"] .mt-shift--flat { background: rgba(0, 0, 0, 0.05); }
+:root[data-theme="light"] .mt-empty { background: rgba(0, 0, 0, 0.02); }
+:root[data-theme="light"] .mt-btn-ghost { background: rgba(0, 0, 0, 0.05); }
+:root[data-theme="light"] .mt-opt-yes:hover { background: rgba(220, 82, 0, 0.12); }
+:root[data-theme="light"] .mt-opt-no:hover { background: rgba(207, 44, 64, 0.12); }
+/* <<< END TERMINAL LIGHT MODE */
+
+/* ============================================================================
+   >>> MARKETS CARD = TERMINAL CARD — makes the shared MarketCard (markets page
+   and everywhere it's reused) match the homepage terminal cards: dual outcome
+   options with monospace labels + display-serif probabilities, theme-aware.
+   Revert by deleting this block.
+   ============================================================================ */
+.shell .market-card {
+  gap: 12px;
+  border-radius: 14px;
+  padding: 16px;
+}
+/* The price grid becomes a transparent 2-up options frame */
+.shell .market-card .market-price-grid {
+  background: transparent;
+  border: none;
+  padding: 0;
+  gap: 10px;
+}
+/* Each price button becomes a tall, buyable outcome option */
+.shell .market-card .price-button {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 12px 13px 11px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  box-shadow: none;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.18s ease;
+}
+.shell .market-card .price-button-label {
+  font-family: var(--tg-mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  opacity: 1;
+  order: 0;
+}
+.shell .market-card .price-button-value {
+  font-family: var(--tg-display);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 0.92;
+  color: var(--text);
+  order: 1;
+}
+/* YES = accent (orange), NO = red — tinted like the terminal options */
+.shell .market-card .yes-price {
+  background: var(--accent-soft);
+}
+.shell .market-card .yes-price .price-button-label { color: var(--accent); }
+.shell .market-card .no-price {
+  background: var(--no-soft);
+}
+.shell .market-card .no-price .price-button-label { color: var(--no); }
+.shell .market-card .yes-price .price-button-value,
+.shell .market-card .no-price .price-button-value { color: var(--text); }
+.shell .market-card .yes-price:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 14px 30px -16px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.shell .market-card .no-price:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--no) 16%, transparent);
+  border-color: color-mix(in srgb, var(--no) 55%, transparent);
+  box-shadow: 0 14px 30px -16px color-mix(in srgb, var(--no) 60%, transparent);
+}
+/* Meta row reads as terminal data */
+.shell .market-card .market-meta-item,
+.shell .market-card .market-category-kicker {
+  font-family: var(--tg-mono);
+  letter-spacing: 0.08em;
+}
+/* <<< END MARKETS CARD = TERMINAL CARD */
+
+/* ============================================================================
+   >>> TOP MARKETS ROWS — blend into the terminal homepage (glass, mono/serif,
+   theme-aware via the --mt-* tokens). Revert by deleting this block.
+   ============================================================================ */
+.market-terminal .top-market-rows-wrap {
+  max-height: none;
+  overflow: visible;
+  gap: 12px;
+  padding-right: 0;
+}
+.market-terminal .top-market-row {
+  position: relative;
+  background: var(--mt-glass);
+  border: 1px solid var(--mt-line);
+  border-radius: 14px;
+  backdrop-filter: blur(14px) saturate(1.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.22s ease;
+}
+.market-terminal .top-market-row::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--mt-yes), transparent);
+  opacity: 0.6;
+}
+.market-terminal .top-market-row:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--mt-yes) 38%, transparent);
+  box-shadow: 0 24px 54px -28px var(--mt-yes-glow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.market-terminal .top-market-row-chart {
+  border: 1px solid var(--mt-line-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.market-terminal .top-market-row-head .market-category-kicker {
+  font-family: var(--mt-mono);
+  color: var(--mt-faint);
+  letter-spacing: 0.2em;
+}
+.market-terminal .top-market-row-head h3 {
+  font-family: var(--mt-display);
+  color: var(--mt-ink);
+  letter-spacing: -0.01em;
+}
+.market-terminal .top-market-row-volume {
+  font-family: var(--mt-mono);
+  color: var(--mt-dim);
+  font-variant-numeric: tabular-nums;
+}
+.market-terminal .top-market-row-scoreboard > div span {
+  font-family: var(--mt-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mt-dim);
+}
+.market-terminal .top-market-row-scoreboard > div strong {
+  font-family: var(--mt-display);
+  color: var(--mt-ink);
+}
+.market-terminal .top-market-row-scoreboard-clock {
+  font-family: var(--mt-mono);
+  color: var(--mt-faint);
+}
+/* Quick-bet pills become terminal options: YES=orange (away), NO=red (home) */
+.market-terminal .top-market-side-bet {
+  --side-color: var(--mt-yes);
+  font-family: var(--mt-mono);
+  font-weight: 700;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--side-color) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--side-color) 45%, transparent);
+  color: var(--mt-ink);
+  box-shadow: none;
+  font-variant-numeric: tabular-nums;
+}
+.market-terminal .top-market-row-scoreboard > div:last-child .top-market-side-bet {
+  --side-color: var(--mt-no);
+}
+.market-terminal .top-market-side-bet:hover {
+  background: color-mix(in srgb, var(--side-color) 28%, transparent);
+  border-color: var(--side-color);
+}
+.market-terminal .top-market-row-footer {
+  font-family: var(--mt-mono);
+  color: var(--mt-dim);
+  border-top: 1px solid var(--mt-line-soft);
+  padding-top: 10px;
+  font-size: 0.72rem;
+}
+
+/* ---- Markets card option labels: keep text INSIDE the box (no overflow) ---- */
+.shell .market-card .price-button {
+  min-width: 0;
+  overflow: hidden;
+}
+.shell .market-card .price-button-label {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* <<< END TOP MARKETS ROWS blend + markets card overflow fix */
