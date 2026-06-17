@@ -7,7 +7,8 @@ export async function PATCH(request, { params }) {
   if (response) return response;
 
   const payload = await request.json();
-  const draft = await updateDraftMarket(params.marketId, {
+  const { marketId } = await params;
+  const draft = await updateDraftMarket(marketId, {
     question: payload.question,
     closeTime: payload.closeTime,
     resolutionSource: payload.resolutionSource,

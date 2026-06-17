@@ -6,9 +6,13 @@ test("paper bet: markets to review to confirm to portfolio", async ({ page }) =>
 
   await loginAsTestUser(page);
 
-  const paperMode = page.getByRole("button", { name: "Paper" });
+  const paperMode = page.getByRole("button", { name: "Paper", exact: true });
   if (await paperMode.isVisible()) {
-    await paperMode.click();
+    const pressed = await paperMode.getAttribute("aria-pressed");
+    if (pressed !== "true") {
+      await paperMode.click();
+      await expect(paperMode).toHaveAttribute("aria-pressed", "true");
+    }
   }
 
   await page.goto("/markets");
@@ -28,7 +32,7 @@ test("paper bet: markets to review to confirm to portfolio", async ({ page }) =>
   await expect(reviewBtn).toBeVisible({ timeout: 15_000 });
   await reviewBtn.click();
 
-  const confirmBtn = page.getByRole("button", { name: /Confirm (paper trade|—)/i });
+  const confirmBtn = page.getByRole("button", { name: /Confirm (paper trade|-|—)/i });
   await expect(confirmBtn).toBeVisible({ timeout: 15_000 });
   await confirmBtn.click();
 

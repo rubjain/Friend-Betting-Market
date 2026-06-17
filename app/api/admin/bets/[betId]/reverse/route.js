@@ -8,8 +8,9 @@ export async function POST(request, { params }) {
   if (response) return response;
 
   const payload = await request.json();
+  const { betId } = await params;
   const result = await reverseDatabaseBet({
-    betId: params.betId,
+    betId,
     actorId: session.userId,
     reason: payload.reason,
   });

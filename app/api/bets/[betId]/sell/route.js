@@ -8,7 +8,7 @@ export async function POST(request, { params }) {
   if (response) return response;
 
   const userId = session.userId;
-  const { betId } = params;
+  const { betId } = await params;
 
   const databaseResult = await sellDatabaseBet({ betId, userId });
   const result = databaseResult ?? sellDemoBet({ betId, userId });

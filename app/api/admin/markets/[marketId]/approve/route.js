@@ -9,7 +9,9 @@ export async function POST(request, { params }) {
   const { session, response } = await requireAdminPermission(request, ADMIN_PERMISSIONS.MARKET_MODERATION);
   if (response) return response;
 
-  const draftResult = await approveDraftMarket(params.marketId, session.userId);
+  const { marketId } = await params;
+
+  const draftResult = await approveDraftMarket(marketId, session.userId);
   if (draftResult) {
     return NextResponse.json({
       ok: true,
@@ -19,9 +21,9 @@ export async function POST(request, { params }) {
   }
 
   const databaseResult = await approveDatabaseMarket({
-    pendingId: params.marketId,
+    pendingId: marketId,
     userId: session.userId,
   });
-  const result = databaseResult ?? approveDemoMarket({ pendingId: params.marketId });
+  const result = databaseResult ?? approveDemoMarket({ pendingId: marketId });
   return NextResponse.json(result, { status: result.ok ? 200 : 404 });
 }

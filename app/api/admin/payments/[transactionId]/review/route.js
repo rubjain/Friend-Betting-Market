@@ -8,9 +8,10 @@ export async function POST(request, { params }) {
   if (response) return response;
 
   const payload = await request.json();
+  const { transactionId } = await params;
   const result =
     (await reviewDatabasePaymentTransaction({
-      transactionId: params.transactionId,
+      transactionId,
       decision: payload.decision,
       notes: payload.notes,
       reviewerId: session.userId,

@@ -8,8 +8,9 @@ export async function PATCH(request, { params }) {
   if (response) return response;
 
   const payload = await request.json();
+  const { disputeId } = await params;
   const result = await updateDatabaseDispute({
-    disputeId: params.disputeId,
+    disputeId,
     status: payload.status,
     note: payload.note,
     actorId: session.userId,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAgora } from "../context/AgoraContext";
 import {
   buildLedgerExportRows,
@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const { state, actions } = useAgora();
   const [confirmation, setConfirmation] = useState(null);
   const [pendingAction, setPendingAction] = useState("");
+  const [strategyModeration, setStrategyModeration] = useState([]);
   const riskUsers = state.users.filter((user) => user.risk_status !== "clear" || user.risk_score >= 40);
   const totalBonusBalances = state.users.reduce((sum, user) => sum + user.bonus_balance, 0);
   const frozenUsers = state.users.filter((user) => user.frozen).length;
@@ -52,6 +53,15 @@ export default function AdminDashboard() {
       setPendingAction("");
     }
   }
+
+  async function refreshStrategyModeration() {
+    const payload = await actions.getMarketplaceModerationQueue();
+    setStrategyModeration(payload?.ok ? payload.queue || [] : []);
+  }
+
+  useEffect(() => {
+    refreshStrategyModeration();
+  }, []);
 
   function updateAdminField(event) {
     const rawValue = event.currentTarget.value;
@@ -171,6 +181,79 @@ export default function AdminDashboard() {
       <div className="admin-grid">
         <AdminDraftMarkets onMessage={actions.setFlashMessage} />
         <AdminInsights users={state.users} ledger={state.ledger} activeMarkets={state.activeMarkets} />
+        <div className="table-card">
+          <h3>Strategy marketplace moderation</h3>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Profile</th>
+                <th>Creator</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {strategyModeration.length ? (
+                strategyModeration.map((profile) => (
+                  <tr key={profile.id}>
+                    <td data-label="Profile">{profile.name}</td>
+                    <td data-label="Creator">{profile.creator?.username || profile.creator?.name || "Unknown"}</td>
+                    <td data-label="Status">{profile.status}</td>
+                    <td data-label="Actions">
+                      <div className="inline-actions">
+                        <button
+                          className="btn btn-secondary"
+                          type="button"
+                          disabled={!!pendingAction}
+                          onClick={() =>
+                            runAdminAction(`mod-approve-${profile.id}`, async () => {
+                              await actions.moderateMarketplaceProfile({ profileId: profile.id, action: "APPROVED", reason: "Admin approval" });
+                              await refreshStrategyModeration();
+                            })
+                          }
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          type="button"
+                          disabled={!!pendingAction}
+                          onClick={() =>
+                            runAdminAction(`mod-reject-${profile.id}`, async () => {
+                              await actions.moderateMarketplaceProfile({ profileId: profile.id, action: "REJECTED", reason: "Needs revisions" });
+                              await refreshStrategyModeration();
+                            })
+                          }
+                        >
+                          Reject
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          type="button"
+                          disabled={!!pendingAction}
+                          onClick={() =>
+                            runAdminAction(`payout-${profile.id}`, async () => {
+                              await actions.createCreatorPayoutSnapshot({ creatorId: profile.creatorId });
+                              actions.setFlashMessage("Creator payout snapshot created.");
+                            })
+                          }
+                        >
+                          Snapshot payout
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td data-label="Profile" colSpan="4">
+                    <div className="empty-note">No strategy profiles are waiting moderation.</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
         <div className="table-card">
           <h3>Pending markets</h3>
           <table className="data-table">

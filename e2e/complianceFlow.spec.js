@@ -9,6 +9,6 @@ test("compliance panel shows identity and location sections when signed in", asy
 
   await page.goto("/settings#compliance");
   await expect(page.getByRole("heading", { name: "Compliance gates" })).toBeVisible();
-  await expect(page.getByText("Identity verification")).toBeVisible();
-  await expect(page.getByText("Location verification")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Identity verification" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Location verification" })).toBeVisible();
 });

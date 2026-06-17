@@ -615,3 +615,142 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
+
+  /api/strategies:
+    get:
+      summary: Strategy marketplace catalog with filters and pagination
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: risk
+          in: query
+          required: false
+          schema: { type: string }
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [subscribers, roi, volume, price] }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: pageSize
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        "200":
+          description: OK
+
+  /api/strategies/{profileId}/billing:
+    get:
+      summary: Billing invoices and entitlement status for one subscription
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+
+  /api/strategies/creator/revenue:
+    get:
+      summary: Creator monthly revenue summary (gross, fee, net)
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+
+  /api/admin/strategy-marketplace/moderation:
+    get:
+      summary: Admin moderation queue for strategy listings
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+    post:
+      summary: Admin moderation action for one strategy profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [profileId, action]
+              properties:
+                profileId: { type: string }
+                action: { type: string, enum: [APPROVED, REJECTED, TAKEDOWN, RESTORED, NOTE] }
+                reason: { type: string }
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+
+  /api/admin/strategy-marketplace/payouts:
+    get:
+      summary: List payout reconciliation queue (held/pending payouts + failed invoices)
+      parameters:
+        - in: query
+          name: take
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+          required: false
+          description: Maximum rows to return per collection
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+    post:
+      summary: Create creator payout snapshot for a period
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [creatorId]
+              properties:
+                creatorId: { type: string }
+                periodStart: { type: string, format: date-time }
+                periodEnd: { type: string, format: date-time }
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+    patch:
+      summary: Update creator payout status for reconciliation actions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payoutId, status]
+              properties:
+                payoutId: { type: string }
+                status: { type: string, enum: [READY, PAID, HELD, CANCELED] }
+                providerRef: { type: string }
+                note: { type: string }
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden

@@ -1117,6 +1117,7 @@ export function AgoraProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -1204,6 +1205,7 @@ export function AgoraProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -1234,6 +1236,7 @@ export function AgoraProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -1263,6 +1266,7 @@ export function AgoraProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -1550,6 +1554,7 @@ export function AgoraProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -1748,6 +1753,7 @@ export function AgoraProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -2158,6 +2164,36 @@ export function AgoraProvider({ children }) {
       },
       async getStrategyCopyTrades(profileId) {
         const { payload } = await requestJson(`/api/strategies/${profileId}/copy-trades`);
+        return payload;
+      },
+      async getStrategyBilling(profileId) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/billing`);
+        return payload;
+      },
+      async getCreatorRevenueSummary() {
+        const { payload } = await requestJson("/api/strategies/creator/revenue");
+        return payload;
+      },
+      async getMarketplaceModerationQueue() {
+        const { payload } = await requestJson("/api/admin/strategy-marketplace/moderation", {
+          headers: adminHeaders(state),
+        });
+        return payload;
+      },
+      async moderateMarketplaceProfile({ profileId, action, reason }) {
+        const { payload } = await requestJson("/api/admin/strategy-marketplace/moderation", {
+          method: "POST",
+          headers: adminHeaders(state),
+          body: JSON.stringify({ profileId, action, reason }),
+        });
+        return payload;
+      },
+      async createCreatorPayoutSnapshot({ creatorId, periodStart, periodEnd }) {
+        const { payload } = await requestJson("/api/admin/strategy-marketplace/payouts", {
+          method: "POST",
+          headers: adminHeaders(state),
+          body: JSON.stringify({ creatorId, periodStart, periodEnd }),
+        });
         return payload;
       },
     }),

@@ -30,6 +30,8 @@ export default function SettingsPage() {
   const [selfExcludeDays, setSelfExcludeDays] = useState("0");
   const [responsibleMessage, setResponsibleMessage] = useState("");
   const [responsibleError, setResponsibleError] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const passwordMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
   const passwordWeak = newPassword.length > 0 && newPassword.length < 8;

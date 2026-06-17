@@ -8,10 +8,11 @@ export async function POST(request, { params }) {
   const { session, response } = await requireAdminPermission(request, ADMIN_PERMISSIONS.RISK);
   if (response) return response;
 
+  const { userId } = await params;
   const databaseResult = await freezeDatabaseUser({
-    targetUserId: params.userId,
+    targetUserId: userId,
     actorId: session.userId,
   });
-  const result = databaseResult ?? freezeDemoUser({ userId: params.userId });
+  const result = databaseResult ?? freezeDemoUser({ userId });
   return NextResponse.json(result, { status: result.ok ? 200 : 404 });
 }

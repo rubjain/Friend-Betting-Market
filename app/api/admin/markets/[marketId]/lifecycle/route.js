@@ -9,15 +9,16 @@ export async function PATCH(request, { params }) {
   if (response) return response;
 
   const payload = await request.json();
+  const { marketId } = await params;
   const databaseResult = await updateDatabaseMarketLifecycle({
-    activeId: params.marketId,
+    activeId: marketId,
     status: payload.status,
     userId: session.userId,
   });
   const result =
     databaseResult ??
     updateDemoMarketLifecycle({
-      activeId: params.marketId,
+      activeId: marketId,
       status: payload.status,
     });
 

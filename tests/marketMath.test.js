@@ -8,6 +8,7 @@ import {
   createSettlementLedgerEntries,
 } from "../lib/accounting.js";
 import {
+  ammBuyYes,
   calculateOrderPreview,
   calculatePayout,
   getMultiplier,
@@ -237,6 +238,60 @@ test("order preview estimates LMSR contracts cost and pool fees", () => {
   assert.equal(Math.round(preview.estimatedCost * 100), 2500);
   assert.equal(preview.newYesPrice > 0.5, true);
   assert.equal(Math.abs(preview.newYesPrice + preview.newNoPrice - 1) < 1e-12, true);
+});
+
+test("LMSR stays finite for tiny and large trades", () => {
+  const tiny = ammBuyYes(0, 0, 0.01, 0);
+  const large = ammBuyYes(5000, -5000, 10000, 25);
+
+  assert.equal(tiny.sharesOut > 0, true);
+  assert.equal(tiny.netIn, 0.01);
+  assert.equal(Number.isFinite(tiny.newYesPrice), true);
+  assert.equal(Number.isFinite(tiny.newNoPrice), true);
+  assert.equal(Math.abs(tiny.newYesPrice + tiny.newNoPrice - 1) < 1e-12, true);
+
+  assert.equal(large.feeAmount, 25);
+  assert.equal(large.netIn, 9975);
+  assert.equal(Number.isFinite(large.sharesOut), true);
+  assert.equal(Number.isFinite(large.newYesPrice), true);
+  assert.equal(Number.isFinite(large.newNoPrice), true);
+  assert.equal(large.newYesPrice <= 1, true);
+  assert.equal(large.newNoPrice >= 0, true);
+});
+
+test("LMSR share solver spends no more than its net budget", () => {
+  const market = new LMSRMarket({ qYes: 12, qNo: -4, b: 75 });
+  const budget = 37.25;
+  const shares = market.getSharesForCost("NO", budget);
+  const preview = market.previewBuy("NO", shares);
+
+  assert.equal(preview.cost <= budget, true);
+  assert.equal(Math.abs(preview.cost - budget) < 0.000001, true);
+  assert.equal(preview.afterProbability.no > preview.beforeProbability.no, true);
+});
+
+test("LMSR sell preview returns proceeds and moves price against the sold side", () => {
+  const market = new LMSRMarket({ qYes: 30, qNo: 0, b: 100 });
+  const preview = market.previewSell("YES", 5);
+
+  assert.equal(preview.proceeds > 0, true);
+  assert.equal(preview.afterProbability.yes < preview.beforeProbability.yes, true);
+  assert.equal(Math.abs(preview.afterProbability.yes + preview.afterProbability.no - 1) < 1e-12, true);
+});
+
+test("order preview handles zero and full-fee LMSR budgets deterministically", () => {
+  const market = {
+    liquidityPool: { qYes: 0, qNo: 0, liquidityParameter: 100, feeBps: 10000 },
+  };
+  const zero = calculateOrderPreview({ stake: 0, side: "YES", market });
+  const fullFee = calculateOrderPreview({ stake: 10, side: "YES", market });
+
+  assert.equal(zero.estimatedContracts, 0);
+  assert.equal(zero.estimatedCost, 0);
+  assert.equal(fullFee.feeAmount, 0);
+  assert.equal(fullFee.netStake, 0);
+  assert.equal(fullFee.estimatedContracts, 0);
+  assert.equal(fullFee.currentPrice, 0.5);
 });
 
 test("shared fee engine is deterministic across paper and real trades", () => {

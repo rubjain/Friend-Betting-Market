@@ -11,7 +11,8 @@ test("demo deposit updates balance in shell", async ({ page }) => {
   await page.getByRole("button", { name: "$25" }).click();
   await page.getByRole("button", { name: /Add with/i }).click();
 
-  await expect(page.locator(".flash-banner[role='status'], .flash-banner").first()).toContainText(/Added|withdrawable/i, {
+  await expect(page.getByText(/Available after add/i)).toBeVisible();
+  await expect(page.locator(".deposit-summary")).toContainText("$125.00", {
     timeout: 15_000,
   });
 });

@@ -22,6 +22,10 @@ if (!hasDatabaseUrl()) {
     ledgerEntries: await prisma.ledgerEntry.count(),
     apiKeys: await prisma.apiKey.count(),
     strategies: await prisma.strategy.count(),
+    marketplaceProfiles: await prisma.strategyMarketplaceProfile.count(),
+    billingPlans: await prisma.marketplaceBillingPlan.count(),
+    billingSubscriptions: await prisma.billingSubscription.count(),
+    marketplaceEntitlements: await prisma.marketplaceEntitlement.count(),
     strategyExecutions: await prisma.strategyExecution.count(),
     groups: await prisma.group.count(),
     groupMembers: await prisma.groupMember.count(),
@@ -38,6 +42,9 @@ if (!hasDatabaseUrl()) {
   assertMinimum("ledger entries", counts.ledgerEntries, 1);
   assertMinimum("verification checks", counts.verificationChecks, 6);
   assertMinimum("auth tokens", counts.authTokens, 0);
+  assertMinimum("billing plans", counts.billingPlans, 0);
+  assertMinimum("billing subscriptions", counts.billingSubscriptions, 0);
+  assertMinimum("marketplace entitlements", counts.marketplaceEntitlements, 0);
 
   const firstState = await getDatabaseState(prisma, "user_2");
   const secondState = await getDatabaseState(prisma, "user_2");

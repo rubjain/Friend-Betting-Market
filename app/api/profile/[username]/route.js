@@ -4,7 +4,7 @@ import { hasDatabaseUrl, prisma } from "../../../../lib/server/prisma.js";
 
 export async function GET(request, { params }) {
   await getSessionFromRequest(request);
-  const { username } = params;
+  const { username } = await params;
 
   if (!hasDatabaseUrl()) {
     return NextResponse.json({ ok: false, message: "Not found." }, { status: 404 });

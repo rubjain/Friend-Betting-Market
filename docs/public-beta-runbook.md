@@ -23,6 +23,10 @@ Agora's first launch is paper-money only. Real-money deposits, withdrawals, real
 - `AGORA_DEV_ADMIN_SHORTCUT=0`: must remain off outside local development.
 - `AGORA_ADMIN_LEVELS_JSON`: configure scoped admin permissions for beta admins.
 - `AGORA_DISABLE_ESPN=0`: use ESPN first unless provider testing requires fallback.
+- `CRON_SECRET`: long random Bearer token for `/api/cron/espn-sync` and `/api/cron/strategy-worker`.
+- `AGORA_STRATEGY_MARKETPLACE_ENABLED=1`: enable strategy marketplace APIs and UI.
+- `AGORA_STRATEGY_MAX_ALLOCATION_PCT=50`: upper bound for subscriber allocation setting.
+- `AGORA_STRATEGY_COPY_MIN_STAKE=0.5`: minimum copied trade stake to execute.
 
 ## Custom domain go-live
 
@@ -32,22 +36,24 @@ When your domain DNS is pointed at Vercel:
 2. Set `AGORA_APP_URL` to `https://yourdomain.com` (no trailing slash).
 3. Confirm Supabase `DATABASE_URL` and `DIRECT_URL` on Vercel match production.
 4. Run `npm run prisma:migrate:deploy` and `npm run db:verify` against production.
-5. Deploy and confirm `GET /api/health` returns `ok: true` on the custom domain.
-6. Run the account onboarding and bot/API smoke tests below on that origin.
-7. Share `/developer` and `docs/openapi.yaml` with external bot builders.
+5. For strategy marketplace billing releases, run `npm run marketplace:backfill` after migrations.
+6. Deploy and confirm `GET /api/health` returns `ok: true` on the custom domain.
+7. Run the account onboarding and bot/API smoke tests below on that origin.
+8. Share `/developer` and `docs/openapi.yaml` with external bot builders.
 
 ## Release Checklist
 
 1. Run `npm ci`.
 2. Run `npm run prisma:validate`.
 3. Run `npm test`.
-4. Run `npm run test:e2e` (demo mode). Optionally run database e2e with `E2E_USE_DATABASE=1 npm run test:e2e:db` when Postgres is configured.
+4. Run `npm run test:e2e` (demo mode). Playwright starts an isolated test server on port `3100`, writes artifacts to the OS temp folder by default to avoid OneDrive file locks, and only reuses an existing server when `PLAYWRIGHT_REUSE_SERVER=1` is set. Override with `PLAYWRIGHT_TEST_PORT`, `PLAYWRIGHT_TEST_BASE_URL`, or `PLAYWRIGHT_OUTPUT_DIR` only when needed. Optionally run database e2e with `E2E_USE_DATABASE=1 npm run test:e2e:db` when Postgres is configured.
 5. Run `npm run build`.
-5. Run `npm run prisma:migrate:deploy` against Supabase.
-6. Run `npm run prisma:seed` only for non-production seed/reset environments.
-7. Run `npm run db:verify`.
-8. Visit `/api/health`; it must return `ok: true`.
-9. Verify signup, email verification, login, paper bet placement, developer API key creation, and admin market resolution in the deployed environment.
+6. Run `npm run prisma:migrate:deploy` against Supabase.
+7. Run `npm run marketplace:backfill` for billing-related releases.
+8. Run `npm run db:verify`.
+9. Run `npm run prisma:seed` only for non-production seed/reset environments.
+10. Visit `/api/health`; it must return `ok: true`.
+11. Verify signup, email verification, login, paper bet placement, developer API key creation, and admin market resolution in the deployed environment.
 
 ## Operational Rules
 
@@ -58,7 +64,11 @@ When your domain DNS is pointed at Vercel:
 - Use Supabase backups before migrations and before any bulk admin operation.
 - Keep `DATABASE_URL` and `DIRECT_URL` out of logs, screenshots, and support messages.
 - If ESPN is unavailable, the app may fall back to demo live games; admin-created markets and manual resolution remain the dependable path.
-- Schedule `GET /api/cron/espn-sync` (Bearer `CRON_SECRET`) every few minutes instead of enabling `AGORA_ESPN_SYNC_INLINE=1` in production.
+- Vercel schedules `GET /api/cron/espn-sync` every 15 minutes and `GET /api/cron/strategy-worker` every 5 minutes; both require Bearer `CRON_SECRET`.
+- Keep `AGORA_ESPN_SYNC_INLINE=0` in production so ESPN sync runs through cron instead of ordinary page loads.
+- Treat `sync.summary.errors > 0` from `/api/cron/espn-sync` responses as an investigation trigger.
+- Keep strategy moderation queue clear so submitted profiles are explicitly approved or rejected before publication.
+- Creator payout snapshots should be generated and reviewed on a fixed cadence (daily/weekly) before any transfer operations.
 
 ## Bot and API operating model
 
@@ -81,8 +91,15 @@ When your domain DNS is pointed at Vercel:
 
 1. In Vercel, redeploy the previous production deployment.
 2. If a migration caused data issues, restore the Supabase backup taken before `prisma:migrate:deploy`.
-3. Do not enable `AGORA_FORCE_DEMO_MODE=1` on Vercel except for emergency read-only diagnosis.
-4. Confirm `/api/health` returns `ok: true` before re-sharing the URL.
+3. Re-run `npm run marketplace:backfill` only after validating restored data and billing tables.
+4. Do not enable `AGORA_FORCE_DEMO_MODE=1` on Vercel except for emergency read-only diagnosis.
+5. Confirm `/api/health` returns `ok: true` before re-sharing the URL.
+
+## Incident Triage (Beta)
+
+1. If webhook failures spike, rotate `STRIPE_WEBHOOK_SECRET`/compliance webhook secrets and replay only verified events.
+2. If creator payouts enter `HELD`, use admin payout reconciliation queue to resolve failed invoices before disbursing.
+3. If ESPN sync errors persist for >30 minutes, pause affected markets and rely on manual resolution workflows.
 
 ## Real-Money Blockers
 

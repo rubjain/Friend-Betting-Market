@@ -20,16 +20,17 @@ function draftFromSubscription(subscription) {
 }
 
 export default function StrategyDetailPage({ profileId }) {
-  const { state, actions } = useAgora();
+  const { state, actions, selectors } = useAgora();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState("");
   const [draft, setDraft] = useState(draftFromSubscription(null));
   const [copyTrades, setCopyTrades] = useState([]);
   const [copyTradesLoading, setCopyTradesLoading] = useState(false);
+  const [billing, setBilling] = useState({ invoices: [], entitlements: [], hasEntitlement: false });
   const activeMarkets = useMemo(
-    () => actions.getMergedMarkets().filter((market) => market.status === "ACTIVE").slice(0, 40),
-    [actions, state.markets, state.liveGames],
+    () => selectors.getMergedMarkets().filter((market) => market.status === "ACTIVE").slice(0, 40),
+    [selectors, state.markets, state.liveGames],
   );
 
   async function load() {
@@ -55,8 +56,10 @@ export default function StrategyDetailPage({ profileId }) {
       }
       setCopyTradesLoading(true);
       const payload = await actions.getStrategyCopyTrades(profileId);
+      const billingPayload = await actions.getStrategyBilling(profileId);
       if (active) {
         setCopyTrades(payload.ok ? payload.copyTrades || [] : []);
+        setBilling(billingPayload.ok ? billingPayload : { invoices: [], entitlements: [], hasEntitlement: false });
         setCopyTradesLoading(false);
       }
     }
@@ -133,6 +136,11 @@ export default function StrategyDetailPage({ profileId }) {
         <form className="list-card strategy-subscribe-panel" onSubmit={saveSubscription}>
           <h3>{subscribed ? "Paper copy settings" : "Subscribe in paper mode"}</h3>
           <p className="caption">Real-money copying is disabled for the MVP. Your copied trades use paper balance only.</p>
+          {subscribed ? (
+            <div className="caption">
+              Entitlement: {billing.hasEntitlement ? "Active" : "Inactive"} | Invoices: {billing.invoices?.length || 0}
+            </div>
+          ) : null}
           <label className="field">
             <span className="label">Allocation percentage</span>
             <input type="number" min="1" max="100" value={draft.allocationPct} onChange={(e) => setDraft((d) => ({ ...d, allocationPct: e.currentTarget.value }))} />
@@ -192,6 +200,25 @@ export default function StrategyDetailPage({ profileId }) {
         </form>
 
         {subscribed ? <CopyTradeList trades={copyTrades} loading={copyTradesLoading} /> : null}
+        {subscribed ? (
+          <div className="list-card">
+            <h3>Billing history</h3>
+            <div className="bet-list">
+              {(billing.invoices || []).slice(0, 5).map((invoice) => (
+                <div className="bet-row" key={invoice.id}>
+                  <div className="bet-row-left">
+                    <strong>{invoice.status}</strong>
+                    <div className="caption">
+                      ${(Number(invoice.amountPaidCents || invoice.amountDueCents || 0) / 100).toFixed(2)}{" "}
+                      {invoice.paidAt ? `paid ${new Date(invoice.paidAt).toLocaleDateString()}` : "unpaid"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {!billing.invoices?.length ? <div className="empty-note">No invoices yet.</div> : null}
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );

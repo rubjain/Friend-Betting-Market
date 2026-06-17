@@ -9,6 +9,7 @@ import { SectionHead } from "../ui";
 export default function MyStrategySubscriptionsPage() {
   const { state, actions } = useAgora();
   const [subscriptions, setSubscriptions] = useState([]);
+  const [billingByProfile, setBillingByProfile] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,7 +18,16 @@ export default function MyStrategySubscriptionsPage() {
       setLoading(true);
       const payload = await actions.listMyStrategySubscriptions();
       if (active) {
-        setSubscriptions(payload.ok ? payload.subscriptions || [] : []);
+        const next = payload.ok ? payload.subscriptions || [] : [];
+        setSubscriptions(next);
+        const billingEntries = await Promise.all(
+          next.map(async ({ profile }) => {
+            const billing = await actions.getStrategyBilling(profile.id);
+            return [profile.id, billing.ok ? billing : { invoices: [], hasEntitlement: false }];
+          }),
+        );
+        if (!active) return;
+        setBillingByProfile(Object.fromEntries(billingEntries));
         setLoading(false);
       }
     }
@@ -53,6 +63,7 @@ export default function MyStrategySubscriptionsPage() {
                 <div className="strategy-stat"><span>Allocation</span><strong>{subscription.allocationPct}%</strong></div>
                 <div className="strategy-stat"><span>ROI</span><strong>{profile.roiPct}%</strong></div>
                 <div className="strategy-stat"><span>Auto-copy</span><strong>{subscription.autoCopyEnabled && subscription.status === "ACTIVE" ? "On" : "Paused"}</strong></div>
+                <div className="strategy-stat"><span>Entitlement</span><strong>{billingByProfile[profile.id]?.hasEntitlement ? "Active" : "Inactive"}</strong></div>
               </div>
               <div className="strategy-card-foot">
                 <span>Paper balance: {money(state.currentUser.paper_balance ?? 0)}</span>

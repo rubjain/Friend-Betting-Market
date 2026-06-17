@@ -8,8 +8,9 @@ export async function PATCH(request, { params }) {
   if (response) return response;
 
   const payload = await request.json();
+  const { userId } = await params;
   const result = await adminUpdateVerification({
-    targetUserId: params.userId,
+    targetUserId: userId,
     type: payload.type,
     status: payload.status,
     actorId: session.userId,

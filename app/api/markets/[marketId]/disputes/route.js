@@ -7,8 +7,9 @@ export async function POST(request, { params }) {
   if (response) return response;
 
   const payload = await request.json();
+  const { marketId } = await params;
   const result = await submitDispute({
-    marketId: params.marketId,
+    marketId,
     betId: payload.betId,
     reason: payload.reason,
     userId: session.userId,

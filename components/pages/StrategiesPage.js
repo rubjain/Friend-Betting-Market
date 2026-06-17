@@ -14,38 +14,46 @@ export default function StrategiesPage() {
   const [loading, setLoading] = useState(true);
   const [riskFilter, setRiskFilter] = useState("all");
   const [sortBy, setSortBy] = useState("subscribers");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
     async function load() {
       setLoading(true);
-      const res = await fetch("/api/strategies");
+      setError("");
+      const params = new URLSearchParams({
+        risk: riskFilter,
+        sort: sortBy,
+        q: query,
+        page: String(page),
+        pageSize: "12",
+      });
+      const res = await fetch(`/api/strategies?${params.toString()}`);
       const payload = await res.json().catch(() => ({}));
-      if (active) {
-        setProfiles(payload.ok ? payload.profiles || [] : []);
-        setLoading(false);
+      if (!active) return;
+      if (payload.ok) {
+        setProfiles(payload.profiles || []);
+        setTotalPages(payload.totalPages || 1);
+      } else {
+        setProfiles([]);
+        setError(payload.message || "Could not load strategy marketplace.");
       }
+      setLoading(false);
     }
     load();
     return () => {
       active = false;
     };
-  }, []);
+  }, [riskFilter, sortBy, query, page]);
 
   const riskLevels = useMemo(
     () => Array.from(new Set(profiles.map((profile) => profile.riskLevel).filter(Boolean))),
     [profiles],
   );
-  const filteredProfiles = useMemo(() => {
-    const filtered = riskFilter === "all"
-      ? profiles
-      : profiles.filter((profile) => profile.riskLevel === riskFilter);
-    return [...filtered].sort((a, b) => {
-      if (sortBy === "roi") return (b.roiPct ?? 0) - (a.roiPct ?? 0);
-      if (sortBy === "volume") return (b.copiedVolume ?? 0) - (a.copiedVolume ?? 0);
-      return (b.subscriberCount ?? 0) - (a.subscriberCount ?? 0);
-    });
-  }, [profiles, riskFilter, sortBy]);
+  const filteredProfiles = useMemo(() => profiles, [profiles]);
 
   return (
     <section className="page active strategy-marketplace-page">
@@ -54,6 +62,10 @@ export default function StrategiesPage() {
         body="Follow paper trading strategies without seeing or owning the private bot logic."
       />
       <div className="strategy-marketplace-toolbar">
+        <label className="field strategy-toolbar-search">
+          <span className="label">Search</span>
+          <input value={query} onChange={(e) => { setPage(1); setQuery(e.currentTarget.value); }} placeholder="Search by name, creator, or description" />
+        </label>
         <div className="portfolio-tabs strategy-filter-tabs">
           <button className={`portfolio-tab${riskFilter === "all" ? " active" : ""}`} type="button" onClick={() => setRiskFilter("all")}>
             All
@@ -74,6 +86,7 @@ export default function StrategiesPage() {
           <Link className="btn btn-secondary" href="/strategies/creator">Creator dashboard</Link>
         </div>
       </div>
+      {error ? <div className="note-banner">{error}</div> : null}
 
       {loading ? (
         <div className="list-card">Loading strategies...</div>
@@ -88,6 +101,15 @@ export default function StrategiesPage() {
           No published paper strategies yet. <Link href="/developer">Create a bot</Link> or <Link href="/strategies/creator">publish one</Link>.
         </div>
       )}
+      <div className="inline-actions">
+        <button className="btn btn-ghost" type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1 || loading}>
+          Previous
+        </button>
+        <span className="caption">Page {page} of {totalPages}</span>
+        <button className="btn btn-ghost" type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages || loading}>
+          Next
+        </button>
+      </div>
     </section>
   );
 }

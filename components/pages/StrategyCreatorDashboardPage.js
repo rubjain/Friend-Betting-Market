@@ -10,6 +10,7 @@ export default function StrategyCreatorDashboardPage() {
   const [revenueCents, setRevenueCents] = useState(0);
   const [pending, setPending] = useState("");
   const [flash, setFlash] = useState("");
+  const [revenueSummary, setRevenueSummary] = useState({ grossCents: 0, feeCents: 0, netCents: 0 });
   const [draft, setDraft] = useState({
     strategyId: "",
     name: "",
@@ -24,11 +25,14 @@ export default function StrategyCreatorDashboardPage() {
       fetch("/api/v1/strategies"),
       fetch("/api/strategies/creator"),
     ]);
+    const revenueRes = await fetch("/api/strategies/creator/revenue");
     const strategyPayload = await strategyRes.json().catch(() => ({}));
     const creatorPayload = await creatorRes.json().catch(() => ({}));
+    const revenuePayload = await revenueRes.json().catch(() => ({}));
     setStrategies(strategyPayload.ok ? strategyPayload.strategies || [] : []);
     setProfiles(creatorPayload.ok ? creatorPayload.profiles || [] : []);
     setRevenueCents(creatorPayload.revenueCents || 0);
+    if (revenuePayload.ok) setRevenueSummary(revenuePayload);
   }
 
   useEffect(() => {
@@ -133,6 +137,9 @@ export default function StrategyCreatorDashboardPage() {
             <div className="row-between">
               <h3>Marketplace profiles</h3>
               <span className="pill">Estimated revenue: {money(revenueCents / 100)}</span>
+            </div>
+            <div className="caption">
+              Billed this month: {money((revenueSummary.grossCents || 0) / 100)} | Platform fees: {money((revenueSummary.feeCents || 0) / 100)} | Net: {money((revenueSummary.netCents || 0) / 100)}
             </div>
             <div className="bet-list">
               {profiles.length ? profiles.map((profile) => (

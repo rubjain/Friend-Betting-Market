@@ -8,10 +8,11 @@ export async function POST(request, { params }) {
   const { session, response } = await requireAdminPermission(request, ADMIN_PERMISSIONS.RISK);
   if (response) return response;
 
+  const { userId } = await params;
   const databaseResult = await clearDatabaseRiskReview({
-    targetUserId: params.userId,
+    targetUserId: userId,
     actorId: session.userId,
   });
-  const result = databaseResult ?? clearDemoRiskReview({ userId: params.userId });
+  const result = databaseResult ?? clearDemoRiskReview({ userId });
   return NextResponse.json(result, { status: result.ok ? 200 : 404 });
 }

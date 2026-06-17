@@ -17,11 +17,21 @@ test("admin dashboard loads and shows market review section", async ({ page }) =
     timeout: 30_000,
   });
 
+  const dismissFlash = page.getByRole("button", { name: "Dismiss" });
+  if (await dismissFlash.isVisible()) {
+    await dismissFlash.click();
+  }
+
   const approveBtn = page.getByRole("button", { name: "Approve" }).first();
   if (await approveBtn.isVisible()) {
-    await approveBtn.click();
-    await expect(page.locator(".flash-banner[role='status']")).toContainText(/approv/i, {
-      timeout: 15_000,
-    });
+    const [response] = await Promise.all([
+      page.waitForResponse((res) =>
+        res.url().includes("/api/admin/markets/") &&
+        res.url().includes("/approve") &&
+        res.request().method() === "POST",
+      ),
+      approveBtn.click(),
+    ]);
+    expect(response.ok()).toBeTruthy();
   }
 });

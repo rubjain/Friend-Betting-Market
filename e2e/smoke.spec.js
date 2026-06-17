@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("landing loads and markets page shows heading", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Trade what you know/i })).toBeVisible();
-  await page.getByRole("link", { name: "Browse Markets" }).click();
+  await page.getByRole("link", { name: "Open Markets" }).click();
   await expect(page.locator(".section-head h3", { hasText: "Markets" })).toBeVisible();
 });
 
@@ -13,7 +13,7 @@ test("demo sign-in from login page", async ({ page }) => {
   await page.getByLabel(/^Password$/).fill("password123");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\//);
-  await page.goto("/markets");
+  await page.goto("/markets", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".section-head h3", { hasText: "Markets" })).toBeVisible({
     timeout: 30_000,
   });

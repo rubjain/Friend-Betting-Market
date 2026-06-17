@@ -18,25 +18,35 @@ test("password hashes verify only the original password", () => {
 });
 
 test("memory rate limiter blocks after configured failures and can be cleared", async () => {
+  const previousForceDemo = process.env.AGORA_FORCE_DEMO_MODE;
+  process.env.AGORA_FORCE_DEMO_MODE = "1";
   const config = { max: 2, windowMs: 60_000 };
   const identifier = `user-${Date.now()}@example.com`;
   const key = makeRateLimitKey("login", identifier, "test-ip");
 
-  const first = await checkRateLimit({ scope: "login", identifier, requestKey: "test-ip", config });
-  assert.equal(first.ok, true);
+  try {
+    const first = await checkRateLimit({ scope: "login", identifier, requestKey: "test-ip", config });
+    assert.equal(first.ok, true);
 
-  await recordRateLimitFailure(key, config);
-  const second = await checkRateLimit({ scope: "login", identifier, requestKey: "test-ip", config });
-  assert.equal(second.ok, true);
+    await recordRateLimitFailure(key, config);
+    const second = await checkRateLimit({ scope: "login", identifier, requestKey: "test-ip", config });
+    assert.equal(second.ok, true);
 
-  await recordRateLimitFailure(key, config);
-  const blocked = await checkRateLimit({ scope: "login", identifier, requestKey: "test-ip", config });
-  assert.equal(blocked.ok, false);
-  assert.equal(blocked.retryAfterSeconds > 0, true);
+    await recordRateLimitFailure(key, config);
+    const blocked = await checkRateLimit({ scope: "login", identifier, requestKey: "test-ip", config });
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.retryAfterSeconds > 0, true);
 
-  await clearRateLimit(key);
-  const cleared = await checkRateLimit({ scope: "login", identifier, requestKey: "test-ip", config });
-  assert.equal(cleared.ok, true);
+    await clearRateLimit(key);
+    const cleared = await checkRateLimit({ scope: "login", identifier, requestKey: "test-ip", config });
+    assert.equal(cleared.ok, true);
+  } finally {
+    if (previousForceDemo === undefined) {
+      delete process.env.AGORA_FORCE_DEMO_MODE;
+    } else {
+      process.env.AGORA_FORCE_DEMO_MODE = previousForceDemo;
+    }
+  }
 });
 
 import { createEmailVerificationCode } from "../lib/server/auth.js";

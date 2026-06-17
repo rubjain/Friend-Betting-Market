@@ -1,4 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
+import os from "node:os";
+import path from "node:path";
 
 /**
  * E2E tests expect a running app. Start the dev server first:
@@ -9,8 +11,13 @@ import { defineConfig, devices } from "@playwright/test";
  * Demo mode (default): no database, dev admin shortcuts enabled.
  * Database mode: set E2E_USE_DATABASE=1 and ensure DATABASE_URL is configured.
  */
-const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:3000";
+const testPort = process.env.PLAYWRIGHT_TEST_PORT || "3100";
+const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || `http://127.0.0.1:${testPort}`;
 const useDatabase = process.env.E2E_USE_DATABASE === "1";
+const outputDir =
+  process.env.PLAYWRIGHT_OUTPUT_DIR || path.join(os.tmpdir(), "agora-playwright-results");
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === "1";
 
 const demoWebServerEnv = {
   ...process.env,
@@ -39,12 +46,13 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_TEST_BASE_URL
     ? undefined
     : {
-        command: "npm run dev",
+        command: `${npmCommand} run dev -- -p ${testPort}`,
         url: baseURL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer,
         timeout: 120_000,
         env: useDatabase ? dbWebServerEnv : demoWebServerEnv,
       },
+  outputDir,
   use: {
     baseURL,
     trace: "on-first-retry",

@@ -32,13 +32,55 @@ test("public beta checks pass with required hosted env and real money off", () =
     DIRECT_URL: "postgresql://example-direct",
     AGORA_SESSION_SECRET: "12345678901234567890123456789012",
     AGORA_APP_URL: "https://agora.example",
+    AGORA_EMAIL_FROM: "noreply@agora.example",
+    EMAIL_USER: "mailer@example.com",
+    EMAIL_PASS: "secret",
+    CRON_SECRET: "123456789012345678901234",
+    AGORA_REAL_MONEY_MODE: "0",
+    AGORA_DEV_ADMIN_SHORTCUT: "0",
+    AGORA_STRATEGY_MARKETPLACE_ENABLED: "1",
+  });
+
+  assert.equal(result.ready, true);
+});
+
+test("public beta checks require strategy marketplace flag", () => {
+  const result = getBetaLaunchChecks({
+    NODE_ENV: "production",
+    DATABASE_URL: "postgresql://example",
+    DIRECT_URL: "postgresql://example-direct",
+    AGORA_SESSION_SECRET: "12345678901234567890123456789012",
+    AGORA_APP_URL: "https://agora.example",
+    AGORA_EMAIL_FROM: "noreply@agora.example",
+    EMAIL_USER: "mailer@example.com",
+    EMAIL_PASS: "secret",
+    CRON_SECRET: "123456789012345678901234",
+    AGORA_REAL_MONEY_MODE: "0",
+    AGORA_DEV_ADMIN_SHORTCUT: "0",
+    AGORA_STRATEGY_MARKETPLACE_ENABLED: "0",
+  });
+  assert.equal(result.ready, false);
+  assert.equal(result.checks.find((check) => check.key === "strategyMarketplaceEnabled")?.ok, false);
+});
+
+test("public beta checks require cron secret for scheduled jobs", () => {
+  const result = getBetaLaunchChecks({
+    NODE_ENV: "production",
+    DATABASE_URL: "postgresql://example",
+    DIRECT_URL: "postgresql://example-direct",
+    AGORA_SESSION_SECRET: "12345678901234567890123456789012",
+    AGORA_APP_URL: "https://agora.example",
+    AGORA_EMAIL_FROM: "noreply@agora.example",
     EMAIL_USER: "mailer@example.com",
     EMAIL_PASS: "secret",
     AGORA_REAL_MONEY_MODE: "0",
     AGORA_DEV_ADMIN_SHORTCUT: "0",
   });
 
-  assert.equal(result.ready, true);
+  const cron = result.checks.find((check) => check.key === "cronSecret");
+  assert.equal(result.ready, false);
+  assert.equal(cron.required, true);
+  assert.equal(cron.ok, false);
 });
 
 test("real-money disabled has stable v1 payload and code", () => {

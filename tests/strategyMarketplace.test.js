@@ -34,9 +34,34 @@ test("publicProfile omits private strategy config", () => {
   assert.equal(profile.name, "Edge Finder");
   assert.equal(profile.creator.username, "@creator");
   assert.equal(profile.roiPct, 12.5);
+  assert.equal(profile.billingPlan, null);
   assert.equal(profile.config, undefined);
   assert.equal(profile.strategy, undefined);
   assert.equal(JSON.stringify(profile).includes("never-return-this"), false);
+});
+
+test("publicProfile exposes active billing plan details", () => {
+  const profile = publicProfile({
+    id: "profile_plan",
+    strategyId: "strategy_plan",
+    slug: "quant-plan",
+    name: "Quant Plan",
+    description: "Plan test",
+    marketsSupported: ["NFL"],
+    riskLevel: "Low",
+    priceCents: 2999,
+    status: "PUBLISHED",
+    roiPct: 1,
+    winRatePct: 1,
+    maxDrawdownPct: 1,
+    subscriberCount: 1,
+    copiedVolume: 1,
+    billingPlans: [{ id: "plan_1", amountCents: 2999, interval: "MONTH", active: true }],
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    updatedAt: new Date("2026-01-02T00:00:00Z"),
+  });
+  assert.equal(profile.billingPlan.id, "plan_1");
+  assert.equal(profile.billingPlan.amountCents, 2999);
 });
 
 test("publicSubscription preserves paper controls without private account data", () => {

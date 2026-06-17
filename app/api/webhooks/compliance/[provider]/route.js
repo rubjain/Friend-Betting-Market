@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import {
-  kycWebhookHandler,
+  handleComplianceWebhook,
   verifyComplianceWebhook,
 } from "../../../../../lib/server/complianceProviders.js";
 import { adminUpdateVerification } from "../../../../../lib/server/adminComplianceService.js";
 
 export async function POST(request, { params }) {
-  const provider = params.provider || "unknown";
+  const { provider: rawProvider } = await params;
+  const provider = rawProvider || "unknown";
 
   // Read the raw body and verify the vendor signature BEFORE trusting any field.
   // Without this, anyone could POST { type: "identity.verified", userId } and
@@ -34,19 +35,28 @@ export async function POST(request, { params }) {
     return NextResponse.json({ ok: false, message: "Invalid JSON payload." }, { status: 400 });
   }
 
-  if (payload.type === "identity.verified" && payload.userId) {
-    const result = await adminUpdateVerification({
-      targetUserId: payload.userId,
-      type: "IDENTITY",
-      status: "VERIFIED",
-      // System-initiated: actorId is a User FK, so leave it null rather than
-      // self-attributing to the verified user. Provenance lives in the note.
-      actorId: null,
-      note: `Verified via signed ${provider} webhook`,
-    });
-    return NextResponse.json(result, { status: result.ok ? 200 : 400 });
+  const decision = handleComplianceWebhook(provider, payload);
+  if (!decision.ok) {
+    return NextResponse.json(decision, { status: 501 });
   }
 
-  const result = kycWebhookHandler(provider, payload);
-  return NextResponse.json(result, { status: result.ok ? 200 : 501 });
+  const results = [];
+  for (const update of decision.updates || []) {
+    const result = await adminUpdateVerification({
+      targetUserId: update.userId,
+      type: update.type,
+      status: update.status,
+      actorId: null,
+      note: update.note || `Updated via signed ${provider} webhook`,
+    });
+    results.push({
+      ok: result.ok,
+      userId: update.userId,
+      type: update.type,
+      status: update.status,
+      message: result.message,
+    });
+  }
+  const failed = results.find((entry) => !entry.ok);
+  return NextResponse.json({ ok: !failed, provider, results }, { status: failed ? 400 : 200 });
 }

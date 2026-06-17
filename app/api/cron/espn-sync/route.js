@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncEspnMarketsToDb } from "../../../../lib/server/espnMarketSync.js";
+import { getEspnSyncStatus, syncEspnMarketsToDb } from "../../../../lib/server/espnMarketSync.js";
 import { prisma, hasDatabaseUrl } from "../../../../lib/server/prisma.js";
 import { isAuthorizedCronRequest } from "../../../../lib/server/cronAuth.js";
 
@@ -12,5 +12,5 @@ export async function GET(request) {
   }
 
   await syncEspnMarketsToDb(prisma);
-  return NextResponse.json({ ok: true, message: "ESPN market sync completed." });
+  return NextResponse.json({ ok: true, message: "ESPN market sync completed.", sync: getEspnSyncStatus() });
 }

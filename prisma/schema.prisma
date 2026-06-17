@@ -40,6 +40,13 @@ model User {
   disputes            MarketDispute[]
   orders              Order[]
   paymentTransactions PaymentTransaction[]
+  billingSubscriptions BillingSubscription[]
+  marketplaceInvoices MarketplaceInvoice[]
+  marketplaceEntitlements MarketplaceEntitlement[]
+  creatorPayouts      CreatorPayout[]
+  creatorPayoutItems  CreatorPayoutItem[]
+  listingModerationEvents ListingModerationEvent[] @relation("ListingModerationActor")
+  payoutLedgerEvents  CreatorPayoutLedgerEvent[] @relation("PayoutLedgerActor")
   rateLimitBuckets    RateLimitBucket[]
   riskReviews         RiskReview[]
   sessions            UserSession[]
@@ -131,6 +138,8 @@ enum AccountMode {
 
 enum StrategyProfileStatus {
   DRAFT
+  UNDER_REVIEW
+  REJECTED
   PUBLISHED
   PAUSED
   ARCHIVED
@@ -171,9 +180,235 @@ model StrategyMarketplaceProfile {
   creator       User                   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   subscriptions StrategySubscription[]
   tradeSignals  StrategyTradeSignal[]
+  billingPlans  MarketplaceBillingPlan[]
+  billingSubscriptions BillingSubscription[]
+  invoices      MarketplaceInvoice[]
+  entitlements  MarketplaceEntitlement[]
+  moderationEvents ListingModerationEvent[]
+  payoutLedgerEvents CreatorPayoutLedgerEvent[]
+  payoutItems   CreatorPayoutItem[]
 
   @@index([creatorId, status])
   @@index([status, updatedAt])
+}
+
+enum BillingSubscriptionStatus {
+  INCOMPLETE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELED
+  EXPIRED
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  FAILED
+  REFUNDED
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  GRACE
+  REVOKED
+  EXPIRED
+}
+
+enum ModerationAction {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  TAKEDOWN
+  RESTORED
+  NOTE
+}
+
+enum PayoutStatus {
+  PENDING
+  READY
+  PAID
+  HELD
+  CANCELED
+}
+
+model MarketplaceBillingPlan {
+  id              String   @id @default(cuid())
+  profileId        String
+  name            String
+  interval        BillingInterval @default(MONTH)
+  amountCents     Int
+  active          Boolean  @default(true)
+  providerProductId String?
+  providerPriceId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  profile StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  billingSubscriptions BillingSubscription[]
+
+  @@index([profileId, active])
+}
+
+model BillingSubscription {
+  id                String                    @id @default(cuid())
+  userId            String
+  profileId         String
+  planId            String
+  status            BillingSubscriptionStatus @default(INCOMPLETE)
+  provider          String                    @default("stripe")
+  providerCustomerId String?
+  providerSubscriptionId String?              @unique
+  providerCheckoutSessionId String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd  DateTime?
+  canceledAt        DateTime?
+  endedAt           DateTime?
+  latestInvoiceId   String?
+  metadata          Json?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  plan MarketplaceBillingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  invoices MarketplaceInvoice[]
+  entitlementEvents MarketplaceEntitlement[]
+
+  @@unique([userId, profileId])
+  @@index([profileId, status])
+}
+
+model MarketplaceInvoice {
+  id                    String        @id @default(cuid())
+  userId                String
+  profileId             String
+  billingSubscriptionId String
+  provider              String        @default("stripe")
+  providerInvoiceId     String?       @unique
+  status                InvoiceStatus @default(DRAFT)
+  amountDueCents        Int           @default(0)
+  amountPaidCents       Int           @default(0)
+  currency              String        @default("usd")
+  dueAt                 DateTime?
+  paidAt                DateTime?
+  failureCode           String?
+  failureMessage        String?
+  metadata              Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  billingSubscription BillingSubscription @relation(fields: [billingSubscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([billingSubscriptionId, createdAt])
+}
+
+model MarketplaceEntitlement {
+  id                    String            @id @default(cuid())
+  userId                String
+  profileId             String
+  billingSubscriptionId String?
+  status                EntitlementStatus @default(ACTIVE)
+  source                String            @default("billing")
+  startsAt              DateTime          @default(now())
+  endsAt                DateTime?
+  graceEndsAt           DateTime?
+  revokedAt             DateTime?
+  reason                String?
+  metadata              Json?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  billingSubscription BillingSubscription? @relation(fields: [billingSubscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, profileId, status])
+  @@index([billingSubscriptionId, createdAt])
+}
+
+model ListingModerationEvent {
+  id        String           @id @default(cuid())
+  profileId String
+  actorId   String?
+  action    ModerationAction
+  reason    String?
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  profile StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  actor User? @relation("ListingModerationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, createdAt])
+}
+
+model CreatorPayout {
+  id          String       @id @default(cuid())
+  creatorId   String
+  periodStart DateTime
+  periodEnd   DateTime
+  currency    String       @default("usd")
+  grossCents  Int          @default(0)
+  feeCents    Int          @default(0)
+  netCents    Int          @default(0)
+  status      PayoutStatus @default(PENDING)
+  providerRef String?
+  paidAt      DateTime?
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  creator User @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  items CreatorPayoutItem[]
+
+  @@index([creatorId, status, periodEnd])
+}
+
+model CreatorPayoutItem {
+  id          String   @id @default(cuid())
+  payoutId    String
+  creatorId   String
+  profileId   String
+  invoiceId   String?
+  grossCents  Int      @default(0)
+  feeCents    Int      @default(0)
+  netCents    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  payout CreatorPayout @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+  creator User @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  profile StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  invoice MarketplaceInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([payoutId, profileId])
+  @@index([invoiceId])
+}
+
+model CreatorPayoutLedgerEvent {
+  id        String   @id @default(cuid())
+  profileId String
+  actorId   String?
+  type      String
+  amountCents Int
+  currency  String   @default("usd")
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  profile StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  actor User? @relation("PayoutLedgerActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, createdAt])
 }
 
 model StrategySubscription {
@@ -336,6 +571,9 @@ model Bet {
   user               User            @relation(fields: [userId], references: [id])
   ledgerEntries      LedgerEntry[]
   disputes           MarketDispute[]
+
+  @@index([copiedFromProfileId, placedAt])
+  @@index([copyTradeId])
 }
 
 model OddsSnapshot {
