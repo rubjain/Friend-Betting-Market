@@ -2,9 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  listCreatorPrivateStrategies,
   publicProfile,
   publicSubscription,
+  publishMarketplaceProfile,
+  updateCreatorMarketplaceProfile,
 } from "../lib/server/strategyMarketplaceService.js";
+import { createStrategy } from "../lib/server/strategyService.js";
 
 test("publicProfile omits private strategy config", () => {
   const profile = publicProfile({
@@ -84,4 +88,91 @@ test("publicSubscription preserves paper controls without private account data",
   assert.equal(subscription.accountMode, "PAPER");
   assert.equal(subscription.allocationPct, 15);
   assert.equal(subscription.user, undefined);
+});
+
+test("listCreatorPrivateStrategies links marketplace profiles without exposing config", async () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  try {
+    delete process.env.DATABASE_URL;
+    globalThis.__agoraStrategies = [];
+    globalThis.__agoraStrategyMarketplaceProfiles = [];
+
+    const created = await createStrategy({
+      userId: "user_creator",
+      name: "Hidden Alpha",
+      mode: "PAPER",
+      status: "ACTIVE",
+      type: "RULES",
+      config: { rules: [{ secret: true }] },
+    });
+    await publishMarketplaceProfile({
+      creatorId: "user_creator",
+      strategyId: created.strategy.id,
+      profile: {
+        name: "Hidden Alpha",
+        description: "Public listing",
+        marketsSupported: ["NBA"],
+        riskLevel: "Medium",
+        priceCents: 0,
+      },
+    });
+
+    const result = await listCreatorPrivateStrategies({ creatorId: "user_creator" });
+    assert.equal(result.ok, true);
+    assert.equal(result.strategies.length, 1);
+    assert.equal(result.strategies[0].id, created.strategy.id);
+    assert.equal(result.strategies[0].marketplaceProfile?.status, "PUBLISHED");
+    assert.equal(result.strategies[0].config, undefined);
+  } finally {
+    if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalDatabaseUrl;
+    delete globalThis.__agoraStrategies;
+    delete globalThis.__agoraStrategyMarketplaceProfiles;
+  }
+});
+
+test("updateCreatorMarketplaceProfile blocks self-publish before approval", async () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  try {
+    delete process.env.DATABASE_URL;
+    globalThis.__agoraStrategyMarketplaceProfiles = [{
+      id: "profile_review",
+      strategyId: "strategy_review",
+      creatorId: "user_creator",
+      slug: "review-me",
+      name: "Review Me",
+      description: "Pending",
+      marketsSupported: ["NBA"],
+      riskLevel: "Medium",
+      priceCents: 0,
+      status: "UNDER_REVIEW",
+      roiPct: 0,
+      winRatePct: 0,
+      maxDrawdownPct: 0,
+      subscriberCount: 0,
+      copiedVolume: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }];
+
+    const blocked = await updateCreatorMarketplaceProfile({
+      creatorId: "user_creator",
+      profileId: "profile_review",
+      patch: { status: "PUBLISHED" },
+    });
+    assert.equal(blocked.ok, false);
+
+    globalThis.__agoraStrategyMarketplaceProfiles[0].status = "PAUSED";
+    const allowed = await updateCreatorMarketplaceProfile({
+      creatorId: "user_creator",
+      profileId: "profile_review",
+      patch: { status: "PUBLISHED" },
+    });
+    assert.equal(allowed.ok, true);
+    assert.equal(allowed.profile.status, "PUBLISHED");
+  } finally {
+    if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalDatabaseUrl;
+    delete globalThis.__agoraStrategyMarketplaceProfiles;
+  }
 });

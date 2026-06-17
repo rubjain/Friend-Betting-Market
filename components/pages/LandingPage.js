@@ -13,12 +13,13 @@ import {
 } from "../../lib/marketAlgorithms";
 import { buildMarketDualPriceSeries } from "../../lib/marketPriceSeries";
 import { getContractSideLabels } from "../../lib/marketLabels";
+import TerminalMarketCard from "../TerminalMarketCard";
 
 function formatAxisTime(ms) {
   return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(ms));
 }
 
-function RowChartTooltip({ active, payload }) {
+function RowChartTooltip({ active, payload, labelA = "YES", labelB = "NO", colorA, colorB }) {
   if (!active || !payload?.length) return null;
   const row = payload[0]?.payload;
   if (!row) return null;
@@ -29,8 +30,14 @@ function RowChartTooltip({ active, payload }) {
   return (
     <div className="top-market-row-tooltip">
       <div className="top-market-row-tooltip-time">{formatAxisTime(row.time)}</div>
-      <div className="top-market-row-tooltip-line">YES <strong>{formatPercent(yesValue)}</strong></div>
-      <div className="top-market-row-tooltip-line">NO <strong>{formatPercent(noValue)}</strong></div>
+      <div className="top-market-row-tooltip-line" style={{ "--top-market-tooltip-color": colorA }}>
+        <span>{labelA}</span>
+        <strong>{formatPercent(yesValue)}</strong>
+      </div>
+      <div className="top-market-row-tooltip-line" style={{ "--top-market-tooltip-color": colorB }}>
+        <span>{labelB}</span>
+        <strong>{formatPercent(noValue)}</strong>
+      </div>
     </div>
   );
 }
@@ -39,6 +46,10 @@ function TopMarketRow({ market, linkedGame, now, rowIndex }) {
   const router = useRouter();
   const { actions } = useAgora();
   const series = useMemo(() => buildMarketDualPriceSeries(market, linkedGame, now), [market, linkedGame, now]);
+  const chartLabels = useMemo(
+    () => getContractSideLabels(market, linkedGame, { shortSides: true }),
+    [market, linkedGame],
+  );
   const awayColor = linkedGame?.awayTeamColor || "var(--mt-yes, var(--accent))";
   const homeColor = linkedGame?.homeTeamColor || "var(--mt-no, var(--no))";
   const isLive = linkedGame?.status === "live";
@@ -52,8 +63,8 @@ function TopMarketRow({ market, linkedGame, now, rowIndex }) {
   return (
     <article className={`top-market-row${isChartRight ? " top-market-row--chart-right" : ""}`}>
       <div className="top-market-row-chart">
-        <ResponsiveContainer width="100%" height={170}>
-          <LineChart data={series.points} margin={{ top: 8, right: 8, left: 8, bottom: 6 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={series.points} margin={{ top: 12, right: 12, left: 6, bottom: 12 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="time"
@@ -74,7 +85,17 @@ function TopMarketRow({ market, linkedGame, now, rowIndex }) {
               axisLine={false}
               width={44}
             />
-            <Tooltip content={<RowChartTooltip />} cursor={{ stroke: "rgba(120,120,120,0.45)", strokeWidth: 1 }} />
+            <Tooltip
+              content={(
+                <RowChartTooltip
+                  labelA={chartLabels.yesLabel}
+                  labelB={chartLabels.noLabel}
+                  colorA={awayColor}
+                  colorB={homeColor}
+                />
+              )}
+              cursor={{ stroke: "rgba(120,120,120,0.45)", strokeWidth: 1 }}
+            />
             <Line type="monotone" dataKey="a" stroke={awayColor} strokeWidth={2.2} dot={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="b" stroke={homeColor} strokeWidth={2.2} dot={false} isAnimationActive={false} />
           </LineChart>
@@ -97,18 +118,22 @@ function TopMarketRow({ market, linkedGame, now, rowIndex }) {
           <div className="top-market-row-scoreboard">
             <div>
               <span>{linkedGame.awayTeam}</span>
-              <strong>{linkedGame.awayScore}</strong>
-              <button type="button" className="top-market-side-bet" onClick={() => placeQuickBet("YES")}>
-                {formatPercent(market.yesPrice)}
-              </button>
+              <div className="top-market-score-stack">
+                <strong>{linkedGame.awayScore}</strong>
+                <button type="button" className="top-market-side-bet" onClick={() => placeQuickBet("YES")}>
+                  {formatPercent(market.yesPrice)}
+                </button>
+              </div>
             </div>
             <div className="top-market-row-scoreboard-clock">{getLiveGameClock(linkedGame)}</div>
             <div>
               <span>{linkedGame.homeTeam}</span>
-              <strong>{linkedGame.homeScore}</strong>
-              <button type="button" className="top-market-side-bet" onClick={() => placeQuickBet("NO")}>
-                {formatPercent(market.noPrice)}
-              </button>
+              <div className="top-market-score-stack">
+                <strong>{linkedGame.homeScore}</strong>
+                <button type="button" className="top-market-side-bet" onClick={() => placeQuickBet("NO")}>
+                  {formatPercent(market.noPrice)}
+                </button>
+              </div>
             </div>
           </div>
         ) : null}
@@ -120,15 +145,6 @@ function TopMarketRow({ market, linkedGame, now, rowIndex }) {
       </div>
     </article>
   );
-}
-
-// In-session memory of last-seen YES probability per market. Lets us surface a
-// REAL probability shift (the move observed since the previous live poll)
-// without inventing data or needing a backend price-history field.
-const probabilityMemory = new Map();
-
-function pct(value) {
-  return `${Math.round((Number(value) || 0) * 100)}`;
 }
 
 export default function LandingPage() {
@@ -328,134 +344,3 @@ export default function LandingPage() {
   );
 }
 
-function TerminalMarketCard({ market, liveGames, peakVolume }) {
-  const router = useRouter();
-  const { actions } = useAgora();
-  const linkedGame = getLinkedLiveGame(market, liveGames);
-  const { yesLabel, noLabel } = useMemo(
-    () => getContractSideLabels(market, linkedGame, { shortSides: true }),
-    [market, linkedGame],
-  );
-
-  const yes = Number(market.yesPrice) || 0;
-  const no = Number(market.noPrice) || 0;
-  const leadingIsYes = yes >= no;
-  const leadPct = leadingIsYes ? yes : no;
-  const leadLabel = leadingIsYes ? yesLabel : noLabel;
-  const trailLabel = leadingIsYes ? noLabel : yesLabel;
-  const trailPct = leadingIsYes ? no : yes;
-
-  // Real in-session probability shift (signed, in points).
-  const previous = probabilityMemory.get(market.id);
-  const shift = previous == null ? 0 : Math.round((yes - previous) * 100);
-  useEffect(() => {
-    probabilityMemory.set(market.id, yes);
-  }, [market.id, yes]);
-
-  const isLive = linkedGame?.status === "live";
-  const volPct = peakVolume > 0 ? Math.max(4, (Number(market.volume || 0) / peakVolume) * 100) : 0;
-  const shiftDir = shift > 0 ? "up" : shift < 0 ? "down" : "flat";
-
-  function prepare(side) {
-    actions.prepareBet(market.id, side);
-    router.push(`/markets/${market.id}`);
-  }
-
-  return (
-    <article
-      className={`mt-card${isLive ? " is-live" : ""}`}
-      data-lead={leadingIsYes ? "yes" : "no"}
-      style={{ "--vol": `${volPct}%`, "--yes": `${pct(yes)}%` }}
-    >
-      <Link
-        href={`/markets/${market.id}`}
-        className="mt-card-link"
-        aria-label={`View market: ${market.title}`}
-        prefetch
-      />
-
-      <div className="mt-card-top">
-        <span className="mt-card-cat">{market.category}</span>
-        <span className="mt-card-flags">
-          <span className={`mt-shift mt-shift--${shiftDir}`} title="Move since last tick">
-            {shiftDir === "up" ? "▲" : shiftDir === "down" ? "▼" : "—"}
-            {shift !== 0 ? ` ${Math.abs(shift)}` : " 0.0"}
-          </span>
-          {isLive ? (
-            <span className="mt-flag mt-flag-live">
-              <span className="mt-flag-dot" aria-hidden="true" />
-              LIVE
-            </span>
-          ) : null}
-          {market.status && market.status !== "active" ? (
-            <span className="mt-flag mt-flag-status">{market.status}</span>
-          ) : null}
-        </span>
-      </div>
-
-      <h3 className="mt-card-title" title={market.title}>
-        {market.title}
-      </h3>
-
-      {linkedGame ? (
-        <div className="mt-card-score" title={`${linkedGame.league} — ${getLiveGameClock(linkedGame)}`}>
-          <span className="mt-card-clock">
-            {isLive ? "● " : ""}
-            {linkedGame.league} · {getLiveGameClock(linkedGame)}
-          </span>
-          <span className="mt-card-line">
-            {linkedGame.awayTeam} {linkedGame.awayScore} — {linkedGame.homeTeam} {linkedGame.homeScore}
-          </span>
-        </div>
-      ) : (
-        <div className="mt-card-score mt-card-score--empty" aria-hidden="true" />
-      )}
-
-      {/* Both outcomes shown as buyable options — display-serif probabilities */}
-      <div className="mt-options" role="group" aria-label="Outcomes">
-        <button
-          type="button"
-          className={`mt-opt mt-opt-yes${leadingIsYes ? " is-lead" : ""}`}
-          onClick={() => prepare("YES")}
-          aria-label={`Buy ${yesLabel} at ${pct(yes)} percent`}
-        >
-          <span className="mt-opt-side" title={yesLabel}>{yesLabel}</span>
-          <span className="mt-opt-figure">
-            {pct(yes)}<i>%</i>
-          </span>
-          <span className="mt-opt-buy">BUY →</span>
-        </button>
-        <button
-          type="button"
-          className={`mt-opt mt-opt-no${!leadingIsYes ? " is-lead" : ""}`}
-          onClick={() => prepare("NO")}
-          aria-label={`Buy ${noLabel} at ${pct(no)} percent`}
-        >
-          <span className="mt-opt-side" title={noLabel}>{noLabel}</span>
-          <span className="mt-opt-figure">
-            {pct(no)}<i>%</i>
-          </span>
-          <span className="mt-opt-buy">BUY →</span>
-        </button>
-      </div>
-
-      {/* Split bar visualizing YES vs NO conviction */}
-      <div className="mt-bar" role="img" aria-label={`${leadLabel} ${pct(leadPct)} percent versus ${trailLabel} ${pct(trailPct)} percent`}>
-        <span className="mt-bar-yes" />
-        <span className="mt-bar-no" />
-      </div>
-
-      {/* Footer — monospace market data with a real relative-volume bar */}
-      <div className="mt-card-foot">
-        <div className="mt-foot-vol">
-          <span className="mt-foot-label">VOL</span>
-          <span className="mt-foot-track">
-            <span className="mt-foot-fill" />
-          </span>
-          <span className="mt-foot-num">{money(market.volume)}</span>
-        </div>
-        <span className="mt-foot-boosts">{market.friendsBoosting || 0}× BOOST</span>
-      </div>
-    </article>
-  );
-}

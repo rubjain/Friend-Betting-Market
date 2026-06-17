@@ -309,6 +309,7 @@ model MarketplaceInvoice {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   profile StrategyMarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   billingSubscription BillingSubscription @relation(fields: [billingSubscriptionId], references: [id], onDelete: Cascade)
+  payoutItems CreatorPayoutItem[]
 
   @@index([userId, createdAt])
   @@index([billingSubscriptionId, createdAt])

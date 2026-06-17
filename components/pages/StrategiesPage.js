@@ -89,7 +89,7 @@ export default function StrategiesPage() {
       {error ? <div className="note-banner">{error}</div> : null}
 
       {loading ? (
-        <div className="list-card">Loading strategies...</div>
+        <div className="list-card strategy-marketplace-empty">Loading strategies...</div>
       ) : filteredProfiles.length ? (
         <div className="strategy-card-grid">
           {filteredProfiles.map((profile) => (
@@ -97,7 +97,7 @@ export default function StrategiesPage() {
           ))}
         </div>
       ) : (
-        <div className="list-card empty-note">
+        <div className="list-card empty-note strategy-marketplace-empty">
           No published paper strategies yet. <Link href="/developer">Create a bot</Link> or <Link href="/strategies/creator">publish one</Link>.
         </div>
       )}

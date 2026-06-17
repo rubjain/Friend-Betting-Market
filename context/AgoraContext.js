@@ -2174,6 +2174,42 @@ export function AgoraProvider({ children }) {
         const { payload } = await requestJson("/api/strategies/creator/revenue");
         return payload;
       },
+      async listCreatorPrivateStrategies() {
+        const { payload } = await requestJson("/api/strategies/creator/strategies");
+        return payload;
+      },
+      async listCreatorMarketplaceProfiles() {
+        const { payload } = await requestJson("/api/strategies/creator");
+        return payload;
+      },
+      async publishCreatorMarketplaceProfile(draft) {
+        const { payload } = await requestJson("/api/strategies/creator", {
+          method: "POST",
+          body: JSON.stringify(draft),
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Strategy submitted to the marketplace."
+            : payload.message || "Could not publish strategy.";
+        });
+        return payload;
+      },
+      async updateCreatorMarketplaceProfile(profileId, patch) {
+        const { payload } = await requestJson(`/api/strategies/creator/${profileId}`, {
+          method: "PATCH",
+          body: JSON.stringify(patch),
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Marketplace profile updated."
+            : payload.message || "Could not update marketplace profile.";
+        });
+        return payload;
+      },
+      async getCreatorProfileAnalytics(profileId) {
+        const { payload } = await requestJson(`/api/strategies/creator/${profileId}/analytics`);
+        return payload;
+      },
       async getMarketplaceModerationQueue() {
         const { payload } = await requestJson("/api/admin/strategy-marketplace/moderation", {
           headers: adminHeaders(state),

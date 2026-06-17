@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
-import { SectionHead } from "../ui";
 
 export default function MyStrategySubscriptionsPage() {
   const { state, actions } = useAgora();
@@ -37,43 +36,90 @@ export default function MyStrategySubscriptionsPage() {
     };
   }, [actions]);
 
+  const activeCount = useMemo(
+    () => subscriptions.filter(({ subscription }) => subscription.status === "ACTIVE").length,
+    [subscriptions],
+  );
+
+  const autoCopyCount = useMemo(
+    () => subscriptions.filter(({ subscription }) => subscription.autoCopyEnabled && subscription.status === "ACTIVE").length,
+    [subscriptions],
+  );
+
+  const entitledCount = useMemo(
+    () => subscriptions.filter(({ profile }) => billingByProfile[profile.id]?.hasEntitlement).length,
+    [subscriptions, billingByProfile],
+  );
+
   return (
     <section className="page active strategy-subscriptions-page">
-      <SectionHead
-        title="My Strategy Subscriptions"
-        body="Paper strategies you follow. Pause or adjust allocation without seeing private bot logic."
-      />
-      <div className="strategy-marketplace-toolbar">
-        <Link className="btn btn-secondary" href="/strategies">Browse marketplace</Link>
+      <div className="strategy-subscriptions-hero">
+        <div className="strategy-subscriptions-copy">
+          <span className="eyebrow">Copy trading</span>
+          <h2>My Strategy Subscriptions</h2>
+          <p>Paper strategies you follow. Review allocation, copy status, and entitlement without exposing private bot logic.</p>
+        </div>
+        <div className="strategy-subscriptions-actions">
+          <Link className="btn btn-secondary" href="/strategies">Browse marketplace</Link>
+          <Link className="btn btn-ghost" href="/strategies/creator">Creator dashboard</Link>
+        </div>
+      </div>
+
+      <div className="strategy-subscriptions-summary">
+        <div className="strategy-subscriptions-stat">
+          <span>Following</span>
+          <strong>{loading ? "--" : subscriptions.length}</strong>
+        </div>
+        <div className="strategy-subscriptions-stat">
+          <span>Active</span>
+          <strong>{loading ? "--" : activeCount}</strong>
+        </div>
+        <div className="strategy-subscriptions-stat">
+          <span>Auto-copy on</span>
+          <strong>{loading ? "--" : autoCopyCount}</strong>
+        </div>
+        <div className="strategy-subscriptions-stat">
+          <span>Entitled</span>
+          <strong>{loading ? "--" : entitledCount}</strong>
+        </div>
       </div>
 
       {loading ? (
-        <div className="list-card">Loading subscriptions...</div>
+        <div className="strategy-subscriptions-empty list-card">Loading subscriptions...</div>
       ) : subscriptions.length ? (
-        <div className="strategy-card-grid">
+        <div className="strategy-subscriptions-grid">
           {subscriptions.map(({ profile, subscription }) => (
-            <Link className="strategy-card" href={`/strategies/${profile.id}`} key={subscription.id}>
-              <div className="strategy-card-head">
-                <span className="paper-mode-pill">PAPER</span>
-                <span className="strategy-price">{subscription.status}</span>
+            <Link className="strategy-subscription-card" href={`/strategies/${profile.id}`} key={subscription.id}>
+              <div className="strategy-subscription-card-head">
+                <div>
+                  <span className="paper-mode-pill">PAPER</span>
+                  <h3>{profile.name}</h3>
+                </div>
+                <span className={`strategy-subscription-status strategy-subscription-status--${subscription.status === "ACTIVE" ? "active" : "paused"}`}>
+                  {subscription.status}
+                </span>
               </div>
-              <h3>{profile.name}</h3>
               <p>{profile.description?.slice(0, 120) || "Paper copy trading subscription."}</p>
-              <div className="strategy-stat-grid">
+              <div className="strategy-subscription-stats">
                 <div className="strategy-stat"><span>Allocation</span><strong>{subscription.allocationPct}%</strong></div>
                 <div className="strategy-stat"><span>ROI</span><strong>{profile.roiPct}%</strong></div>
                 <div className="strategy-stat"><span>Auto-copy</span><strong>{subscription.autoCopyEnabled && subscription.status === "ACTIVE" ? "On" : "Paused"}</strong></div>
                 <div className="strategy-stat"><span>Entitlement</span><strong>{billingByProfile[profile.id]?.hasEntitlement ? "Active" : "Inactive"}</strong></div>
               </div>
-              <div className="strategy-card-foot">
+              <div className="strategy-subscription-card-foot">
                 <span>Paper balance: {money(state.currentUser.paper_balance ?? 0)}</span>
+                <span>Open settings</span>
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="list-card empty-note">
-          You are not following any paper strategies yet. <Link href="/strategies">Browse the marketplace</Link>.
+        <div className="strategy-subscriptions-empty list-card empty-note">
+          <div>
+            <h3>No strategy subscriptions yet</h3>
+            <p>Follow a paper strategy from the marketplace to track allocation, auto-copy status, and entitlement here.</p>
+          </div>
+          <Link className="btn btn-secondary" href="/strategies">Browse marketplace</Link>
         </div>
       )}
     </section>

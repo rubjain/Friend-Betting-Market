@@ -35,11 +35,11 @@ function ChartTooltip({ active, payload, labelA, labelB, colorA, colorB }) {
   return (
     <div className="market-chart-tooltip">
       <div className="market-chart-tooltip-time">{formatAxisTime(row.time, false)}</div>
-      <div className="market-chart-tooltip-row">
+      <div className="market-chart-tooltip-row" style={{ "--market-chart-tooltip-color": colorA }}>
         <span className="market-chart-tooltip-dot" style={{ background: colorA }} />
         {labelA} <strong>{Math.round((a?.value ?? row.a) * 100)}¢</strong>
       </div>
-      <div className="market-chart-tooltip-row">
+      <div className="market-chart-tooltip-row" style={{ "--market-chart-tooltip-color": colorB }}>
         <span className="market-chart-tooltip-dot" style={{ background: colorB }} />
         {labelB} <strong>{Math.round((b?.value ?? row.b) * 100)}¢</strong>
       </div>
@@ -53,7 +53,10 @@ export default function MarketPriceChart({ market, linkedGame }) {
   const [selectedWindow, setSelectedWindow] = useState("7d");
   const [realSnapshots, setRealSnapshots] = useState(null); // null = loading, [] = none
 
-  const labels = useMemo(() => getContractSideLabels(market, linkedGame), [market, linkedGame]);
+  const labels = useMemo(
+    () => getContractSideLabels(market, linkedGame, { shortSides: true }),
+    [market, linkedGame],
+  );
   const lineColors = useMemo(
     () => getDualOutcomeChartColors(market, linkedGame, labels.yesLabel, labels.noLabel),
     [market, linkedGame, labels.yesLabel, labels.noLabel],

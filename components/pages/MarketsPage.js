@@ -5,7 +5,7 @@ import { useAgora } from "../../context/AgoraContext";
 import { sportMarketCategories } from "../../lib/marketTaxonomy";
 import { getMarketPipelineSummary } from "../../lib/marketAlgorithms";
 import LiveGamesRail from "../LiveGamesRail";
-import MarketCard from "../MarketCard";
+import TerminalMarketCard from "../TerminalMarketCard";
 import { EmptyState, SectionHead } from "../ui";
 
 const SORT_OPTIONS = [
@@ -81,6 +81,10 @@ export default function MarketsPage() {
   }, [catalogMarkets, query, category, sort, state.liveGames]);
 
   const pipeline = getMarketPipelineSummary(catalogMarkets, state.liveGames);
+  const peakVolume = useMemo(
+    () => filteredMarkets.reduce((max, market) => Math.max(max, Number(market.volume || 0)), 0),
+    [filteredMarkets],
+  );
 
   // ⌘K / Ctrl+K focuses the search input
   useEffect(() => {
@@ -207,10 +211,15 @@ export default function MarketsPage() {
         )}
       </div>
 
-      <div className="market-grid market-grid--compact">
+      <div className="market-grid market-grid--compact markets-terminal-grid">
         {filteredMarkets.length ? (
           filteredMarkets.map((market) => (
-            <MarketCard market={market} key={market.id} compact />
+            <TerminalMarketCard
+              market={market}
+              liveGames={state.liveGames}
+              peakVolume={peakVolume}
+              key={market.id}
+            />
           ))
         ) : (
           <EmptyState
