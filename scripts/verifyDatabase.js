@@ -1,4 +1,4 @@
-import { ensureDemoDatabaseSeed, getDatabaseState } from "../lib/server/dbState.js";
+import { ensureDemoDatabaseSeed } from "../lib/server/dbState.js";
 import { hasDatabaseUrl, prisma } from "../lib/server/prisma.js";
 
 function assertMinimum(name, value, minimum) {
@@ -46,14 +46,25 @@ if (!hasDatabaseUrl()) {
   assertMinimum("billing subscriptions", counts.billingSubscriptions, 0);
   assertMinimum("marketplace entitlements", counts.marketplaceEntitlements, 0);
 
-  const firstState = await getDatabaseState(prisma, "user_2");
-  const secondState = await getDatabaseState(prisma, "user_2");
-  const persistedBet = secondState.portfolio.openBets.find((bet) => bet.id === "bet_seed_friend_1");
-
-  if (!persistedBet) {
+  const persistedBet = await prisma.bet.findUnique({
+    where: { id: "bet_seed_friend_1" },
+    include: { market: true },
+  });
+  if (!persistedBet?.market) {
     throw new Error("Seeded friend bet was not returned from persisted database state.");
   }
-  if (firstState.currentUser.withdrawable_balance !== secondState.currentUser.withdrawable_balance) {
+
+  async function readWithdrawableBalance(userId) {
+    const account = await prisma.balanceAccount.findUnique({
+      where: { userId_currency: { userId, currency: "WITHDRAWABLE" } },
+      select: { balance: true },
+    });
+    return Number(account?.balance ?? 0);
+  }
+
+  const firstBalance = await readWithdrawableBalance("user_2");
+  const secondBalance = await readWithdrawableBalance("user_2");
+  if (firstBalance !== secondBalance) {
     throw new Error("Persisted user balance changed between reads.");
   }
 
