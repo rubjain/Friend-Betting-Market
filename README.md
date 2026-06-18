@@ -1,95 +1,28 @@
-# Agora MVP
+# Agora
 
-This is a responsive Next.js MVP for a social prediction market product: a sports-betting-style app where friends can place predictions together and use social boosts to increase bonus-side upside. It keeps the original localStorage-backed demo behavior while moving the app into routes, components, and reusable payout/accounting modules.
+A social, paper-money sports prediction market (Kalshi/Polymarket-style) built with
+Next.js. Friends place YES/NO predictions on live sports, boost each other's upside
+with social multipliers, and compete on leaderboards. External bots can trade via a
+public API. **No real money** — paper trading only; the real-money compliance plan
+is documented separately.
 
-## What is included
-
-- Landing page with CTA buttons and a simple 3-step explainer
-- App Router pages for Landing, Markets, Market Detail, Friends, Portfolio, Create Market, Profile, and Admin
-- Shared components for navigation, market cards, the betting panel, portfolio ledger, admin tables, and risk review
-- Confirmation modals for risky admin actions like market resolution, account freezes, bonus removal, and demo reset
-- Field-level validation states for market creation and bet placement
-- Admin CSV exports for ledger and risk-review data
-- Compact admin operations snapshot with balance mix, ledger-source bars, market-volume bars, and audit history
-- Persisted light/dark mode toggle
-- Sports-first market taxonomy for NBA, NFL, MLB, NHL, Soccer, College Sports, Combat Sports, Tennis, Golf, and Motorsports
-- Interactive friend invites, pending-request handling, and market boost toggles
-- Separate `withdrawable_balance` and `bonus_balance` treatment in the sample payout and ledger model
-- Server-owned demo state exposed through API routes, with `localStorage` retained for UI preferences and offline fallback
-- Working admin controls for boost policy, bonus usage, approvals, and market resolution
-- Bet placement now deducts from the chosen balance mix and writes ledger entries
-- Market resolution now settles matching bets back into withdrawable and bonus balances by funding ratio
-- Friend boosts now update market multiplier previews and recent activity in the demo state
-- Portfolio ledger filters for withdrawable, bonus, boost, and admin transactions
-- Admin risk-review queue with freeze, clear-review, and bonus-removal demo actions
-
-## Bonus and payout logic in this prototype
-
-- Social multiplier applies to the full normal payout
-- Only the normal payout is withdrawable when funded by withdrawable balance
-- Bonus-funded winnings return to bonus balance
-- Mixed-fund winnings split normal payout proportionally between withdrawable and bonus balances
-- Social boost excess always credits to bonus balance
-
-## Database-first operation
-
-When `DATABASE_URL` is set, the app uses Supabase Postgres via Prisma for users, sessions, bets, markets, verification checks, and audit trails. Without it, the app falls back to in-memory demo state for local development.
-
-### Migrations
-
-Run `npm run prisma:migrate:deploy` before deploy. Recent migrations add `AGE`/`SANCTIONS` verification types (`0010`) and responsible-use user fields (`0011`).
-
-### Auth & compliance
-
-- Signup → email verification → login (`/check-email`, `/verify-email`)
-- Forgot/reset password, change password in Settings
-- Identity and location verification in Settings → Compliance (U.S. state rules)
-- Configure `EMAIL_USER`, `EMAIL_PASS`, `AGORA_SESSION_SECRET`, and `AGORA_APP_URL` for production
-
-## Prototype behaviors
-
-- New market submissions move into a pending approval queue
-- Admins can approve, reject, and resolve markets
-- Resolution updates sample balances and bet history
-- Market-card Yes/No buttons route into review flow before final placement
-- Friends can be invited, accepted, canceled, and added to the selected market's boost group
-- Risk-review actions are modeled as admin-only demo controls for future fraud tooling
-- Demo state can be reset from the admin dashboard
-- Bet placement and market resolution now go through API routes before falling back to the local demo reducer
-- Market submission, approval, and rejection now go through API routes with server-side submission validation
-- Friend invites, request actions, and social boost changes now go through API routes with server-side duplicate and max-group checks
-- Admin config, demo deposits, demo bonus grants, account freezes, risk clearing, and bonus removal now go through API routes
-- Profile editing and demo verification status actions now go through API routes
-- Market lifecycle, close/settlement timing, category resolution templates, and evidence/source placeholders are visible on market detail and admin resolution history
-- Portfolio ledger and admin audit history now support filtering, sorting, and pagination
-- Bonus-use limits and bonus payout caps are enforced in the payout engine and surfaced in admin controls
-- Admin route access now redirects non-admin users back to profile, with real session claims used by API protections
-- Confirmation dialogs now support Escape-to-close and restore keyboard focus after closing
-- Primary navigation stays visible in narrow in-app/browser panels so Markets, Friends, Portfolio, Create, and Profile are always directly reachable
-- Admins can void active markets and refund original open stakes by funding source with refund ledger entries
-- Market submissions now include an optional source/evidence URL that carries into pending admin review and approved market evidence
-- Admins can pause and resume active markets; paused markets reject new bets in both the UI and API
-- Friend boost actions now feed a reusable risk engine for repeat boosts, dense clusters, and boost-pattern review signals
-- Login, logout, signup, persisted user sessions, and a dev-only admin shortcut provide the first real auth foundation
-- Signup and database seeding store `scrypt`-hashed passwords (Node built-in `crypto`, no extra deps); login verifies them with constant-time comparison
-- PostgreSQL-backed auth security now covers durable login/signup/password-reset rate limits, expiring email-verification tokens, password-reset tokens, session revocation after reset, and audit trails for completed resets
-- User deposit and withdrawal actions now have persisted payment transaction records, ledger entries, and audit events when `DATABASE_URL` is configured; withdrawals are held in `PENDING_REVIEW`
-- Category source-adapter contracts now define required settlement fields by sport
-- `prisma/schema.prisma` sketches the production data model for users, markets, bets, balances, ledger entries, friendships, boosts, admin config, risk reviews, resolutions, evidence links, audit trails, odds snapshots, orders, and AMM liquidity pools
-- `docs/real-money-compliance-plan.md` captures the compliance gates that must be complete before withdrawable play funds become real money
-
-## Run locally
-
-Install dependencies and start the Next dev server:
+## Quick start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open `http://127.0.0.1:3000`.
+Then open `http://127.0.0.1:3000`. The dev server runs in webpack mode to match the
+verified production build path (do not use Turbopack).
 
-To run against a local Postgres database, copy `.env.example` to `.env`, set `DATABASE_URL`, then run:
+To sign in to the developer/API console, open `/developer` with
+`test@example.com` / `password123`.
+
+## Database (optional)
+
+The app runs in-memory by default. To use a real Postgres database, copy
+`.env.example` to `.env`, set `DATABASE_URL`, then run:
 
 ```bash
 npm run prisma:generate
@@ -98,200 +31,55 @@ npm run prisma:seed
 npm run db:verify
 ```
 
-### Hosted database options
+Supabase (pooler URL) is recommended for development; Railway also works. See
+[`docs/architecture.md`](docs/architecture.md#database-first-operation) for details.
 
-**Supabase (recommended for development)**
+## Common commands
 
-1. Create a free project at [supabase.com](https://supabase.com).
-2. Go to **Project Settings > Database > Connection string > URI** and copy the pooler URL.
-3. Paste it into `.env` as `DATABASE_URL` (replace the `[YOUR-PASSWORD]` placeholder with your DB password).
-4. Run `npm run prisma:migrate` to apply the schema.
+| Command | What it does |
+|---------|--------------|
+| `npm run dev` | Start the Next.js dev server (webpack) |
+| `npm run build` | Production build |
+| `npm test` | Payout/ledger/server unit tests |
+| `npm run check` | Run tests + production build |
+| `npm run test:e2e` | Playwright end-to-end tests |
+| `npm run prisma:migrate` | Apply database migrations |
+| `npm run strategy:worker` | Run the strategy automation worker |
 
-**Railway**
+## Configuration
 
-1. Create a new project at [railway.app](https://railway.app) and add a **PostgreSQL** service.
-2. Click the service > **Connect** tab > copy the **DATABASE_URL**.
-3. Paste it into `.env` as `DATABASE_URL`.
-4. Run `npm run prisma:migrate` to apply the schema.
+Set `AGORA_SESSION_SECRET` to a long random value before sharing any environment.
+For the hosted paper-money beta, use Vercel + Supabase, set `AGORA_PUBLIC_BETA=1`,
+keep `AGORA_REAL_MONEY_MODE=0`, and verify `/api/health` before release. To expose
+the temporary local admin toggle, set `AGORA_DEV_ADMIN_SHORTCUT=1` (keep it disabled
+outside local development).
 
-When `DATABASE_URL` is present, `/api/session` hydrates from persisted users and sessions, while `/api/demo-state` remains available for reset/fallback workflows. The seed flow now creates persisted demo users with hashed passwords, balance accounts, markets, friendships, a friend activity bet, ledger entries, and a seed session. Bet placement, market submission, admin approval/rejection, lifecycle changes, resolution, void/refund handling, admin funds, admin config, profile edits, verification status updates, friend invites, friend request actions, social boosts, risk actions, and admin CSV exports all use Prisma-backed services. Without `DATABASE_URL`, the existing in-memory demo store remains the fallback.
+## Project layout
 
-Auth endpoints for production hardening:
+- `app/` — Next.js routes and API handlers
+- `components/` — shared UI components
+- `context/` — client state (`AgoraContext`)
+- `lib/` — payout math, accounting, services, and server integrations
+- `prisma/` — schema and migrations
+- `tests/` / `e2e/` — unit and end-to-end tests
+- `docs/` — architecture, API, runbooks, and compliance docs
+- `styles.css` — global stylesheet (imported by `app/layout.js`)
+- `archive/legacy-prototype/` — original pre–Next.js prototype (reference only)
 
-- `POST /api/auth/verify-email` accepts `{ "token": "..." }` and marks the user's email verification check as verified.
-- `POST /api/auth/password-reset` accepts `{ "identifier": "email-or-username" }` and creates a reset token. In development only, the token is returned in the response so the flow can be tested before an email provider is connected.
-- `PATCH /api/auth/password-reset` accepts `{ "token": "...", "password": "new-password" }`, updates the password, revokes existing sessions, and writes an audit entry.
-- `/verify-email` and `/forgot-password` expose those flows in the app UI for demo and QA.
+## Documentation
 
-Production still needs a real email provider before these tokens are user-facing. Set `AGORA_APP_URL` and `AGORA_EMAIL_FROM` now so links can be generated consistently when delivery is connected.
+| Doc | Contents |
+|-----|----------|
+| [`docs/architecture.md`](docs/architecture.md) | Features, payout logic, behaviors, and full file map |
+| [`docs/api.md`](docs/api.md) | Public API v1, auth, and funding endpoints |
+| [`docs/openapi.yaml`](docs/openapi.yaml) | OpenAPI contract |
+| [`docs/public-beta-runbook.md`](docs/public-beta-runbook.md) | Launch checklist and rollback notes |
+| [`docs/real-money-compliance-plan.md`](docs/real-money-compliance-plan.md) | Compliance gates before real money |
+| [`docs/visual-qa-checklist.md`](docs/visual-qa-checklist.md) | Visual spacing/QA checklist |
 
-### Stripe (optional)
+## Git workflow
 
-If you want real deposit collection via Stripe Checkout (instead of the demo ledger), set:
-
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-
-Then POST to `/api/funds/deposit` with `{ "amount": 25, "method": "stripe" }`.
-The API returns `checkoutUrl`. Stripe will call `/api/webhooks/payments` and the app will mark the `PaymentTransaction` complete and credit withdrawable balance.
-
-Funding endpoints for payment-infrastructure hardening:
-
-- `POST /api/funds/deposit` accepts `{ "amount": 25, "method": "bank" }`, creates a completed demo-ledger payment transaction, credits withdrawable balance, writes a ledger entry, and records an audit event.
-- `POST /api/funds/withdraw` accepts `{ "amount": 25, "method": "bank" }`, creates a pending-review withdrawal transaction, holds withdrawable funds with a debit ledger entry, and records an audit event for admin review.
-
-## Public API v1 (paper-first model workflow)
-
-The v1 API supports cookie-session auth for first-party app calls and Bearer API keys for external clients.
-
-### API key management
-
-- `GET /api/v1/keys` lists keys for the signed-in user.
-- `POST /api/v1/keys` creates a key and returns `plaintextKey` once.
-- `DELETE /api/v1/keys` revokes a key by `apiKeyId`.
-
-Scopes:
-
-- `read:markets`
-- `read:portfolio`
-- `trade:paper`
-- `trade:real`
-- `manage:strategies`
-
-### Trading and portfolio endpoints
-
-- `GET /api/v1/markets`
-- `GET /api/v1/markets/:marketId`
-- `GET /api/v1/markets/:marketId/price-history`
-- `GET /api/v1/live/games`
-- `GET /api/v1/portfolio?mode=paper|real|all`
-- `GET/POST/DELETE /api/v1/orders`
-- `POST /api/v1/bets`
-- `POST /api/v1/paper/reset`
-
-`POST /api/v1/bets` accepts either a `betDraft` payload or a simplified stake payload:
-
-```json
-{
-  "marketId": "market_1",
-  "side": "YES",
-  "stake": 25,
-  "mode": "paper"
-}
-```
-
-### Strategy endpoints (paper practice → real promotion)
-
-- `GET/POST /api/v1/strategies`
-- `PATCH/DELETE /api/v1/strategies/:strategyId`
-- `GET /api/v1/strategies/executions`
-- `POST /api/v1/strategies/:strategyId/run` (ACTIVE strategies only)
-- `POST /api/v1/strategies/:strategyId/promote` (creates REAL draft)
-- `POST /api/v1/strategies/:strategyId/activate`
-- `POST /api/v1/strategies/:strategyId/pause`
-
-Scheduled automation for ACTIVE strategies:
-
-```bash
-npm run strategy:worker
-# one tick then exit:
-npm run strategy:worker:once
-```
-
-### View the site locally
-
-```bash
-npm install
-npm run dev
-```
-
-Open `http://127.0.0.1:3000/developer` and sign in with `test@example.com` / `password123`.
-
-Visual spacing checklist: `docs/visual-qa-checklist.md`.
-
-### Supabase setup for persistent API keys and strategies
-
-1. Create `.env` from `.env.example`.
-2. Set Supabase `DATABASE_URL` (Project Settings → Database → Connection string → URI).
-3. Run:
-
-```bash
-npm run supabase:turn-on
-```
-
-Or step by step:
-
-```bash
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
-npm run db:verify
-```
-
-Without `DATABASE_URL`, keys and strategies still work in demo mode but are in-memory and reset on restart.
-
-OpenAPI contract (including error `code` fields): `docs/openapi.yaml`.
-
-Set `AGORA_SESSION_SECRET` to a long random value before sharing any environment. To expose the temporary admin toggle locally, set `AGORA_DEV_ADMIN_SHORTCUT=1`; keep it disabled outside local development.
-
-For the hosted paper-money beta, use Vercel + Supabase, set `AGORA_PUBLIC_BETA=1`, keep `AGORA_REAL_MONEY_MODE=0`, and verify `/api/health` before release. The full launch checklist and rollback notes live in `docs/public-beta-runbook.md`.
-
-For a production verification build:
-
-```bash
-npm run build
-```
-
-For payout and ledger rule tests:
-
-```bash
-npm test
-```
-
-To run both tests and the production build:
-
-```bash
-npm run check
-```
-
-To sync all local project changes to GitHub:
-
-```bash
-npm run sync
-```
-
-That command stages non-ignored files, commits with an auto timestamp if needed, rebases on top of `origin/main`, and pushes. This repo also uses `.githooks/post-commit`, so ordinary `git commit` calls push automatically after the commit succeeds.
-
-The old `index.html` and `app.js` prototype files are still present as migration reference. The active app entry point is the Next.js `app/` directory, and the migrated app still reuses `styles.css` as its global stylesheet. The dev server uses webpack mode to match the verified production build path.
-
-## Current structure
-
-- `app/` - Next.js routes
-- `app/api/` - API routes for demo-state hydration, bet placement, market submission, profile actions, friend actions, admin config, admin funds, admin user actions, admin market actions, and admin CSV exports
-- `components/` - shared shell, market, betting, portfolio, admin, and page components
-- `context/AgoraContext.js` - localStorage hydration and demo state actions
-- `lib/defaultState.js` - seed data
-- `lib/marketMath.js` - payout, funding, and multiplier rules
-- `lib/accounting.js` - ledger entry factories for deposits, bets, settlements, and admin adjustments
-- `lib/exporters.js` - CSV export helpers for admin ledger and risk-review data
-- `lib/marketTaxonomy.js` - category coverage, examples, and resolution requirements
-- `lib/ledgerViews.js` - reusable filtering, sorting, and pagination helpers for ledger/audit tables
-- `lib/riskEngine.js` - reusable social boost risk-signal helpers
-- `lib/sourceAdapters.js` - settlement-source adapter contracts for each market category
-- `lib/server/auth.js` - request-session, signup/login/logout, persisted session, and admin-role helpers for API routes
-- `lib/server/demoStore.js` - server-side demo store and API-safe bet/settlement mutations
-- `lib/server/prisma.js` - Prisma client singleton and database feature flag
-- `lib/server/dbState.js` - persisted demo seeding and UI state projection
-- `lib/server/betService.js` - database-backed transactional bet placement
-- `lib/server/marketService.js` - persisted market submission, approval, lifecycle, resolution, payout, and refund workflows
-- `lib/server/fundsService.js` - persisted demo deposits and bonus grants
-- `lib/server/adminConfigService.js` - persisted admin policy updates
-- `lib/server/profileService.js` - persisted profile edits and verification checks
-- `lib/server/friendService.js` - persisted friendships and social boost toggles
-- `lib/server/userRiskService.js` - persisted freeze, risk-clear, and bonus-removal actions
-- `lib/server/exportService.js` - persisted ledger and risk-review CSV exports
-- `lib/validation.js` - form validation rules for market submissions and bets
-- `lib/formatters.js` - money, percent, and label formatting helpers
-- `prisma/schema.prisma` - first production database schema draft
-- `prisma/migrations/0001_initial/migration.sql` - initial Postgres migration generated from the Prisma schema
-- `tests/` - unit tests for payout math, ledger accounting, and server demo mutations
+Pushes go through a feature branch and a GitHub pull request — avoid pushing review
+-worthy work straight to the default branch. `npm run sync` stages non-ignored
+files, commits with a timestamp if needed, rebases on `origin/main`, and pushes.
+Note that `.githooks/post-commit` pushes automatically after a successful commit.
