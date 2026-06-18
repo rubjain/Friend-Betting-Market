@@ -1,19 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import AdminDashboard from "../AdminDashboard";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 
 export default function AdminPage() {
   const router = useRouter();
-  const { state, hydrated, actions } = useFriendMarket();
+  const { state, hydrated, actions } = useAgora();
+  const redirectedRef = useRef(false);
 
   useEffect(() => {
     if (!hydrated || state.currentUser.isAdmin) {
+      redirectedRef.current = false;
       return;
     }
 
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
     actions.setFlashMessage("Admin access requires an admin account or the dev admin shortcut.");
     router.replace("/profile");
   }, [actions, hydrated, router, state.currentUser.isAdmin]);

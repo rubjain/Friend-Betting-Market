@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { toggleDatabaseFriendBoost } from "../../../../lib/server/friendService.js";
 import { toggleDemoFriendBoost } from "../../../../lib/server/demoStore.js";
-import { getSessionFromRequest } from "../../../../lib/server/auth.js";
+import { requireAuthenticated } from "../../../../lib/server/auth.js";
 
 export async function POST(request) {
+  const { session, response } = await requireAuthenticated(request);
+  if (response) return response;
+
   const payload = await request.json();
-  const session = await getSessionFromRequest(request);
   const userId = session.userId;
   const databaseResult = await toggleDatabaseFriendBoost({
     username: payload.username,

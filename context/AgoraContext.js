@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   createAdminAdjustmentEntry,
   createBetLedgerEntries,
@@ -10,14 +11,16 @@ import {
   createSettlementLedgerEntries,
 } from "../lib/accounting";
 import { defaultState, STORAGE_KEY } from "../lib/defaultState";
+import { mergeGameMarkets } from "../lib/gameMarkets.js";
 import { money } from "../lib/formatters";
-import { calculatePayout } from "../lib/marketMath";
-import { getResolutionTemplate, marketCategories } from "../lib/marketTaxonomy";
-import { applyRiskSignalsToUser, getBoostRiskSignals } from "../lib/riskEngine";
+import { calculateOrderPreview, calculatePayout } from "../lib/marketMath";
+import { createLmsrMarketFromMarket } from "../lib/lmsrMarket";
+import { getResolutionTemplate, sportMarketCategories } from "../lib/marketTaxonomy";
+import { applyRiskSignalsToUser, getBoostRiskSignals, getRiskBand } from "../lib/riskEngine";
 
-const FriendMarketContext = createContext(null);
+const AgoraContext = createContext(null);
 
-const sportCategoryLabels = new Set(marketCategories.map((category) => category.label));
+const sportCategoryLabels = new Set(sportMarketCategories.map((category) => category.label));
 
 const numericAdminFields = new Set([
   "maxGroupSize",
@@ -95,7 +98,7 @@ function filterSportMarkets(markets = []) {
 }
 
 function filterQueueBySport(queue = []) {
-  return queue.filter((market) => !market.category || sportCategoryLabels.has(market.category));
+  return queue.filter((market) => sportCategoryLabels.has(market.category));
 }
 
 function filterActiveMarketsByIds(markets = [], marketById) {
@@ -129,8 +132,14 @@ function mergeById(defaultItems, savedItems = []) {
 }
 
 function mergeStoredState(parsed) {
+  // When the server/stored state includes markets, trust them directly — do NOT
+  // merge with defaultState.markets as a base.  The old seed-market defaults only
+  // apply when no markets are provided at all (offline / no-DB demo fallback).
+  const parsedMarkets = filterSportMarkets(parsed.markets || []);
   const mergedMarkets = normalizeMarkets(
-    mergeById(defaultState.markets, filterSportMarkets(parsed.markets || [])),
+    parsedMarkets.length > 0
+      ? parsedMarkets
+      : mergeById(defaultState.markets, parsedMarkets),
   );
   const marketById = new Map(mergedMarkets.map((market) => [market.id, market]));
   const selectedMarketId = marketById.has(parsed.selectedMarketId)
@@ -142,6 +151,7 @@ function mergeStoredState(parsed) {
     ...parsed,
     flashMessage: "",
     mobileNavOpen: false,
+    paperMode: Boolean(parsed.paperMode),
     theme: parsed.theme || defaultState.theme,
     auth: { ...defaultState.auth, ...(parsed.auth || {}) },
     friendInviteDraft: parsed.friendInviteDraft || "",
@@ -188,11 +198,58 @@ function mergeStoredState(parsed) {
     resolvedMarkets: mergeById(defaultState.resolvedMarkets, parsed.resolvedMarkets || []),
     users: normalizeUsers(mergeById(defaultState.users, parsed.users || [])),
     ledger: normalizeLedger(parsed.ledger || defaultState.ledger),
+    openOrders: parsed.openOrders || [],
   };
 }
 
 function mergeIncomingState(nextState) {
   return mergeStoredState(nextState || {});
+}
+
+const PUBLIC_AUTH_ROUTES = new Set([
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/check-email",
+  "/account-recovery",
+  "/verify-email",
+]);
+
+function isPublicAuthRoute(pathname) {
+  return !pathname || PUBLIC_AUTH_ROUTES.has(pathname);
+}
+
+function buildStateFromSessionPayload(payload, previousTheme, previousFlash = "") {
+  const merged = mergeIncomingState(payload.state);
+  const sessionEnded = Boolean(payload.sessionExpired);
+  const sessionExpiresSoon = Boolean(payload.session?.expiresSoon);
+  const sessionNotice = sessionEnded
+    ? "Your session ended. Please sign in again."
+    : sessionExpiresSoon && !previousFlash
+      ? "Your session expires soon. Save your work or sign in again to continue."
+      : previousFlash;
+  return {
+    ...merged,
+    auth: buildAuthFromSessionPayload(payload, merged.auth),
+    theme: previousTheme ?? merged.theme ?? defaultState.theme,
+    flashMessage: sessionNotice,
+    mobileNavOpen: false,
+  };
+}
+
+function buildAuthFromSessionPayload(payload, fallbackAuth = defaultState.auth) {
+  return {
+    authenticated: Boolean(payload.session?.authenticated),
+    devAdminShortcut: Boolean(payload.devAdminShortcut ?? fallbackAuth.devAdminShortcut),
+    expiresAt: payload.session?.expiresAt || "",
+    expiresSoon: Boolean(payload.session?.expiresSoon),
+    secondsUntilExpiry: payload.session?.secondsUntilExpiry ?? null,
+    adminLevel: payload.session?.adminLevel || "",
+    adminPermissions: Array.isArray(payload.session?.adminPermissions)
+      ? payload.session.adminPermissions
+      : [],
+  };
 }
 
 async function requestJson(url, options) {
@@ -217,7 +274,8 @@ function createInitialState() {
 }
 
 function getSelectedMarketFromState(state, marketId = state.selectedMarketId) {
-  return state.markets.find((market) => market.id === marketId) ?? state.markets[0];
+  const merged = mergeGameMarkets(state.markets || [], state.liveGames || []);
+  return merged.find((market) => market.id === marketId) ?? merged[0];
 }
 
 function addLedgerEntry(state, entry) {
@@ -356,19 +414,43 @@ function addFunds(state, { amount, currencyType, source, metadata }) {
   refreshDerivedBalances(state);
 }
 
-function getRiskLabel(score) {
-  if (score >= 70) {
-    return "High";
-  }
-  if (score >= 40) {
-    return "Monitor";
-  }
-  return "Clear";
+function applyLocalLmsrTrade(market, side, { stake = 0, shares = undefined } = {}) {
+  market.liquidityPool = market.liquidityPool || {
+    qYes: 0,
+    qNo: 0,
+    yesReserve: 0,
+    noReserve: 0,
+    liquidityParameter: 100,
+    feeBps: 0,
+  };
+  const preview = calculateOrderPreview({ stake, shares, side, market });
+  const tradeShares = preview.estimatedContracts;
+  const lmsr = createLmsrMarketFromMarket(market);
+  const executed = side === "YES" ? lmsr.buyYes(tradeShares) : lmsr.buyNo(tradeShares);
+  market.liquidityPool.qYes = executed.qYes;
+  market.liquidityPool.qNo = executed.qNo;
+  market.liquidityPool.yesReserve = executed.qYes;
+  market.liquidityPool.noReserve = executed.qNo;
+  market.yesPrice = executed.afterProbability.yes;
+  market.noPrice = executed.afterProbability.no;
+  return {
+    oddsMultiplier: tradeShares / Math.max(0.01, preview.estimatedCost),
+    estimatedCost: preview.estimatedCost,
+  };
 }
 
-export function FriendMarketProvider({ children }) {
+function getRiskLabel(score) {
+  return getRiskBand(score).label;
+}
+
+export function AgoraProvider({ children }) {
   const [state, setState] = useState(createInitialState);
   const [hydrated, setHydrated] = useState(false);
+  const pathname = usePathname() || "";
+  const router = useRouter();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+  const visibilityRefreshAt = useRef(0);
 
   useEffect(() => {
     let canceled = false;
@@ -391,25 +473,16 @@ export function FriendMarketProvider({ children }) {
         }
 
         if (!canceled) {
-          setState({
-            ...mergeIncomingState(payload.state),
-            auth: {
-              authenticated: Boolean(payload.session?.authenticated),
-              devAdminShortcut: Boolean(payload.devAdminShortcut),
-            },
-            theme: savedState?.theme || payload.state.theme,
-            flashMessage: "",
-            mobileNavOpen: false,
-          });
+          const theme = savedState?.theme || mergeIncomingState(payload.state).theme;
+          setState(buildStateFromSessionPayload(payload, theme, ""));
         }
       } catch {
         if (!canceled) {
           setState(savedState || createInitialState());
         }
       } finally {
-        if (!canceled) {
-          setHydrated(true);
-        }
+        // Always unblock the shell even if this effect was canceled (e.g. Fast Refresh).
+        setHydrated(true);
       }
     }
 
@@ -419,6 +492,43 @@ export function FriendMarketProvider({ children }) {
       canceled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || typeof document === "undefined") {
+      return undefined;
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      const now = Date.now();
+      if (now - visibilityRefreshAt.current < 25_000) {
+        return;
+      }
+      visibilityRefreshAt.current = now;
+
+      void (async () => {
+        try {
+          const { response, payload } = await requestJson("/api/session");
+          if (!response.ok || !payload.state) {
+            return;
+          }
+          setState((prev) =>
+            buildStateFromSessionPayload(payload, prev.theme, prev.flashMessage),
+          );
+          if (payload.sessionExpired && !isPublicAuthRoute(pathnameRef.current)) {
+            router.push("/login?reason=session");
+          }
+        } catch {
+          /* offline or API error */
+        }
+      })();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [hydrated, router]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -491,10 +601,7 @@ export function FriendMarketProvider({ children }) {
           if (payload.state) {
             setState({
               ...payload.state,
-              auth: {
-                authenticated: Boolean(payload.session?.authenticated),
-                devAdminShortcut: Boolean(payload.devAdminShortcut ?? state.auth.devAdminShortcut),
-              },
+              auth: buildAuthFromSessionPayload(payload, state.auth),
               theme: state.theme,
               flashMessage: payload.message,
               mobileNavOpen: false,
@@ -518,10 +625,7 @@ export function FriendMarketProvider({ children }) {
         if (payload.state) {
           setState({
             ...payload.state,
-            auth: {
-              authenticated: Boolean(payload.session?.authenticated),
-              devAdminShortcut: Boolean(payload.devAdminShortcut ?? state.auth.devAdminShortcut),
-            },
+            auth: buildAuthFromSessionPayload(payload, state.auth),
             theme: state.theme,
             flashMessage: payload.message,
             mobileNavOpen: false,
@@ -531,20 +635,25 @@ export function FriendMarketProvider({ children }) {
             next.flashMessage = payload.message || "Unable to sign in.";
           });
         }
-        return response.ok;
+        return {
+          ok: response.ok,
+          message: payload.message,
+          emailUnverified: payload.emailUnverified,
+          email: payload.email,
+        };
       },
       async signup(account) {
         const { response, payload } = await requestJson("/api/session", {
           method: "POST",
           body: JSON.stringify({ ...account, mode: "signup" }),
         });
+        if (payload.pending) {
+          return { ok: true, pending: true, email: payload.email };
+        }
         if (payload.state) {
           setState({
             ...payload.state,
-            auth: {
-              authenticated: Boolean(payload.session?.authenticated),
-              devAdminShortcut: Boolean(payload.devAdminShortcut ?? state.auth.devAdminShortcut),
-            },
+            auth: buildAuthFromSessionPayload(payload, state.auth),
             theme: state.theme,
             flashMessage: payload.message,
             mobileNavOpen: false,
@@ -554,22 +663,66 @@ export function FriendMarketProvider({ children }) {
             next.flashMessage = payload.message || "Unable to create that account.";
           });
         }
-        return response.ok;
+        return response.ok ? { ok: true } : { ok: false, message: payload.message };
       },
       async logout() {
-        const { payload } = await requestJson("/api/session", { method: "DELETE" });
-        if (payload.state) {
-          setState({
-            ...payload.state,
-            auth: {
-              authenticated: false,
-              devAdminShortcut: Boolean(payload.devAdminShortcut ?? state.auth.devAdminShortcut),
-            },
-            theme: state.theme,
-            flashMessage: payload.message,
-            mobileNavOpen: false,
+        const { response, payload } = await requestJson("/api/session", { method: "DELETE" });
+        if (!response.ok) {
+          updateState((next) => {
+            next.flashMessage = payload?.message || "Sign out failed. Try again.";
           });
+          return;
         }
+        try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
+        setState((prev) => ({
+          ...defaultState,
+          markets: prev.markets,
+          liveGames: prev.liveGames,
+          adminConfig: prev.adminConfig,
+          theme: prev.theme,
+          auth: { ...defaultState.auth, authenticated: false },
+          currentUser: {
+            ...defaultState.currentUser,
+            id: "",
+            name: "",
+            email: "",
+            username: "",
+            withdrawable_balance: 0,
+            bonus_balance: 0,
+            play_credit_balance: 0,
+          },
+          friends: { list: [], pending: [] },
+          portfolio: { openBets: [], pastBets: [] },
+          ledger: [],
+          users: [],
+          pendingMarkets: [],
+          flashMessage: "Signed out.",
+          mobileNavOpen: false,
+        }));
+      },
+      async refreshSessionFromServer() {
+        try {
+          const { response, payload } = await requestJson("/api/session");
+          if (!response.ok || !payload.state) {
+            return false;
+          }
+          setState((prev) =>
+            buildStateFromSessionPayload(payload, prev.theme, prev.flashMessage),
+          );
+          if (payload.sessionExpired && !isPublicAuthRoute(pathnameRef.current)) {
+            router.push("/login?reason=session");
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      setLiveGames(liveGames) {
+        updateState((next) => {
+          if (Array.isArray(liveGames)) {
+            next.liveGames = liveGames;
+          }
+        });
       },
       setFilters(partial) {
         updateState((next) => {
@@ -595,8 +748,9 @@ export function FriendMarketProvider({ children }) {
       },
       updateBetDraft(field, value) {
         updateState((next) => {
-          if (field === "side") {
-            next.betDraft.side = value;
+          const stringFields = new Set(["side", "inputMode", "orderType", "limitExpiry"]);
+          if (stringFields.has(field)) {
+            next.betDraft[field] = value;
             return;
           }
           next.betDraft[field] = Number(value);
@@ -611,7 +765,182 @@ export function FriendMarketProvider({ children }) {
           }
         });
       },
+      togglePaperMode() {
+        updateState((next) => {
+          next.paperMode = !next.paperMode;
+          next.flashMessage = next.paperMode
+            ? "Paper trading mode on. Your bets use virtual money."
+            : "Back to real trading.";
+        });
+      },
+      async resetPaperBalance() {
+        try {
+          const { payload } = await requestJson("/api/paper/reset", { method: "POST" });
+          if (payload.state) {
+            setState((prev) => ({
+              ...payload.state,
+              auth: prev.auth,
+              theme: prev.theme,
+              paperMode: prev.paperMode,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            }));
+            return;
+          }
+        } catch {}
+        updateState((next) => {
+          next.currentUser.paper_balance = 10000;
+          next.portfolio.openBets = next.portfolio.openBets.filter((b) => !b.isPaper);
+          next.openOrders = (next.openOrders || []).filter((o) => !o.isPaper);
+          next.flashMessage = "Paper balance reset to $10,000.";
+        });
+      },
+      async createLimitOrder({ marketId, side, quantity, limitPrice, limitExpiry }) {
+        const isPaper = state.paperMode;
+        try {
+          const { response, payload } = await requestJson("/api/orders", {
+            method: "POST",
+            body: JSON.stringify({ marketId, side, quantity, limitPrice, isPaper, limitExpiry }),
+          });
+          if (payload.state) {
+            setState((prev) => ({
+              ...payload.state,
+              auth: prev.auth,
+              theme: prev.theme,
+              paperMode: prev.paperMode,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            }));
+            return;
+          }
+          if (!response.ok) {
+            updateState((next) => { next.flashMessage = payload.message || "Could not place limit order."; });
+          }
+        } catch {
+          updateState((next) => {
+            const dollars = (Number(quantity) * Number(limitPrice)).toFixed(2);
+            next.openOrders = [
+              {
+                id: `order_${Date.now()}`,
+                marketId,
+                market: state.markets.find((m) => m.id === marketId)?.title ?? marketId,
+                side,
+                quantity: Number(quantity),
+                limitPrice: Number(limitPrice),
+                limitPriceCents: Math.round(Number(limitPrice) * 100),
+                currentPrice: side === "YES"
+                  ? (state.markets.find((m) => m.id === marketId)?.yesPrice ?? 0.5)
+                  : (state.markets.find((m) => m.id === marketId)?.noPrice ?? 0.5),
+                dollarCost: Number(dollars),
+                isPaper,
+                expiresAt: null,
+                createdAt: new Date().toISOString(),
+                status: "OPEN",
+              },
+              ...(next.openOrders || []),
+            ];
+            next.flashMessage = `Limit order placed: ${side} at ${Math.round(Number(limitPrice) * 100)}¢`;
+          });
+        }
+      },
+      async cancelOrder(orderId) {
+        try {
+          const { payload } = await requestJson("/api/orders", {
+            method: "DELETE",
+            body: JSON.stringify({ orderId }),
+          });
+          if (payload.state) {
+            setState((prev) => ({
+              ...payload.state,
+              auth: prev.auth,
+              theme: prev.theme,
+              paperMode: prev.paperMode,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            }));
+            return;
+          }
+        } catch {}
+        updateState((next) => {
+          next.openOrders = (next.openOrders || []).filter((o) => o.id !== orderId);
+          next.flashMessage = "Order cancelled.";
+        });
+      },
+      async sellBet(betId) {
+        try {
+          const { payload } = await requestJson(`/api/bets/${betId}/sell`, { method: "POST" });
+          if (payload.state) {
+            setState({
+              ...payload.state,
+              auth: state.auth,
+              theme: state.theme,
+              paperMode: state.paperMode,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            });
+            return { ok: true, proceeds: payload.proceeds };
+          }
+        } catch {
+          // Fall through to local demo reducer.
+        }
+
+        // Local fallback
+        updateState((next) => {
+          const idx = next.portfolio.openBets.findIndex((b) => b.id === betId);
+          if (idx === -1) { next.flashMessage = "Bet not found."; return; }
+          const bet = next.portfolio.openBets[idx];
+          const oddsMultiplier = bet.oddsMultiplier ?? 2;
+          const shares = (bet.stake ?? 0) * oddsMultiplier;
+          const market = next.markets.find((m) => m.id === bet.marketId);
+          let proceeds = 0;
+          if (market) {
+            market.liquidityPool = market.liquidityPool || {
+              qYes: 0,
+              qNo: 0,
+              yesReserve: 0,
+              noReserve: 0,
+              liquidityParameter: 100,
+              feeBps: 0,
+            };
+            const lmsr = createLmsrMarketFromMarket(market);
+            const executed = bet.side === "YES" ? lmsr.sellYes(shares) : lmsr.sellNo(shares);
+            proceeds = Math.max(0, executed.proceeds);
+            market.liquidityPool.qYes = executed.qYes;
+            market.liquidityPool.qNo = executed.qNo;
+            market.liquidityPool.yesReserve = executed.qYes;
+            market.liquidityPool.noReserve = executed.qNo;
+            market.yesPrice = executed.afterProbability.yes;
+            market.noPrice = executed.afterProbability.no;
+          } else {
+            proceeds = Math.max(0, shares * 0.5);
+          }
+          const pnl = proceeds - (bet.stake ?? 0);
+          if (bet.isPaper) {
+            next.currentUser.paper_balance = (next.currentUser.paper_balance ?? 0) + proceeds;
+          } else {
+            next.currentUser.withdrawable_balance = (next.currentUser.withdrawable_balance ?? 0) + proceeds;
+          }
+          next.portfolio.openBets.splice(idx, 1);
+          next.portfolio.pastBets.unshift({
+            id: bet.id,
+            marketId: bet.marketId,
+            market: bet.market,
+            side: bet.side,
+            stake: bet.stake,
+            isPaper: bet.isPaper,
+            status: "SOLD",
+            payout: proceeds,
+            pnl,
+            settlement: `Sold · $${proceeds.toFixed(2)} returned`,
+            settledAt: new Date().toISOString().slice(0, 10),
+          });
+          next.flashMessage = `Sold position for $${proceeds.toFixed(2)}.`;
+        });
+        return { ok: true };
+      },
+
       async placeBet(marketId, side) {
+        const isPaper = state.paperMode;
         try {
           const { payload } = await requestJson("/api/bets", {
             method: "POST",
@@ -619,6 +948,7 @@ export function FriendMarketProvider({ children }) {
               marketId,
               side,
               betDraft: { ...state.betDraft, side },
+              isPaper,
             }),
           });
 
@@ -627,6 +957,7 @@ export function FriendMarketProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -644,10 +975,67 @@ export function FriendMarketProvider({ children }) {
             next.flashMessage = `This market is ${market.status} and is not accepting bets.`;
             return;
           }
+          const stake = Number(next.betDraft.stake) || 0;
+          const tradePreview = calculateOrderPreview({
+            stake: next.betDraft.inputMode === "shares" ? 0 : stake,
+            shares: next.betDraft.inputMode === "shares" ? next.betDraft.shareCount : undefined,
+            side,
+            market,
+          });
+          const totalCost = tradePreview.estimatedCost;
+
+          if (isPaper) {
+            if (totalCost <= 0) {
+              next.flashMessage = "Enter a valid stake before placing a bet.";
+              return;
+            }
+            if (totalCost > (next.currentUser.paper_balance ?? 0)) {
+              next.flashMessage = "Insufficient paper balance for this bet.";
+              return;
+            }
+            const result = calculatePayout({
+              stake: totalCost,
+              withdrawableShare: totalCost,
+              bonusShare: 0,
+              market,
+              adminConfig: next.adminConfig,
+            });
+            const trade = applyLocalLmsrTrade(market, side, {
+              stake: next.betDraft.inputMode === "shares" ? 0 : result.totalStake,
+              shares: next.betDraft.inputMode === "shares" ? tradePreview.estimatedContracts : undefined,
+            });
+            const oddsMultiplier = trade.oddsMultiplier;
+            next.currentUser.paper_balance = (next.currentUser.paper_balance ?? 0) - result.totalStake;
+            const betId = `bet_paper_${Date.now()}`;
+            market.recentActivity?.unshift({
+              user: next.currentUser.name,
+              action: `Paper bet ${side}`,
+              amount: result.totalStake,
+              time: "Just now",
+            });
+            next.portfolio.openBets.unshift({
+              id: betId,
+              marketId: market.id,
+              market: market.title,
+              side,
+              stake: result.totalStake,
+              status: "Open",
+              funding: "Paper trade",
+              isPaper: true,
+              withdrawableStake: 0,
+              bonusStake: 0,
+              oddsMultiplier,
+              potentialPayout: result.totalStake * oddsMultiplier,
+              placedAt: new Date().toISOString().slice(0, 10),
+            });
+            next.flashMessage = `Paper trade: ${side} on "${market.title}" for ${money(result.totalStake)}.`;
+            return;
+          }
+
           const result = calculatePayout({
-            stake: next.betDraft.stake,
-            withdrawableShare: next.betDraft.withdrawableShare,
-            bonusShare: next.betDraft.bonusShare,
+            stake: totalCost,
+            withdrawableShare: next.betDraft.inputMode === "shares" ? totalCost : next.betDraft.withdrawableShare,
+            bonusShare: next.betDraft.inputMode === "shares" ? 0 : next.betDraft.bonusShare,
             market,
             adminConfig: next.adminConfig,
           });
@@ -667,9 +1055,14 @@ export function FriendMarketProvider({ children }) {
 
           next.currentUser.withdrawable_balance -= result.withdrawableStake;
           next.currentUser.bonus_balance -= result.bonusStake;
+          const trade = applyLocalLmsrTrade(market, side, {
+            stake: next.betDraft.inputMode === "shares" ? 0 : result.totalStake,
+            shares: next.betDraft.inputMode === "shares" ? tradePreview.estimatedContracts : undefined,
+          });
+          const oddsMultiplier = trade.oddsMultiplier;
           const betId = `bet_${Date.now()}`;
 
-          market.recentActivity.unshift({
+          market.recentActivity?.unshift({
             user: next.currentUser.name,
             action: `Bet ${side}`,
             amount: result.totalStake,
@@ -687,6 +1080,9 @@ export function FriendMarketProvider({ children }) {
             )}% bonus`,
             withdrawableStake: result.withdrawableStake,
             bonusStake: result.bonusStake,
+            isPaper: false,
+            oddsMultiplier,
+            potentialPayout: result.totalStake * oddsMultiplier,
             placedAt: new Date().toISOString().slice(0, 10),
           });
           addLedgerEntries(
@@ -721,6 +1117,7 @@ export function FriendMarketProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -749,6 +1146,54 @@ export function FriendMarketProvider({ children }) {
         });
         return ok;
       },
+      async updateResponsibleUse({ dailyDepositLimit, selfExcludedDays }) {
+        const { response, payload } = await requestJson("/api/profile/responsible-use", {
+          method: "PATCH",
+          body: JSON.stringify({ dailyDepositLimit, selfExcludedDays }),
+        });
+        if (payload.state) {
+          setState({
+            ...payload.state,
+            auth: state.auth,
+            theme: state.theme,
+            flashMessage: payload.message,
+            mobileNavOpen: false,
+          });
+        }
+        return { ok: response.ok, message: payload.message };
+      },
+      async submitIdentityVerification(form) {
+        const { response, payload } = await requestJson("/api/profile/verification/identity", {
+          method: "POST",
+          body: JSON.stringify(form),
+        });
+        if (payload.state) {
+          setState({
+            ...payload.state,
+            auth: state.auth,
+            theme: state.theme,
+            flashMessage: payload.message,
+            mobileNavOpen: false,
+          });
+        }
+        return { ok: response.ok, message: payload.message };
+      },
+      async submitLocationVerification(form) {
+        const { response, payload } = await requestJson("/api/profile/verification/location", {
+          method: "POST",
+          body: JSON.stringify(form),
+        });
+        if (payload.state) {
+          setState({
+            ...payload.state,
+            auth: state.auth,
+            theme: state.theme,
+            flashMessage: payload.message,
+            mobileNavOpen: false,
+          });
+        }
+        return { ok: response.ok, message: payload.message };
+      },
       async updateVerification(type) {
         try {
           const { payload } = await requestJson("/api/profile/verification", {
@@ -760,6 +1205,7 @@ export function FriendMarketProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -790,6 +1236,7 @@ export function FriendMarketProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -819,6 +1266,7 @@ export function FriendMarketProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -860,11 +1308,12 @@ export function FriendMarketProvider({ children }) {
           next.friendInviteDraft = value;
         });
       },
-      async sendFriendInvite() {
+      async sendFriendInvite(usernameOverride) {
+        const inviteUsername = usernameOverride ?? state.friendInviteDraft;
         try {
           const { payload } = await requestJson("/api/friends/invites", {
             method: "POST",
-            body: JSON.stringify({ username: state.friendInviteDraft }),
+            body: JSON.stringify({ username: inviteUsername }),
           });
 
           if (payload.state) {
@@ -882,7 +1331,7 @@ export function FriendMarketProvider({ children }) {
         }
 
         updateState((next) => {
-          const username = normalizeUsername(next.friendInviteDraft);
+          const username = normalizeUsername(inviteUsername);
 
           if (!username) {
             next.flashMessage = "Enter a username to send an invite.";
@@ -957,6 +1406,33 @@ export function FriendMarketProvider({ children }) {
           } else {
             next.flashMessage = `Canceled the pending invite to ${request.username}.`;
           }
+        });
+      },
+
+      async removeFriend(username) {
+        try {
+          const { payload } = await requestJson("/api/friends/requests", {
+            method: "DELETE",
+            body: JSON.stringify({ username }),
+          });
+
+          if (payload.state) {
+            setState({
+              ...payload.state,
+              auth: state.auth,
+              theme: state.theme,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            });
+            return;
+          }
+        } catch {
+          // Fall through to local state update.
+        }
+
+        updateState((next) => {
+          next.friends.list = next.friends.list.filter((f) => f.username !== username);
+          next.flashMessage = `Removed ${username} from your friends.`;
         });
       },
       async toggleFriendBoost(username) {
@@ -1061,11 +1537,39 @@ export function FriendMarketProvider({ children }) {
           next.flashMessage = "Added a $25 play-money deposit to withdrawable balance.";
         });
       },
-      async addDeposit(amount = state.fundingDrafts.depositAmount) {
+      async addDeposit(amount = state.fundingDrafts.depositAmount, method = "bank") {
+        try {
+          const { response, payload } = await requestJson("/api/funds/deposit", {
+            method: "POST",
+            body: JSON.stringify({ amount, method }),
+          });
+          if (payload.ok === false && response.status !== 503) {
+            updateState((next) => {
+              next.flashMessage = payload.message || "Deposit could not be completed.";
+            });
+            return false;
+          }
+          if (payload.state) {
+            setState({
+              ...payload.state,
+              auth: state.auth,
+              theme: state.theme,
+              paperMode: state.paperMode,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            });
+            return payload.ok;
+          }
+        } catch {
+          // Fall through to the local demo reducer when the API is unavailable.
+        }
+
+        let ok = true;
         updateState((next) => {
           const depositAmount = Math.max(0, Number(amount) || 0);
           if (!depositAmount) {
             next.flashMessage = "Enter a deposit amount above zero.";
+            ok = false;
             return;
           }
           addFunds(next, {
@@ -1076,16 +1580,45 @@ export function FriendMarketProvider({ children }) {
           });
           next.flashMessage = `Added ${money(depositAmount)} to withdrawable balance.`;
         });
+        return ok;
       },
-      async requestWithdrawal(amount = state.fundingDrafts.withdrawAmount) {
+      async requestWithdrawal(amount = state.fundingDrafts.withdrawAmount, method = "bank") {
+        try {
+          const { response, payload } = await requestJson("/api/funds/withdraw", {
+            method: "POST",
+            body: JSON.stringify({ amount, method }),
+          });
+          if (payload.ok === false && response.status !== 503) {
+            updateState((next) => {
+              next.flashMessage = payload.message || "Withdrawal could not be completed.";
+            });
+            return false;
+          }
+          if (payload.state) {
+            setState({
+              ...payload.state,
+              auth: state.auth,
+              theme: state.theme,
+              flashMessage: payload.message,
+              mobileNavOpen: false,
+            });
+            return payload.ok;
+          }
+        } catch {
+          // Fall through to the local demo reducer when the API is unavailable.
+        }
+
+        let ok = true;
         updateState((next) => {
           const withdrawalAmount = Math.max(0, Number(amount) || 0);
           if (!withdrawalAmount) {
             next.flashMessage = "Enter a withdrawal amount above zero.";
+            ok = false;
             return;
           }
           if (withdrawalAmount > next.currentUser.withdrawable_balance) {
             next.flashMessage = "Withdrawal exceeds withdrawable balance.";
+            ok = false;
             return;
           }
           next.currentUser.withdrawable_balance -= withdrawalAmount;
@@ -1102,6 +1635,7 @@ export function FriendMarketProvider({ children }) {
           refreshDerivedBalances(next);
           next.flashMessage = `Created a demo withdrawal for ${money(withdrawalAmount)}.`;
         });
+        return ok;
       },
       async applyReferral(code = state.fundingDrafts.referralCode) {
         updateState((next) => {
@@ -1219,6 +1753,7 @@ export function FriendMarketProvider({ children }) {
               ...payload.state,
               auth: state.auth,
               theme: state.theme,
+              paperMode: state.paperMode,
               flashMessage: payload.message,
               mobileNavOpen: false,
             });
@@ -1580,12 +2115,152 @@ export function FriendMarketProvider({ children }) {
           next.flashMessage = `Removed ${money(amount)} of bonus balance from ${user.name}.`;
         });
       },
+      async listStrategyMarketplace() {
+        const { payload } = await requestJson("/api/strategies");
+        return payload;
+      },
+      async getStrategyMarketplaceProfile(profileId) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}`);
+        return payload;
+      },
+      async subscribeToStrategy(profileId, draft) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/subscribe`, {
+          method: "POST",
+          body: JSON.stringify(draft || {}),
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Paper strategy subscription active."
+            : payload.message || "Could not subscribe to strategy.";
+        });
+        return payload;
+      },
+      async updateStrategySubscription(profileId, draft) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/subscription`, {
+          method: "PATCH",
+          body: JSON.stringify(draft || {}),
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Strategy subscription updated."
+            : payload.message || "Could not update subscription.";
+        });
+        return payload;
+      },
+      async unsubscribeFromStrategy(profileId) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/subscription`, {
+          method: "DELETE",
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Strategy subscription canceled."
+            : payload.message || "Could not cancel subscription.";
+        });
+        return payload;
+      },
+      async listMyStrategySubscriptions() {
+        const { payload } = await requestJson("/api/strategies/subscriptions");
+        return payload;
+      },
+      async getStrategyCopyTrades(profileId) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/copy-trades`);
+        return payload;
+      },
+      async getStrategyBilling(profileId) {
+        const { payload } = await requestJson(`/api/strategies/${profileId}/billing`);
+        return payload;
+      },
+      async getCreatorRevenueSummary() {
+        const { payload } = await requestJson("/api/strategies/creator/revenue");
+        return payload;
+      },
+      async listCreatorPrivateStrategies() {
+        const { payload } = await requestJson("/api/strategies/creator/strategies");
+        return payload;
+      },
+      async listCreatorMarketplaceProfiles() {
+        const { payload } = await requestJson("/api/strategies/creator");
+        return payload;
+      },
+      async publishCreatorMarketplaceProfile(draft) {
+        const { payload } = await requestJson("/api/strategies/creator", {
+          method: "POST",
+          body: JSON.stringify(draft),
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Strategy submitted to the marketplace."
+            : payload.message || "Could not publish strategy.";
+        });
+        return payload;
+      },
+      async updateCreatorMarketplaceProfile(profileId, patch) {
+        const { payload } = await requestJson(`/api/strategies/creator/${profileId}`, {
+          method: "PATCH",
+          body: JSON.stringify(patch),
+        });
+        updateState((next) => {
+          next.flashMessage = payload.ok
+            ? "Marketplace profile updated."
+            : payload.message || "Could not update marketplace profile.";
+        });
+        return payload;
+      },
+      async getCreatorProfileAnalytics(profileId) {
+        const { payload } = await requestJson(`/api/strategies/creator/${profileId}/analytics`);
+        return payload;
+      },
+      async getMarketplaceModerationQueue() {
+        const { payload } = await requestJson("/api/admin/strategy-marketplace/moderation", {
+          headers: adminHeaders(state),
+        });
+        return payload;
+      },
+      async moderateMarketplaceProfile({ profileId, action, reason }) {
+        const { payload } = await requestJson("/api/admin/strategy-marketplace/moderation", {
+          method: "POST",
+          headers: adminHeaders(state),
+          body: JSON.stringify({ profileId, action, reason }),
+        });
+        return payload;
+      },
+      async createCreatorPayoutSnapshot({ creatorId, periodStart, periodEnd }) {
+        const { payload } = await requestJson("/api/admin/strategy-marketplace/payouts", {
+          method: "POST",
+          headers: adminHeaders(state),
+          body: JSON.stringify({ creatorId, periodStart, periodEnd }),
+        });
+        return payload;
+      },
     }),
     [state],
   );
 
+  useEffect(() => {
+    if (!hydrated || !state.auth.authenticated || !state.auth.expiresAt) {
+      return undefined;
+    }
+
+    const expiryMs = Date.parse(state.auth.expiresAt);
+    if (!Number.isFinite(expiryMs)) {
+      return undefined;
+    }
+
+    const warningAt = expiryMs - 15 * 60 * 1000;
+    const nextCheckAt = state.auth.expiresSoon ? expiryMs + 500 : Math.max(Date.now() + 1000, warningAt);
+    const delay = Math.max(1000, Math.min(nextCheckAt - Date.now(), 2_147_483_647));
+    const timer = window.setTimeout(() => {
+      void actions.refreshSessionFromServer();
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [actions, hydrated, state.auth.authenticated, state.auth.expiresAt, state.auth.expiresSoon]);
+
   const selectors = useMemo(
     () => ({
+      getMergedMarkets() {
+        return mergeGameMarkets(state.markets || [], state.liveGames || []);
+      },
       getSelectedMarket(marketId = state.selectedMarketId) {
         return getSelectedMarketFromState(state, marketId);
       },
@@ -1610,13 +2285,13 @@ export function FriendMarketProvider({ children }) {
     [actions, hydrated, selectors, state],
   );
 
-  return <FriendMarketContext.Provider value={value}>{children}</FriendMarketContext.Provider>;
+  return <AgoraContext.Provider value={value}>{children}</AgoraContext.Provider>;
 }
 
-export function useFriendMarket() {
-  const context = useContext(FriendMarketContext);
+export function useAgora() {
+  const context = useContext(AgoraContext);
   if (!context) {
-    throw new Error("useFriendMarket must be used within FriendMarketProvider");
+    throw new Error("useAgora must be used within AgoraProvider");
   }
   return context;
 }

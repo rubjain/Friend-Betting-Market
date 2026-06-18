@@ -1,37 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
 import { InfoRow, SectionHead } from "../ui";
 
 const depositMethods = [
   {
     id: "bank",
-    name: "Bank account",
-    detail: "ACH transfer",
-    badge: "Best for larger deposits",
+    name: "Demo bank",
+    detail: "Simulated ACH",
+    badge: "Paper beta",
     mark: "BA",
   },
   {
     id: "card",
-    name: "Credit card",
-    detail: "Visa, Mastercard, Amex",
-    badge: "Instant",
+    name: "Demo card",
+    detail: "Simulated card",
+    badge: "Paper beta",
     mark: "CC",
   },
   {
     id: "apple",
-    name: "Apple Pay",
-    detail: "Use a saved wallet card",
-    badge: "Fast",
+    name: "Demo Apple Pay",
+    detail: "Simulated wallet",
+    badge: "Paper beta",
     mark: "AP",
   },
   {
     id: "google",
-    name: "Google Pay",
-    detail: "Use a saved wallet card",
-    badge: "Fast",
+    name: "Demo Google Pay",
+    detail: "Simulated wallet",
+    badge: "Paper beta",
     mark: "GP",
   },
 ];
@@ -39,7 +39,7 @@ const depositMethods = [
 const quickDepositAmounts = [10, 25, 50, 100];
 
 export default function DepositPage() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [pendingAction, setPendingAction] = useState("");
   const [depositMethod, setDepositMethod] = useState("bank");
   const selectedDepositMethod = depositMethods.find((method) => method.id === depositMethod) || depositMethods[0];
@@ -49,7 +49,7 @@ export default function DepositPage() {
     if (pendingAction) return;
     setPendingAction("deposit");
     try {
-      await actions.addDeposit();
+      await actions.addDeposit(depositAmount, depositMethod);
     } finally {
       setPendingAction("");
     }
@@ -58,17 +58,17 @@ export default function DepositPage() {
   return (
     <section className="page active money-page">
       <SectionHead
-        title="Deposit"
-        body="Choose a funding method and add play credit."
+        title="Add Play Credit"
+        body="Paper beta funding is simulated. No real money is charged."
       />
 
       <div className="list-card deposit-card money-card">
         <div className="deposit-card-head">
           <div>
-            <h3>Add funds</h3>
-            <p>Connect a bank account, card, or wallet to deposit.</p>
+            <h3>Add simulated funds</h3>
+            <p>Choose a demo funding method to credit your paper-money balance.</p>
           </div>
-          <span className="pill">Secure demo flow</span>
+          <span className="pill">No real money</span>
         </div>
 
         <div className="deposit-method-grid" role="list" aria-label="Deposit payment methods">
@@ -107,7 +107,7 @@ export default function DepositPage() {
               </span>
             </label>
             <button className="btn btn-primary deposit-submit" type="button" disabled={!!pendingAction} onClick={runDeposit}>
-              {pendingAction === "deposit" ? "Adding..." : `Deposit with ${selectedDepositMethod.name}`}
+              {pendingAction === "deposit" ? "Adding..." : `Add with ${selectedDepositMethod.name}`}
             </button>
           </div>
 
@@ -127,7 +127,7 @@ export default function DepositPage() {
           <div className="deposit-summary">
             <InfoRow label="Funding source" value={selectedDepositMethod.name} />
             <InfoRow label="Available now" value={money(state.currentUser.withdrawable_balance)} />
-            <InfoRow label="Available after deposit" value={money(state.currentUser.withdrawable_balance + depositAmount)} />
+            <InfoRow label="Available after add" value={money(state.currentUser.withdrawable_balance + depositAmount)} />
           </div>
         </div>
       </div>

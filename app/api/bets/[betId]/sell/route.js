@@ -1,0 +1,17 @@
+import { NextResponse } from "next/server";
+import { requireAuthenticated } from "../../../../../lib/server/auth.js";
+import { sellDatabaseBet } from "../../../../../lib/server/betService.js";
+import { sellDemoBet } from "../../../../../lib/server/demoStore.js";
+
+export async function POST(request, { params }) {
+  const { session, response } = await requireAuthenticated(request);
+  if (response) return response;
+
+  const userId = session.userId;
+  const { betId } = await params;
+
+  const databaseResult = await sellDatabaseBet({ betId, userId });
+  const result = databaseResult ?? sellDemoBet({ betId, userId });
+
+  return NextResponse.json(result, { status: result.ok ? 200 : 400 });
+}

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "../../../../lib/server/auth.js";
+import { requireAdminPermission } from "../../../../lib/server/auth.js";
+import { ADMIN_PERMISSIONS } from "../../../../lib/server/adminPermissions.js";
 import { updateDatabaseAdminConfig } from "../../../../lib/server/adminConfigService.js";
 import { updateDemoAdminConfig } from "../../../../lib/server/demoStore.js";
 
 export async function PATCH(request) {
-  const { session, response } = await requireAdmin(request);
+  const { session, response } = await requireAdminPermission(request, ADMIN_PERMISSIONS.CONFIG);
   if (response) return response;
 
   const payload = await request.json();

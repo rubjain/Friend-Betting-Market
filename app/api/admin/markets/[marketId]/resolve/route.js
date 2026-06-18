@@ -1,22 +1,24 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "../../../../../../lib/server/auth.js";
+import { requireAdminPermission } from "../../../../../../lib/server/auth.js";
+import { ADMIN_PERMISSIONS } from "../../../../../../lib/server/adminPermissions.js";
 import { resolveDatabaseMarket } from "../../../../../../lib/server/marketService.js";
 import { resolveDemoMarket } from "../../../../../../lib/server/demoStore.js";
 
 export async function POST(request, { params }) {
-  const { session, response } = await requireAdmin(request);
+  const { session, response } = await requireAdminPermission(request, ADMIN_PERMISSIONS.MARKET_RESOLUTION);
   if (response) return response;
 
   const payload = await request.json();
+  const { marketId } = await params;
   const databaseResult = await resolveDatabaseMarket({
-    activeId: params.marketId,
+    activeId: marketId,
     result: payload.result,
     userId: session.userId,
   });
   const result =
     databaseResult ??
     resolveDemoMarket({
-      activeId: params.marketId,
+      activeId: marketId,
       result: payload.result,
     });
 

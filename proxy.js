@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const SESSION_COOKIE_NAME = "friendmarket-demo-session";
+const SESSION_COOKIE_NAME = "agora-demo-session";
 
 function sessionLooksAdmin(request) {
   const value = request.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -19,14 +19,16 @@ function sessionLooksAdmin(request) {
   }
 }
 
-export function proxy(request) {
-  if (request.nextUrl.pathname === "/admin" && !sessionLooksAdmin(request)) {
-    return NextResponse.redirect(new URL("/profile", request.url));
+export default function proxy(request) {
+  if (request.nextUrl.pathname.startsWith("/admin") && !sessionLooksAdmin(request)) {
+    const url = new URL("/profile", request.url);
+    url.searchParams.set("reason", "admin-required");
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin"],
+  matcher: ["/admin/:path*"],
 };

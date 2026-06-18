@@ -1,0 +1,13 @@
+---
+description: Use GitHub for all pull requests; avoid merging or shipping changes without a PR on GitHub
+alwaysApply: true
+---
+
+# Pull requests via GitHub
+
+- **Do not** push finished work straight to `main` (or the repo’s default branch) when the change should be reviewed. Use a **feature branch**, push it, and open a **pull request on GitHub**.
+- **Open the PR on GitHub** using one of:
+  - GitHub in the browser: push the branch, then use **Compare & pull request** on https://github.com/rubjain/Friend-Betting-Market (or **Pull requests → New pull request**).
+  - If [GitHub CLI](https://cli.github.com/) (`gh`) is installed and authenticated: `gh pr create` from the repo after pushing the branch.
+- When helping with git workflow, **remind** the user to open the PR on GitHub if they have only committed locally or only pushed without a PR.
+- Keep PR descriptions in **full sentences** with a short summary of what changed and why.

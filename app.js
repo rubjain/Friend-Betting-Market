@@ -1,4 +1,4 @@
-const STORAGE_KEY = "friendmarket-mvp-state";
+const STORAGE_KEY = "agora-mvp-state";
 
 const defaultState = {
   route: "landing",

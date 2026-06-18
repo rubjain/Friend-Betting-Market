@@ -9,6 +9,10 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const result = await getAdminAuditPage({
     action: searchParams.get("action") || "all",
+    actorId: searchParams.get("actorId") || "",
+    marketId: searchParams.get("marketId") || "",
+    dateFrom: searchParams.get("dateFrom") || "",
+    dateTo: searchParams.get("dateTo") || "",
     page: searchParams.get("page") || 1,
     pageSize: searchParams.get("pageSize") || 20,
   });

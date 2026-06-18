@@ -15,6 +15,8 @@ const auditActionOptions = [
   ["friend.invited", "Friend invites"],
   ["friend.request.updated", "Friend requests"],
   ["funds.credit", "Funds credits"],
+  ["payment.deposit.completed", "Deposit completed"],
+  ["payment.withdrawal.requested", "Withdrawal requested"],
   ["market.approved", "Market approvals"],
   ["market.lifecycle.updated", "Market lifecycle"],
   ["market.rejected", "Market rejections"],
@@ -48,6 +50,10 @@ function metadataSummary(metadata) {
 
 export default function AdminAuditTable() {
   const [action, setAction] = useState("all");
+  const [actorId, setActorId] = useState("");
+  const [marketId, setMarketId] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [view, setView] = useState({ entries: [], currentPage: 1, totalPages: 1, totalEntries: 0 });
   const [loading, setLoading] = useState(false);
@@ -60,6 +66,10 @@ export default function AdminAuditTable() {
       try {
         const params = new URLSearchParams({
           action,
+          actorId,
+          marketId,
+          dateFrom,
+          dateTo,
           page: String(page),
           pageSize: "10",
         });
@@ -87,10 +97,15 @@ export default function AdminAuditTable() {
     return () => {
       canceled = true;
     };
-  }, [action, page]);
+  }, [action, actorId, dateFrom, dateTo, marketId, page]);
 
   function updateAction(nextAction) {
     setAction(nextAction);
+    setPage(1);
+  }
+
+  function updateTextFilter(setter, value) {
+    setter(value);
     setPage(1);
   }
 
@@ -109,6 +124,58 @@ export default function AdminAuditTable() {
             ))}
           </select>
         </label>
+        <label className="field compact-field" htmlFor="admin-audit-actor">
+          <span className="label">Actor ID</span>
+          <input
+            id="admin-audit-actor"
+            type="search"
+            placeholder="user_1"
+            value={actorId}
+            onChange={(event) => updateTextFilter(setActorId, event.currentTarget.value)}
+          />
+        </label>
+        <label className="field compact-field" htmlFor="admin-audit-market">
+          <span className="label">Market ID</span>
+          <input
+            id="admin-audit-market"
+            type="search"
+            placeholder="market_1"
+            value={marketId}
+            onChange={(event) => updateTextFilter(setMarketId, event.currentTarget.value)}
+          />
+        </label>
+        <label className="field compact-field" htmlFor="admin-audit-from">
+          <span className="label">From</span>
+          <input
+            id="admin-audit-from"
+            type="date"
+            value={dateFrom}
+            onChange={(event) => updateTextFilter(setDateFrom, event.currentTarget.value)}
+          />
+        </label>
+        <label className="field compact-field" htmlFor="admin-audit-to">
+          <span className="label">To</span>
+          <input
+            id="admin-audit-to"
+            type="date"
+            value={dateTo}
+            onChange={(event) => updateTextFilter(setDateTo, event.currentTarget.value)}
+          />
+        </label>
+        <button
+          className="btn btn-ghost"
+          type="button"
+          onClick={() => {
+            setAction("all");
+            setActorId("");
+            setMarketId("");
+            setDateFrom("");
+            setDateTo("");
+            setPage(1);
+          }}
+        >
+          Clear
+        </button>
         <div className="pagination-copy">
           {loading ? "Loading audit entries..." : `${view.totalEntries} entries - page ${view.currentPage} of ${view.totalPages}`}
         </div>

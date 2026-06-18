@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "../../../../../lib/server/auth.js";
+import { requireAdminPermission } from "../../../../../lib/server/auth.js";
+import { ADMIN_PERMISSIONS } from "../../../../../lib/server/adminPermissions.js";
 import { updateDatabaseDispute } from "../../../../../lib/server/disputeService.js";
 
 export async function PATCH(request, { params }) {
-  const { session, response } = await requireAdmin(request);
+  const { session, response } = await requireAdminPermission(request, ADMIN_PERMISSIONS.RISK);
   if (response) return response;
 
   const payload = await request.json();
+  const { disputeId } = await params;
   const result = await updateDatabaseDispute({
-    disputeId: params.disputeId,
+    disputeId,
     status: payload.status,
     note: payload.note,
     actorId: session.userId,
