@@ -7,7 +7,7 @@ import MarketGamePanel from "../MarketGamePanel";
 import MarketPriceChart from "../MarketPriceChart";
 import TennisPremiumMarketPage from "../TennisPremiumMarketPage";
 import { useAgora } from "../../context/AgoraContext";
-import { formatMarketDate, formatPercent, money } from "../../lib/formatters";
+import { formatDateTime, formatMarketDate, formatPercent, money } from "../../lib/formatters";
 import { getLinkedLiveGame, getLiveGameClock, getMarketAlgorithmSnapshot } from "../../lib/marketAlgorithms";
 import { getMultiplier } from "../../lib/marketMath";
 import { getResolutionTemplate } from "../../lib/marketTaxonomy";
@@ -207,8 +207,8 @@ function DefaultMarketDetailPage({ marketId }) {
               <p className="market-detail-desc">{market.description}</p>
               <div className="info-list info-list--tight">
                 <InfoRow label="Market status" value={market.status ?? "active"} />
-                <InfoRow label="Close time" value={market.closeTime ?? "—"} />
-                <InfoRow label="Settlement" value={market.settlementTime ?? "After official resolution"} />
+                <InfoRow label="Close time" value={market.closeTime ? formatDateTime(market.closeTime, { withZone: true }) : "—"} />
+                <InfoRow label="Settlement" value={market.settlementTime ? formatDateTime(market.settlementTime, { withZone: true }) : "After official resolution"} />
               </div>
             </div>
           </details>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAgora } from "../../context/AgoraContext";
-import { money } from "../../lib/formatters";
+import { formatMarketDate, money } from "../../lib/formatters";
 import PortfolioLedger from "../PortfolioLedger";
 import { SectionHead } from "../ui";
 
@@ -325,7 +325,7 @@ function BetRow({ bet, isPaper }) {
           <span className={`order-side-badge order-side-badge--${bet.side.toLowerCase()}`}>{bet.side}</span>
           {" "}· {money(bet.stake)} staked
           {isPaper && <span className="order-paper-tag">PAPER</span>}
-          {bet.placedAt && <> · {bet.placedAt}</>}
+          {bet.placedAt && <> · {formatMarketDate(bet.placedAt)}</>}
         </div>
         <CopiedFrom bet={bet} />
         {sellValue !== null && (
