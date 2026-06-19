@@ -7,13 +7,26 @@ import {
   createRefundLedgerEntries,
   createSettlementLedgerEntries,
 } from "../lib/accounting.js";
-import { calculatePayout, getMultiplier, normalizeFunding } from "../lib/marketMath.js";
+import {
+  ammBuyYes,
+  calculateOrderPreview,
+  calculatePayout,
+  getMultiplier,
+  normalizeFunding,
+} from "../lib/marketMath.js";
+import {
+  buildTradeExecution,
+  calculateFee,
+  feeRevenueLedgerData,
+} from "../lib/tradeExecution.js";
+import { LMSRMarket } from "../lib/lmsrMarket.js";
 import {
   hasValidationErrors,
   validateBetDraft,
   validateCreateMarketDraft,
 } from "../lib/validation.js";
 import {
+  buildExportFilename,
   buildLedgerExportRows,
   buildRiskReviewExportRows,
   ledgerExportColumns,
@@ -34,9 +47,22 @@ import {
   getMarketPipelineSummary,
   rankMarketsBySignal,
 } from "../lib/marketAlgorithms.js";
-import { applyRiskSignalsToUser, getBoostRiskSignals } from "../lib/riskEngine.js";
+import {
+  applyRiskSignalsToUser,
+  getBoostRiskSignals,
+  getRiskBand,
+  getRiskExplanation,
+} from "../lib/riskEngine.js";
 import { getSourceAdapter, validateSourceAdapterConfig } from "../lib/sourceAdapters.js";
-import { getSessionFromRequest, requireAdmin } from "../lib/server/auth.js";
+import { buildAdminAuditWhere } from "../lib/server/adminDataService.js";
+import { buildLedgerExportWhere } from "../lib/server/exportService.js";
+import {
+  getSessionFromRequest,
+  requireAdmin,
+  requireAdminPermission,
+  requireAuthenticated,
+} from "../lib/server/auth.js";
+import { ADMIN_PERMISSIONS } from "../lib/server/adminPermissions.js";
 
 const baseAdminConfig = {
   socialBoostsEnabled: true,
@@ -57,6 +83,47 @@ const boostedMarket = {
   eligibleForBonus: true,
   friendsBoosting: 4,
 };
+
+test("LMSR market starts at 50/50 with zero quantities", () => {
+  const market = new LMSRMarket();
+  const probabilities = market.getProbability();
+
+  assert.equal(probabilities.yes, 0.5);
+  assert.equal(probabilities.no, 0.5);
+  assert.equal(probabilities.yes + probabilities.no, 1);
+});
+
+test("buying YES increases YES probability smoothly", () => {
+  const market = new LMSRMarket({ b: 100 });
+  const trade = market.buyYes(10);
+  const probabilities = market.getProbability();
+
+  assert.equal(probabilities.yes > 0.5, true);
+  assert.equal(probabilities.no < 0.5, true);
+  assert.equal(Math.abs(probabilities.yes + probabilities.no - 1) < 1e-12, true);
+  assert.equal(trade.cost > 0, true);
+  assert.equal(probabilities.yes < 1, true);
+});
+
+test("buying NO increases NO probability smoothly", () => {
+  const market = new LMSRMarket({ b: 100 });
+  market.buyNo(10);
+  const probabilities = market.getProbability();
+
+  assert.equal(probabilities.no > 0.5, true);
+  assert.equal(probabilities.yes < 0.5, true);
+  assert.equal(Math.abs(probabilities.yes + probabilities.no - 1) < 1e-12, true);
+  assert.equal(probabilities.no < 1, true);
+});
+
+test("LMSR liquidity parameter controls price movement", () => {
+  const liquid = new LMSRMarket({ b: 200 });
+  const thin = new LMSRMarket({ b: 20 });
+  liquid.buyYes(10);
+  thin.buyYes(10);
+
+  assert.equal(thin.getProbability().yes > liquid.getProbability().yes, true);
+});
 
 test("social multiplier respects friend count and admin cap", () => {
   assert.equal(getMultiplier(boostedMarket, baseAdminConfig), 1.2);
@@ -150,6 +217,165 @@ test("social bonus payout respects admin and market caps", () => {
   assert.equal(payout.uncappedSocialBonus, 160);
   assert.equal(payout.socialBonus, 12);
   assert.equal(payout.boostedPayout, 212);
+});
+
+test("order preview estimates LMSR contracts cost and pool fees", () => {
+  const preview = calculateOrderPreview({
+    stake: 25,
+    side: "YES",
+    market: {
+      yesPrice: 0.58,
+      noPrice: 0.45,
+      liquidityPool: { qYes: 0, qNo: 0, liquidityParameter: 100, feeBps: 50 },
+    },
+  });
+
+  assert.equal(preview.currentPrice, 0.5);
+  assert.equal(preview.feeAmount, 0.125);
+  assert.equal(preview.netStake, 24.875);
+  assert.equal(Math.round(preview.estimatedContracts * 100), 4478);
+  assert.equal(preview.spread, 0);
+  assert.equal(Math.round(preview.estimatedCost * 100), 2500);
+  assert.equal(preview.newYesPrice > 0.5, true);
+  assert.equal(Math.abs(preview.newYesPrice + preview.newNoPrice - 1) < 1e-12, true);
+});
+
+test("LMSR stays finite for tiny and large trades", () => {
+  const tiny = ammBuyYes(0, 0, 0.01, 0);
+  const large = ammBuyYes(5000, -5000, 10000, 25);
+
+  assert.equal(tiny.sharesOut > 0, true);
+  assert.equal(tiny.netIn, 0.01);
+  assert.equal(Number.isFinite(tiny.newYesPrice), true);
+  assert.equal(Number.isFinite(tiny.newNoPrice), true);
+  assert.equal(Math.abs(tiny.newYesPrice + tiny.newNoPrice - 1) < 1e-12, true);
+
+  assert.equal(large.feeAmount, 25);
+  assert.equal(large.netIn, 9975);
+  assert.equal(Number.isFinite(large.sharesOut), true);
+  assert.equal(Number.isFinite(large.newYesPrice), true);
+  assert.equal(Number.isFinite(large.newNoPrice), true);
+  assert.equal(large.newYesPrice <= 1, true);
+  assert.equal(large.newNoPrice >= 0, true);
+});
+
+test("LMSR share solver spends no more than its net budget", () => {
+  const market = new LMSRMarket({ qYes: 12, qNo: -4, b: 75 });
+  const budget = 37.25;
+  const shares = market.getSharesForCost("NO", budget);
+  const preview = market.previewBuy("NO", shares);
+
+  assert.equal(preview.cost <= budget, true);
+  assert.equal(Math.abs(preview.cost - budget) < 0.000001, true);
+  assert.equal(preview.afterProbability.no > preview.beforeProbability.no, true);
+});
+
+test("LMSR sell preview returns proceeds and moves price against the sold side", () => {
+  const market = new LMSRMarket({ qYes: 30, qNo: 0, b: 100 });
+  const preview = market.previewSell("YES", 5);
+
+  assert.equal(preview.proceeds > 0, true);
+  assert.equal(preview.afterProbability.yes < preview.beforeProbability.yes, true);
+  assert.equal(Math.abs(preview.afterProbability.yes + preview.afterProbability.no - 1) < 1e-12, true);
+});
+
+test("order preview handles zero and full-fee LMSR budgets deterministically", () => {
+  const market = {
+    liquidityPool: { qYes: 0, qNo: 0, liquidityParameter: 100, feeBps: 10000 },
+  };
+  const zero = calculateOrderPreview({ stake: 0, side: "YES", market });
+  const fullFee = calculateOrderPreview({ stake: 10, side: "YES", market });
+
+  assert.equal(zero.estimatedContracts, 0);
+  assert.equal(zero.estimatedCost, 0);
+  assert.equal(fullFee.feeAmount, 0);
+  assert.equal(fullFee.netStake, 0);
+  assert.equal(fullFee.estimatedContracts, 0);
+  assert.equal(fullFee.currentPrice, 0.5);
+});
+
+test("shared fee engine is deterministic across paper and real trades", () => {
+  const paper = buildTradeExecution({ tradingMode: "paper", grossAmount: 100, feeBps: 125 });
+  const real = buildTradeExecution({ tradingMode: "real", grossAmount: 100, feeBps: 125 });
+
+  assert.equal(calculateFee({ grossAmount: 100, feeBps: 125 }), 1.25);
+  assert.equal(paper.feeAmount, real.feeAmount);
+  assert.equal(paper.netAmount, real.netAmount);
+  assert.equal(paper.feeDestination, "paper_burned");
+  assert.equal(real.feeDestination, "platform_revenue");
+});
+
+test("paper fees reduce simulated balance while real fees are revenue only", () => {
+  const paper = buildTradeExecution({ tradingMode: "paper", grossAmount: 101.25, feeBps: 125 });
+  const real = buildTradeExecution({ tradingMode: "real", grossAmount: 101.25, feeBps: 125 });
+  const startingBalance = 1000;
+
+  assert.equal(startingBalance - paper.grossAmount, 898.75);
+  assert.equal(startingBalance - real.grossAmount, 898.75);
+  assert.equal(feeRevenueLedgerData({ userId: "u1", marketId: "m1", betId: "b1", feeAmount: paper.feeAmount, tradingMode: "paper" }), null);
+
+  const revenue = feeRevenueLedgerData({
+    userId: "u1",
+    marketId: "m1",
+    betId: "b1",
+    feeAmount: real.feeAmount,
+    tradingMode: "real",
+  });
+  assert.equal(revenue.source, "PLATFORM_FEE");
+  assert.equal(revenue.amount, real.feeAmount);
+});
+
+test("API paper and real executions expose the same response fields", () => {
+  const sharedShape = (execution) => Object.keys({
+    ok: true,
+    betId: "bet_1",
+    tradingMode: execution.tradingMode,
+    isPaper: execution.isPaperTrade,
+    grossAmount: execution.grossAmount,
+    feeAmount: execution.feeAmount,
+    netAmount: execution.netAmount,
+    feeDestination: execution.feeDestination,
+  }).sort();
+
+  const paper = buildTradeExecution({ tradingMode: "paper", grossAmount: 50, feeBps: 50 });
+  const real = buildTradeExecution({ tradingMode: "real", grossAmount: 50, feeBps: 50 });
+
+  assert.deepEqual(sharedShape(paper), sharedShape(real));
+  assert.equal(paper.grossAmount, real.grossAmount);
+  assert.equal(paper.netAmount, real.netAmount);
+  assert.equal(paper.feeAmount, real.feeAmount);
+});
+
+test("switching paper to real keeps strategy execution amounts unchanged", () => {
+  const strategyTrade = { grossAmount: 75, feeBps: 75 };
+  const paper = buildTradeExecution({ tradingMode: "paper", ...strategyTrade });
+  const real = buildTradeExecution({ tradingMode: "real", ...strategyTrade });
+
+  assert.deepEqual(
+    {
+      grossAmount: paper.grossAmount,
+      netAmount: paper.netAmount,
+      feeAmount: paper.feeAmount,
+    },
+    {
+      grossAmount: real.grossAmount,
+      netAmount: real.netAmount,
+      feeAmount: real.feeAmount,
+    },
+  );
+});
+
+test("order preview falls back to sane prices and ignores negative fees", () => {
+  const preview = calculateOrderPreview({
+    stake: "10",
+    side: "NO",
+    market: { yesPrice: 0, noPrice: null, feeBps: -20 },
+  });
+
+  assert.equal(preview.entryPrice, 0.5);
+  assert.equal(preview.feeBps, 0);
+  assert.equal(preview.estimatedContracts, 20);
+  assert.equal(preview.spread, 0);
 });
 
 test("bet placement ledger entries debit each funding currency", () => {
@@ -317,6 +543,19 @@ test("CSV exporter quotes commas, quotes, and newlines", () => {
   assert.equal(csv, 'Name,Metadata\n"Maya ""Ace""","Line one\nLine two, with comma"');
 });
 
+test("export filenames include date and active filters", () => {
+  const filename = buildExportFilename(
+    "Agora Ledger Export",
+    { filter: "withdrawable", sort: "amount_desc", action: "all" },
+    new Date("2026-05-12T10:15:00Z"),
+  );
+
+  assert.equal(
+    filename,
+    "agora-ledger-export_2026-05-12_filter-withdrawable_sort-amount-desc.csv",
+  );
+});
+
 test("ledger and risk exports map operational fields", () => {
   const ledgerRows = buildLedgerExportRows([
     {
@@ -348,6 +587,12 @@ test("ledger and risk exports map operational fields", () => {
   assert.equal(ledgerRows[0].market_id, "");
   assert.equal(riskRows[0].risk_signals, "High bonus velocity; Dense friend boosting");
   assert.equal(toCsv(riskRows, riskReviewExportColumns).includes("Theo Nguyen"), true);
+});
+
+test("database ledger export filters map UI filters to Prisma where clauses", () => {
+  assert.deepEqual(buildLedgerExportWhere("withdrawable"), { currency: "WITHDRAWABLE" });
+  assert.deepEqual(buildLedgerExportWhere("deposit"), { source: "DEPOSIT" });
+  assert.deepEqual(buildLedgerExportWhere("all"), {});
 });
 
 test("ledger view filters, sorts, and paginates audit rows", () => {
@@ -398,6 +643,35 @@ test("ledger view filters, sorts, and paginates audit rows", () => {
   assert.equal(userView.entries[0].source, "deposit");
 });
 
+test("admin audit filters combine action actor market and date bounds", () => {
+  const where = buildAdminAuditWhere({
+    action: "market.resolved",
+    actorId: "admin_1",
+    marketId: "market_1",
+    dateFrom: "2026-05-01",
+    dateTo: "2026-05-12",
+  });
+
+  assert.equal(where.action, "market.resolved");
+  assert.equal(where.actorId, "admin_1");
+  assert.equal(where.marketId, "market_1");
+  assert.equal(where.createdAt.gte.toISOString(), "2026-05-01T00:00:00.000Z");
+  assert.equal(where.createdAt.lte.toISOString(), "2026-05-12T23:59:59.999Z");
+});
+
+test("admin audit filters ignore empty defaults and invalid dates", () => {
+  assert.deepEqual(
+    buildAdminAuditWhere({
+      action: "all",
+      actorId: " ",
+      marketId: "",
+      dateFrom: "soon",
+      dateTo: "2026-13-40",
+    }),
+    {},
+  );
+});
+
 test("risk engine flags repeated and dense friend boosts", () => {
   const friend = { name: "Maya Patel", username: "@maya", boostCount: 6 };
   const market = { friendGroup: ["Maya", "Jordan", "Theo", "Ava"] };
@@ -423,6 +697,22 @@ test("risk engine flags repeated and dense friend boosts", () => {
 
   assert.equal(user.risk_status, "monitor");
   assert.equal(user.risk_signals.length, signals.length);
+});
+
+test("risk engine explains score bands and user signals", () => {
+  assert.equal(getRiskBand(12).label, "Clear");
+  assert.equal(getRiskBand(48).label, "Monitor");
+  assert.equal(getRiskBand(71).label, "High");
+
+  const explanation = getRiskExplanation({
+    risk_score: 71,
+    frozen: true,
+    risk_signals: ["High bonus velocity", "Dense friend boosting", "Repeat device"],
+  });
+
+  assert.equal(explanation.includes("High risk (70+)"), true);
+  assert.equal(explanation.includes("High bonus velocity; Dense friend boosting; Repeat device"), true);
+  assert.equal(explanation.includes("Account is frozen"), true);
 });
 
 test("market taxonomy covers sport-specific categories", () => {
@@ -459,12 +749,12 @@ test("source adapters define required settlement fields by category", () => {
 });
 
 test("request auth helper recognizes dev admin shortcut header when enabled", async () => {
-  const previousShortcut = process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
-  process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = "1";
-  const userRequest = new Request("http://friendmarket.test/api/admin/config");
-  const adminRequest = new Request("http://friendmarket.test/api/admin/config", {
+  const previousShortcut = process.env.AGORA_DEV_ADMIN_SHORTCUT;
+  process.env.AGORA_DEV_ADMIN_SHORTCUT = "1";
+  const userRequest = new Request("http://agora.test/api/admin/config");
+  const adminRequest = new Request("http://agora.test/api/admin/config", {
     headers: {
-      "x-friendmarket-role": "admin",
+      "x-agora-role": "admin",
     },
   });
 
@@ -479,21 +769,66 @@ test("request auth helper recognizes dev admin shortcut header when enabled", as
   assert.equal(allowed.response, null);
   assert.equal(allowed.session.role, "admin");
   if (previousShortcut === undefined) {
-    delete process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT;
+    delete process.env.AGORA_DEV_ADMIN_SHORTCUT;
   } else {
-    process.env.FRIENDMARKET_DEV_ADMIN_SHORTCUT = previousShortcut;
+    process.env.AGORA_DEV_ADMIN_SHORTCUT = previousShortcut;
   }
 });
 
-test("default market seeds include sport-specific markets only", async () => {
+test("authenticated guard rejects anonymous requests", async () => {
+  const request = new Request("http://agora.test/api/funds/deposit");
+  const guarded = await requireAuthenticated(request);
+
+  assert.equal(guarded.session.authenticated, false);
+  assert.equal(guarded.response.status, 401);
+  assert.equal((await guarded.response.json()).message, "Sign in before continuing.");
+});
+
+test("admin permission guard rejects scoped-out admins", async () => {
+  const previousShortcut = process.env.AGORA_DEV_ADMIN_SHORTCUT;
+  const previousDatabase = process.env.DATABASE_URL;
+  const previousLevels = process.env.AGORA_ADMIN_LEVELS_JSON;
+  process.env.AGORA_DEV_ADMIN_SHORTCUT = "1";
+  process.env.DATABASE_URL = "postgresql://example/test";
+  process.env.AGORA_ADMIN_LEVELS_JSON = JSON.stringify({ user_1: "viewer" });
+
+  const request = new Request("http://agora.test/api/admin/config", {
+    headers: {
+      "x-agora-role": "admin",
+    },
+  });
+  const guarded = await requireAdminPermission(request, ADMIN_PERMISSIONS.CONFIG);
+
+  assert.equal(guarded.session.isAdmin, true);
+  assert.equal(guarded.response.status, 403);
+  assert.equal((await guarded.response.json()).message, "Your admin role does not allow this action.");
+
+  if (previousShortcut === undefined) {
+    delete process.env.AGORA_DEV_ADMIN_SHORTCUT;
+  } else {
+    process.env.AGORA_DEV_ADMIN_SHORTCUT = previousShortcut;
+  }
+  if (previousDatabase === undefined) {
+    delete process.env.DATABASE_URL;
+  } else {
+    process.env.DATABASE_URL = previousDatabase;
+  }
+  if (previousLevels === undefined) {
+    delete process.env.AGORA_ADMIN_LEVELS_JSON;
+  } else {
+    process.env.AGORA_ADMIN_LEVELS_JSON = previousLevels;
+  }
+});
+
+test("default market seeds are sports-only", async () => {
   const { defaultState } = await import("../lib/defaultState.js");
+  const { NON_SPORT_MARKET_CATEGORY_LABELS } = await import("../lib/marketTaxonomy.js");
   const categories = new Set(defaultState.markets.map((market) => market.category));
 
   assert.equal(categories.has("NBA"), true);
   assert.equal(categories.has("NFL"), true);
   assert.equal(categories.has("MLB"), true);
-  assert.equal(categories.has("Crypto"), false);
-  assert.equal(categories.has("Finance"), false);
+  assert.equal(defaultState.markets.every((m) => !NON_SPORT_MARKET_CATEGORY_LABELS.has(m.category)), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionTemplate), true);
   assert.equal(defaultState.markets.every((market) => market.closeTime), true);
   assert.equal(defaultState.markets.every((market) => market.resolutionRule), true);
@@ -506,16 +841,31 @@ test("default market seeds include sport-specific markets only", async () => {
 test("market algorithms expose live tracking and signal summaries", async () => {
   const { defaultState } = await import("../lib/defaultState.js");
   const knicks = defaultState.markets.find((market) => market.id === "market_1");
-  const snapshot = getMarketAlgorithmSnapshot(knicks, defaultState.liveGames);
+  const fixedNow = new Date("2026-04-29T19:00:00Z");
+  const snapshot = getMarketAlgorithmSnapshot(knicks, defaultState.liveGames, fixedNow);
   const summary = getMarketPipelineSummary(defaultState.markets, defaultState.liveGames);
   const linkedGame = getLinkedLiveGame(knicks, defaultState.liveGames);
-  const ranked = rankMarketsBySignal(defaultState.markets, defaultState.liveGames);
+  const ranked = rankMarketsBySignal(defaultState.markets, defaultState.liveGames, fixedNow);
 
   assert.equal(linkedGame.id, "game_knicks_celtics");
-  assert.equal(getLiveGameClock(linkedGame), "Q3 - 6:42");
+  assert.equal(getLiveGameClock(linkedGame, fixedNow), "Q3 - 6:42");
   assert.equal(snapshot.model, "Live sports tracker");
   assert.equal(snapshot.movementScore > 0, true);
   assert.equal(summary.liveLinked >= 3, true);
   assert.equal(summary.algorithmic >= 4, true);
   assert.equal(ranked[0].snapshot.movementScore >= ranked.at(-1).snapshot.movementScore, true);
+});
+
+test("getLinkedLiveGame matches seeded liveGameId to ESPN payload via matchingLegacyIds", async () => {
+  const { defaultState } = await import("../lib/defaultState.js");
+  const market = defaultState.markets.find((m) => m.id === "market_nba_cavs_raptors_live");
+  const stub = {
+    id: "espn_nba_stub",
+    matchingLegacyIds: [market.liveGameId],
+    status: "live",
+    period: "Q4",
+    clock: "2:00",
+    shortName: "Raptors",
+  };
+  assert.equal(getLinkedLiveGame(market, [stub])?.id, "espn_nba_stub");
 });

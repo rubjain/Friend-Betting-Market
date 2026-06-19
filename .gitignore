@@ -1,7 +1,23 @@
+# Dependencies
 node_modules/
+
+# Next.js build output
 .next/
 next-build/
+
+# Logs and dev artifacts
 *.log
 *.err
+
+# Environment files
 .env
 .env*.local
+
+# Test output
+/playwright-report/
+/test-results/
+/playwright/.cache/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db

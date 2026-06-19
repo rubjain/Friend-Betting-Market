@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useFriendMarket } from "../../context/FriendMarketContext";
+import { useRouter } from "next/navigation";
+import { useAgora } from "../../context/AgoraContext";
 import { money } from "../../lib/formatters";
 import PortfolioChart from "../PortfolioChart";
 
 export default function ProfilePage() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
+  const router = useRouter();
+  const [adminRedirectNotice, setAdminRedirectNotice] = useState(false);
   const [profileDraft, setProfileDraft] = useState({
     name: state.currentUser.name,
     email: state.currentUser.email,
@@ -16,6 +19,16 @@ export default function ProfilePage() {
   const [loginIdentifier, setLoginIdentifier] = useState(state.currentUser.email);
   const [loginPassword, setLoginPassword] = useState("");
   const [pendingAction, setPendingAction] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const reason = new URLSearchParams(window.location.search).get("reason");
+      if (reason === "admin-required") {
+        setAdminRedirectNotice(true);
+        router.replace("/profile");
+      }
+    }
+  }, [router]);
 
   useEffect(() => {
     setProfileDraft({
@@ -41,7 +54,10 @@ export default function ProfilePage() {
     if (pendingAction) return;
     setPendingAction("login");
     try {
-      await actions.login(loginIdentifier, loginPassword);
+      const result = await actions.login(loginIdentifier, loginPassword);
+      if (result.emailUnverified && result.email) {
+        router.push(`/check-email?email=${encodeURIComponent(result.email)}`);
+      }
     } finally {
       setPendingAction("");
     }
@@ -82,6 +98,12 @@ export default function ProfilePage() {
   return (
     <section className="page active">
       <div className="profile-stack">
+
+        {adminRedirectNotice && (
+          <div className="note-banner" role="alert">
+            Admin access requires an admin account.
+          </div>
+        )}
 
         {/* Avatar + identity */}
         <div className="profile-identity">

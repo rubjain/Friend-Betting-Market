@@ -1,4 +1,4 @@
-import { ensureDemoDatabaseSeed, getDatabaseState } from "../lib/server/dbState.js";
+import { ensureDemoDatabaseSeed } from "../lib/server/dbState.js";
 import { hasDatabaseUrl, prisma } from "../lib/server/prisma.js";
 
 function assertMinimum(name, value, minimum) {
@@ -20,6 +20,18 @@ if (!hasDatabaseUrl()) {
     markets: await prisma.market.count(),
     bets: await prisma.bet.count(),
     ledgerEntries: await prisma.ledgerEntry.count(),
+    apiKeys: await prisma.apiKey.count(),
+    strategies: await prisma.strategy.count(),
+    marketplaceProfiles: await prisma.strategyMarketplaceProfile.count(),
+    billingPlans: await prisma.marketplaceBillingPlan.count(),
+    billingSubscriptions: await prisma.billingSubscription.count(),
+    marketplaceEntitlements: await prisma.marketplaceEntitlement.count(),
+    strategyExecutions: await prisma.strategyExecution.count(),
+    groups: await prisma.group.count(),
+    groupMembers: await prisma.groupMember.count(),
+    verificationChecks: await prisma.verificationCheck.count(),
+    authTokens: await prisma.authToken.count(),
+    rateLimitBuckets: await prisma.rateLimitBucket.count(),
   };
 
   assertMinimum("users", counts.users, 3);
@@ -28,15 +40,31 @@ if (!hasDatabaseUrl()) {
   assertMinimum("markets", counts.markets, 3);
   assertMinimum("bets", counts.bets, 1);
   assertMinimum("ledger entries", counts.ledgerEntries, 1);
+  assertMinimum("verification checks", counts.verificationChecks, 6);
+  assertMinimum("auth tokens", counts.authTokens, 0);
+  assertMinimum("billing plans", counts.billingPlans, 0);
+  assertMinimum("billing subscriptions", counts.billingSubscriptions, 0);
+  assertMinimum("marketplace entitlements", counts.marketplaceEntitlements, 0);
 
-  const firstState = await getDatabaseState(prisma, "user_2");
-  const secondState = await getDatabaseState(prisma, "user_2");
-  const persistedBet = secondState.portfolio.openBets.find((bet) => bet.id === "bet_seed_friend_1");
-
-  if (!persistedBet) {
+  const persistedBet = await prisma.bet.findUnique({
+    where: { id: "bet_seed_friend_1" },
+    include: { market: true },
+  });
+  if (!persistedBet?.market) {
     throw new Error("Seeded friend bet was not returned from persisted database state.");
   }
-  if (firstState.currentUser.withdrawable_balance !== secondState.currentUser.withdrawable_balance) {
+
+  async function readWithdrawableBalance(userId) {
+    const account = await prisma.balanceAccount.findUnique({
+      where: { userId_currency: { userId, currency: "WITHDRAWABLE" } },
+      select: { balance: true },
+    });
+    return Number(account?.balance ?? 0);
+  }
+
+  const firstBalance = await readWithdrawableBalance("user_2");
+  const secondBalance = await readWithdrawableBalance("user_2");
+  if (firstBalance !== secondBalance) {
     throw new Error("Persisted user balance changed between reads.");
   }
 

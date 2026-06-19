@@ -8,10 +8,13 @@ import {
   logoutUser,
   signupUser,
 } from "../../../lib/server/auth.js";
+import { getAdminLevel, getAdminPermissions } from "../../../lib/server/adminPermissions.js";
 import {
   SESSION_COOKIE_NAME,
   createSessionCookieValue,
+  getSessionFromCookieRequest,
   sessionCookieOptions,
+  shouldClearStaleDatabaseSessionCookie,
 } from "../../../lib/server/session.js";
 import { hasDatabaseUrl } from "../../../lib/server/prisma.js";
 
@@ -26,8 +29,15 @@ async function stateForSession(session) {
         email: "admin@example.com",
       }
     : {};
+
+  // Non-admins only receive their own user row — not every user's balances and risk data.
+  const safeUsers = session.isAdmin
+    ? state.users
+    : state.users.filter((u) => u.id === session.userId);
+
   return {
     ...state,
+    users: safeUsers,
     currentUser: {
       ...state.currentUser,
       ...demoAdminProfile,
@@ -43,13 +53,35 @@ function getRequestRateLimitKey(request) {
   return clientIp || request.headers.get("x-real-ip") || "local";
 }
 
+function sessionPayload(session) {
+  return {
+    ...session,
+    adminLevel: getAdminLevel(session),
+    adminPermissions: Array.from(getAdminPermissions(session)),
+  };
+}
+
 export async function GET(request) {
+  const cookieSession = getSessionFromCookieRequest(request);
   const session = await getSessionFromRequest(request);
-  return NextResponse.json({
+  const clearStaleCookie = shouldClearStaleDatabaseSessionCookie(
+    hasDatabaseUrl(),
+    cookieSession,
     session,
+  );
+  const response = NextResponse.json({
+    session: sessionPayload(session),
     devAdminShortcut: isDevAdminShortcutEnabled(),
     state: await stateForSession(session),
+    sessionExpired: clearStaleCookie,
   });
+  if (clearStaleCookie) {
+    response.cookies.set(SESSION_COOKIE_NAME, "", {
+      ...sessionCookieOptions(),
+      maxAge: 0,
+    });
+  }
+  return response;
 }
 
 export async function PATCH(request) {
@@ -69,10 +101,11 @@ export async function PATCH(request) {
     role: nextSession.role,
     isAdmin: nextSession.role === "admin",
     userId: nextSession.userId,
+    authenticated: true,
   };
   const response = NextResponse.json({
     ok: true,
-    session: normalized,
+    session: sessionPayload(normalized),
     devAdminShortcut: isDevAdminShortcutEnabled(),
     state: await stateForSession(normalized),
     message: normalized.isAdmin ? "Demo admin session enabled." : "Demo admin session disabled.",
@@ -86,10 +119,16 @@ export async function PATCH(request) {
 }
 
 export async function POST(request) {
-  const payload = await request.json();
+  let payload = {};
+  try {
+    const raw = await request.text();
+    payload = raw ? JSON.parse(raw) : {};
+  } catch {
+    return NextResponse.json({ ok: false, message: "Invalid request body." }, { status: 400 });
+  }
   const result =
     payload.mode === "signup"
-      ? await signupUser(payload)
+      ? await signupUser({ ...payload, rateLimitKey: getRequestRateLimitKey(request) })
       : await loginUser({
           identifier: payload.identifier || payload.email || payload.username,
           password: payload.password,
@@ -100,13 +139,17 @@ export async function POST(request) {
     return NextResponse.json(result, { status: 400 });
   }
 
+  if (result.pending) {
+    return NextResponse.json({ ok: true, pending: true, email: result.email, message: result.message });
+  }
+
   const response = NextResponse.json({
     ok: true,
-    session: result.session,
+    session: sessionPayload(result.session),
     devAdminShortcut: isDevAdminShortcutEnabled(),
     user: result.user,
     state: await stateForSession(result.session),
-    message: payload.mode === "signup" ? "Account created and signed in." : "Signed in.",
+    message: result.message || (payload.mode === "signup" ? "Account created and signed in." : "Signed in."),
   });
   response.cookies.set(
     SESSION_COOKIE_NAME,
@@ -118,18 +161,14 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   const session = await getSessionFromRequest(request);
-  await logoutUser(session);
+  try {
+    await logoutUser(session);
+  } catch {
+    return NextResponse.json({ ok: false, message: "Sign out failed. Try again." }, { status: 500 });
+  }
 
-  const nextSession = {
-    role: "user",
-    isAdmin: false,
-    userId: "user_1",
-  };
   const response = NextResponse.json({
     ok: true,
-    session: nextSession,
-    devAdminShortcut: isDevAdminShortcutEnabled(),
-    state: await stateForSession(nextSession),
     message: "Signed out.",
   });
   response.cookies.set(SESSION_COOKIE_NAME, "", {

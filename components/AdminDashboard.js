@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useFriendMarket } from "../context/FriendMarketContext";
+import { useEffect, useState } from "react";
+import { useAgora } from "../context/AgoraContext";
 import {
   buildLedgerExportRows,
   buildRiskReviewExportRows,
@@ -15,17 +15,23 @@ import AdminDraftMarkets from "./AdminDraftMarkets";
 import AdminInsights from "./AdminInsights";
 import AdminAuditTable from "./AdminAuditTable";
 import AdminLedgerTable from "./AdminLedgerTable";
+import AdminPaymentReviewQueue from "./AdminPaymentReviewQueue";
 import ConfirmDialog from "./ConfirmDialog";
 import RiskReviewQueue from "./RiskReviewQueue";
 import { InfoRow } from "./ui";
 
 export default function AdminDashboard() {
-  const { state, actions } = useFriendMarket();
+  const { state, actions } = useAgora();
   const [confirmation, setConfirmation] = useState(null);
   const [pendingAction, setPendingAction] = useState("");
+  const [strategyModeration, setStrategyModeration] = useState([]);
   const riskUsers = state.users.filter((user) => user.risk_status !== "clear" || user.risk_score >= 40);
   const totalBonusBalances = state.users.reduce((sum, user) => sum + user.bonus_balance, 0);
   const frozenUsers = state.users.filter((user) => user.frozen).length;
+  const adminLevel = state.auth.adminLevel || "owner";
+  const adminPermissions = state.auth.adminPermissions?.length
+    ? state.auth.adminPermissions
+    : ["admin:owner"];
 
   if (!state.currentUser.isAdmin) {
     return (
@@ -47,6 +53,15 @@ export default function AdminDashboard() {
       setPendingAction("");
     }
   }
+
+  async function refreshStrategyModeration() {
+    const payload = await actions.getMarketplaceModerationQueue();
+    setStrategyModeration(payload?.ok ? payload.queue || [] : []);
+  }
+
+  useEffect(() => {
+    refreshStrategyModeration();
+  }, []);
 
   function updateAdminField(event) {
     const rawValue = event.currentTarget.value;
@@ -132,6 +147,19 @@ export default function AdminDashboard() {
         The MVP keeps anti-fraud checks as placeholders, but the admin model already reserves room for
         freezes, reversals, and risk review workflows.
       </div>
+      <div className="admin-access-panel" aria-label="Admin access level">
+        <div>
+          <span className="label">Admin level</span>
+          <strong>{titleCase(adminLevel)}</strong>
+        </div>
+        <div className="admin-permission-list">
+          {adminPermissions.map((permission) => (
+            <span className="status-badge" key={permission}>
+              {titleCase(permission.replace("admin:", "").replace(/_/g, " "))}
+            </span>
+          ))}
+        </div>
+      </div>
       <div className="admin-summary">
         <div>
           <span className="label">Bonus balances</span>
@@ -153,6 +181,79 @@ export default function AdminDashboard() {
       <div className="admin-grid">
         <AdminDraftMarkets onMessage={actions.setFlashMessage} />
         <AdminInsights users={state.users} ledger={state.ledger} activeMarkets={state.activeMarkets} />
+        <div className="table-card">
+          <h3>Strategy marketplace moderation</h3>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Profile</th>
+                <th>Creator</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {strategyModeration.length ? (
+                strategyModeration.map((profile) => (
+                  <tr key={profile.id}>
+                    <td data-label="Profile">{profile.name}</td>
+                    <td data-label="Creator">{profile.creator?.username || profile.creator?.name || "Unknown"}</td>
+                    <td data-label="Status">{profile.status}</td>
+                    <td data-label="Actions">
+                      <div className="inline-actions">
+                        <button
+                          className="btn btn-secondary"
+                          type="button"
+                          disabled={!!pendingAction}
+                          onClick={() =>
+                            runAdminAction(`mod-approve-${profile.id}`, async () => {
+                              await actions.moderateMarketplaceProfile({ profileId: profile.id, action: "APPROVED", reason: "Admin approval" });
+                              await refreshStrategyModeration();
+                            })
+                          }
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          type="button"
+                          disabled={!!pendingAction}
+                          onClick={() =>
+                            runAdminAction(`mod-reject-${profile.id}`, async () => {
+                              await actions.moderateMarketplaceProfile({ profileId: profile.id, action: "REJECTED", reason: "Needs revisions" });
+                              await refreshStrategyModeration();
+                            })
+                          }
+                        >
+                          Reject
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          type="button"
+                          disabled={!!pendingAction}
+                          onClick={() =>
+                            runAdminAction(`payout-${profile.id}`, async () => {
+                              await actions.createCreatorPayoutSnapshot({ creatorId: profile.creatorId });
+                              actions.setFlashMessage("Creator payout snapshot created.");
+                            })
+                          }
+                        >
+                          Snapshot payout
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td data-label="Profile" colSpan="4">
+                    <div className="empty-note">No strategy profiles are waiting moderation.</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
         <div className="table-card">
           <h3>Pending markets</h3>
           <table className="data-table">
@@ -346,6 +447,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <RiskReviewQueue users={riskUsers} pendingAction={pendingAction} runAction={runAdminAction} onConfirmAction={confirmAction} />
+        <AdminPaymentReviewQueue onMessage={actions.setFlashMessage} />
         <AdminDisputeQueue onMessage={actions.setFlashMessage} />
         <AdminAuditTable />
         <AdminLedgerTable ledger={state.ledger} />

@@ -31,9 +31,11 @@ export async function GET(request) {
 
   const userId = session.userId;
   const periodStart = getPeriodStart(period);
+  const mode = searchParams.get("mode") === "paper" ? "paper" : "real";
 
   const betWhere = {
     status: { in: ["WON", "LOST"] },
+    isPaper: mode === "paper",
     ...(periodStart ? { placedAt: { gte: periodStart } } : {}),
   };
 
@@ -89,20 +91,27 @@ export async function GET(request) {
     };
   });
 
-  rows.sort((a, b) => b.profit - a.profit);
+  const PAGE_SIZE = 25;
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
 
-  const top25 = rows.slice(0, 25).map((r, i) => ({ ...r, rank: i + 1 }));
+  const active = rows.filter((r) => r.totalBets > 0);
+  active.sort((a, b) => b.profit - a.profit);
 
-  const currentUserGlobalIndex = rows.findIndex((r) => r.userId === userId);
-  const currentUserRank = currentUserGlobalIndex >= 0 ? currentUserGlobalIndex + 1 : null;
-  const currentUserRow =
-    currentUserGlobalIndex >= 0
-      ? { ...rows[currentUserGlobalIndex], rank: currentUserRank }
-      : null;
+  const rankedAll = active.map((r, i) => ({ ...r, rank: i + 1 }));
+  const total = rankedAll.length;
+  const pageRows = rankedAll.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hasMore = page * PAGE_SIZE < total;
+
+  const currentUserIndex = rankedAll.findIndex((r) => r.userId === userId);
+  const currentUserRank = currentUserIndex >= 0 ? currentUserIndex + 1 : null;
+  const currentUserRow = currentUserIndex >= 0 ? rankedAll[currentUserIndex] : null;
 
   return NextResponse.json({
     ok: true,
-    rows: top25,
+    rows: pageRows,
+    total,
+    page,
+    hasMore,
     currentUserRank,
     currentUserRow,
     friendCount: scopeUserIds ? scopeUserIds.length - 1 : null,

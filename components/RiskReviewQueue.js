@@ -1,10 +1,11 @@
 "use client";
 
-import { useFriendMarket } from "../context/FriendMarketContext";
+import { useAgora } from "../context/AgoraContext";
 import { titleCase } from "../lib/formatters";
+import { getRiskExplanation } from "../lib/riskEngine";
 
 export default function RiskReviewQueue({ users, pendingAction, runAction, onConfirmAction }) {
-  const { actions, selectors } = useFriendMarket();
+  const { actions, selectors } = useAgora();
 
   return (
     <div className="table-card">
@@ -30,6 +31,7 @@ export default function RiskReviewQueue({ users, pendingAction, runAction, onCon
                   <span key={signal}>{signal}</span>
                 ))}
               </div>
+              <p className="caption">{getRiskExplanation(user)}</p>
               <div className="inline-actions">
                 <button
                   className="btn btn-secondary"
